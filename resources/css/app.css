@@ -1,11 +1,73 @@
 @import 'tailwindcss';
+@import url('https://fonts.googleapis.com/css2?family=Belanosima&family=Aclonica&display=swap');
 
 @source '../views';
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 
-@theme {
+@theme { /* TEMA CLARO (padrão) */
+
+    /* fontes */
     --font-sans:
+        'Belanosima', 'Aclonica',
         'Instrument Sans', ui-sans-serif, system-ui, sans-serif,
         'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',
         'Noto Color Emoji';
+
+    /* cores telas */
+    --cor-primaria: #7699B3;
+    --cor-secundaria: #BFD6E7;
+    --cor-accent: #1B2F3D; /* cor da logo e do cargo embaixo do nome */
+    --cor-botao: #8BAFC9;
+    --cor-noti: #5F7C92;
+    --cor-textoI: #000000;
+    --cor-textoII: #FFFFFF;
+    --cor-fundo: #F4F4F4;
+    --cor-widgets: #F8F8F8;
+    --cor-cinza: #C4C4C4; 
+
+    /* cores status */
+    --cor-offline: #989898;
+    --cor-disponivel: #84B976; /* status disponivel)*/
+    --cor-ausente: #F4DA71;/* status ausente */
+    --cor-nperturbe: #7E1E27; /* status não perturbe */
+    --cor-ocupado: #D36A32;
+
+    /* cores status - projeto */
+    --cor-atrasoI: #DB3E4E; /* atraso nivel 1 */
+    --cor-atrasoII: #B9272A; /* atraso nivel 2 */
+    --cor-atrasoIII: #D3080B; /* atraso nivel 3 */
+    --cor-adiantado: #448AF4;
+    --cor-emdia: #7BC768;
+    
+}
+
+
+@layer base { /* TEMA ESCURO */
+    [data-theme="dark"] {
+
+        /* cores telas */
+        --cor-primaria: #35546B;
+        --cor-secundaria: #5F7C92;
+        --cor-accent: #79BCEE; /* cor da logo e do cargo embaixo do nome */
+        --cor-botao: #4A6273;
+        --cor-noti: #213645;
+        --cor-texto: #FFFFFF;
+        --cor-fundo: #2F2F2F;
+        --cor-widgets: #474747;
+        --cor-cinza: #C4C4C4; 
+
+        /* cores status */
+        --cor-offline: #989898;
+        --cor-disponivel: #84B976; /* status disponivel)*/
+        --cor-ausente: #F4DA71;/* status ausente */
+        --cor-nperturbe: #7E1E27; /* status não perturbe */
+        --cor-ocupado: #D36A32;
+
+        /* cores status - projeto */
+        --cor-atrasoI: #DB3E4E; /* atraso nivel 1 */
+        --cor-atrasoII: #B9272A; /* atraso nivel 2 */
+        --cor-atrasoIII: #D3080B; /* atraso nivel 3 */
+        --cor-adiantado: #448AF4;
+        --cor-emdia: #7BC768;
+    }
 }
