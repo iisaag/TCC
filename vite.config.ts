@@ -18,6 +18,7 @@ export default defineConfig({
         }),
         tailwindcss(),
         wayfinder({
+            command: 'node scripts/wayfinder-generate.mjs',
             formVariants: true,
         }),
     ],
