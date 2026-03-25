@@ -1,5 +1,7 @@
 @import 'tailwindcss';
-@import url('https://fonts.googleapis.com/css2?family=Belanosima&family=Aclonica&display=swap');
+@import '@fontsource/belanosima/400.css';
+@import '@fontsource/belanosima/600.css';
+@import '@fontsource/belanosima/700.css';
 
 @source '../views';
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
@@ -8,7 +10,7 @@
 
     /* fontes */
     --font-sans:
-        'Belanosima', 'Aclonica',
+        'Belanosima',
         'Instrument Sans', ui-sans-serif, system-ui, sans-serif,
         'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',
         'Noto Color Emoji';
@@ -39,6 +41,38 @@
     --cor-adiantado: #448AF4;
     --cor-emdia: #7BC768;
     
+}
+
+@layer base {
+    :root,
+    html {
+        font-size: 100% !important;
+    }
+
+    body {
+        font-size: 1rem;
+        zoom: 110%;
+    }
+
+    @supports not (zoom: 1) {
+        #app {
+            transform: scale(1.1);
+            transform-origin: top left;
+            width: 90.9091%;
+        }
+    }
+
+    body,
+    #app {
+        font-weight: 500;
+    }
+
+    body,
+    #app,
+    #app * {
+        font-family: 'Belanosima', ui-sans-serif, system-ui, sans-serif;
+        font-weight: 500 !important;
+    }
 }
 
 

@@ -13,6 +13,10 @@
 // ou de um estado global (ex: broadcasting com Pusher/Echo).
 // =============================================================
 
+import { useEffect, useRef, useState } from "react";
+import { Users } from "lucide-react";
+import UserProfileCard from "@/components/UserProfileCard";
+
 // ------------------------------------------------------------------
 // TIPOS
 // ------------------------------------------------------------------
@@ -44,9 +48,13 @@ function getInitials(name: string): string {
 // ------------------------------------------------------------------
 // Separamos o item individual em seu próprio componente.
 // Isso é uma boa prática: mantém o código organizado e reutilizável.
-function UserItem({ user }: { user: ActiveUser }) {
+function UserItem({ user, onClick }: { user: ActiveUser; onClick: (event: React.MouseEvent<HTMLButtonElement>) => void }) {
     return (
-        <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 transition-colors duration-200">
+        <button
+            type="button"
+            onClick={onClick}
+            className="w-full text-left flex items-center gap-3 p-2 rounded-lg hover:bg-[#c9deff]/30 transition-colors duration-200"
+        >
 
             {/*
              * ─── AVATAR COM INDICADOR DE ONLINE ──────────────────────────
@@ -105,7 +113,7 @@ function UserItem({ user }: { user: ActiveUser }) {
                     {user.status}
                 </p>
             </div>
-        </div>
+        </button>
     );
 }
 
@@ -113,35 +121,84 @@ function UserItem({ user }: { user: ActiveUser }) {
 // COMPONENTE PRINCIPAL
 // ------------------------------------------------------------------
 export default function ActiveUsers({ users }: ActiveUsersProps) {
+    const [isExpanded, setIsExpanded] = useState(true);
+    const [selectedUser, setSelectedUser] = useState<ActiveUser | null>(null);
+    const [popupPosition, setPopupPosition] = useState<{ top: number; left: number } | null>(null);
+    const panelRef = useRef<HTMLDivElement | null>(null);
+    const popupRef = useRef<HTMLDivElement | null>(null);
+
+    useEffect(() => {
+        function handleClickOutside(event: MouseEvent) {
+            if (popupRef.current && popupRef.current.contains(event.target as Node)) {
+                return;
+            }
+
+            if (
+                panelRef.current &&
+                !panelRef.current.contains(event.target as Node)
+            ) {
+                setSelectedUser(null);
+            }
+        }
+
+        if (selectedUser) {
+            document.addEventListener("mousedown", handleClickOutside);
+        }
+
+        return () => {
+            document.removeEventListener("mousedown", handleClickOutside);
+        };
+    }, [selectedUser]);
+
     return (
         /*
          * ─── CONTAINER DO PAINEL ──────────────────────────────────────
          * `w-64` → largura fixa de 256px, igual à sidebar expandida.
          * Ajuste conforme necessário para o seu layout.
          */
-        <aside className="w-64 shrink-0 flex flex-col gap-2">
+        <div className="relative" ref={panelRef}>
+            <aside className={`shrink-0 flex flex-col gap-2 transition-all duration-300 ${isExpanded ? "w-64" : "w-20"}`}>
 
             {/*
              * ─── CABEÇALHO ────────────────────────────────────────────
              * Botão/título "Usuários Ativos" com borda arredondada,
              * fiel ao design original.
              */}
-            <div className="
-                flex items-center justify-between
-                px-4 py-2
+            <div
+                className={`
+                flex items-center
                 bg-white border border-gray-200 rounded-full
                 text-sm font-semibold text-gray-700
-            ">
-                <span>Usuários Ativos</span>
+                transition-colors duration-200
+                ${isExpanded ? "w-full justify-between p-2.5" : "w-full justify-center p-2 mt-2"}
+            `}
+            >
+                <span className="flex items-center gap-2">
+                    <button
+                        type="button"
+                        onClick={() => {
+                            setIsExpanded((prev) => !prev);
+                            setSelectedUser(null);
+                        }}
+                        className="w-7 h-7 rounded-full border border-gray-200 flex items-center justify-center hover:bg-[#c9deff]/30 transition-colors duration-200"
+                        aria-expanded={isExpanded}
+                        aria-label={isExpanded ? "Recolher usuários ativos" : "Expandir usuários ativos"}
+                    >
+                        {isExpanded ? "<" : ">"}
+                    </button>
+                    <Users size={16} />
+                    {isExpanded && <span>Usuários Ativos</span>}
+                </span>
                 {/*
                  * Badge com a contagem de usuários online.
                  * Atualiza automaticamente conforme o array `users` muda.
                  */}
-                <span className="
+                <span className={`
                     bg-green-100 text-green-700
                     text-xs font-bold
                     px-2 py-0.5 rounded-full
-                ">
+                    ${isExpanded ? "" : "hidden"}
+                `}>
                     {users.length}
                 </span>
             </div>
@@ -151,11 +208,13 @@ export default function ActiveUsers({ users }: ActiveUsersProps) {
              * Iteramos sobre o array `users` e renderizamos um `UserItem` para cada.
              * `key={user.id}` é obrigatório no React para listas — ajuda na performance.
              */}
-            <div className="
+            <div className={`
                 flex flex-col
                 bg-white border border-gray-200 rounded-2xl
                 p-2 gap-1
-            ">
+                overflow-hidden transition-all duration-300
+                ${isExpanded ? "max-h-125 opacity-100" : "max-h-0 opacity-0 p-0 border-transparent pointer-events-none"}
+            `}>
                 {users.length === 0 ? (
                     // Estado vazio — nenhum usuário online
                     <p className="text-sm text-gray-400 text-center py-4">
@@ -163,10 +222,46 @@ export default function ActiveUsers({ users }: ActiveUsersProps) {
                     </p>
                 ) : (
                     users.map((user) => (
-                        <UserItem key={user.id} user={user} />
+                        <UserItem
+                            key={user.id}
+                            user={user}
+                            onClick={(event) => {
+                                const rect = event.currentTarget.getBoundingClientRect();
+                                const panelRect = panelRef.current?.getBoundingClientRect();
+                                if (!panelRect) {
+                                    return;
+                                }
+
+                                const cardWidth = 352;
+                                const cardHeight = 520;
+                                const gap = 16;
+
+                                // Sempre abre no lado esquerdo do painel de usuários ativos.
+                                const left = panelRect.left - cardWidth - gap;
+
+                                const maxTop = Math.max(12, window.innerHeight - cardHeight);
+                                const top = Math.min(Math.max(80, rect.top - 12), maxTop);
+
+                                setPopupPosition({ top, left });
+                                setSelectedUser(user);
+                            }}
+                        />
                     ))
                 )}
             </div>
-        </aside>
+
+            </aside>
+
+            {selectedUser && (
+                <div ref={popupRef}>
+                    <UserProfileCard
+                        user={selectedUser}
+                        isOpen={Boolean(selectedUser)}
+                        positionClassName="fixed z-[9999]"
+                        style={popupPosition ? { top: popupPosition.top, left: popupPosition.left } : undefined}
+                    />
+                </div>
+            )}
+        </div>
     );
 }
