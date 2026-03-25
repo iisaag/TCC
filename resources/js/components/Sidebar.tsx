@@ -183,7 +183,7 @@ export default function Sidebar({ currentPage }: SidebarProps) {
                                         text-sm font-medium
                                         overflow-hidden whitespace-nowrap
                                         transition-all duration-300
-                                        ${isOpen ? "opacity-100 max-w-[120px]" : "opacity-0 max-w-0"}
+                                        ${isOpen ? "opacity-100 max-w-30" : "opacity-0 max-w-0"}
                                     `}
                                 >
                                     {item.label}
@@ -250,7 +250,7 @@ export default function Sidebar({ currentPage }: SidebarProps) {
                             className={`
                                 text-sm font-medium overflow-hidden whitespace-nowrap
                                 transition-all duration-300
-                                ${isOpen ? "opacity-100 max-w-[120px]" : "opacity-0 max-w-0"}
+                                ${isOpen ? "opacity-100 max-w-30" : "opacity-0 max-w-0"}
                             `}
                         >
                             Configurações
