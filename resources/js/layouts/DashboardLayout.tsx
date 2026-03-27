@@ -50,7 +50,7 @@ export default function DashboardLayout({ children, currentPage }: DashboardLayo
                         {children}
                     </main>
 
-                    <div className="overflow-y-auto p-4 border-l border-gray-200 bg-gray-50/50">
+                    <div className="overflow-y-auto p-4 border-l border-gray-200 bg-[#BFD6E7]">
                         <ActiveUsers users={MOCK_ACTIVE_USERS} />
                     </div>
                 </div>

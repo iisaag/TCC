@@ -15,7 +15,7 @@
 // =============================================================
 
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "@inertiajs/react";
 import {
     LayoutDashboard,
@@ -24,6 +24,7 @@ import {
     Users,
     Settings,
     Moon,
+    Sun,
     Menu,
     X,
 } from "lucide-react";
@@ -56,6 +57,30 @@ export default function Sidebar({ currentPage }: SidebarProps) {
     // `isOpen` controla se a sidebar está expandida (mostrando texto) ou colapsada (só ícones).
     // Começa fechada (false). Troque para `true` se quiser que inicie aberta.
     const [isOpen, setIsOpen] = useState(false);
+    const [isDarkMode, setIsDarkMode] = useState(false);
+
+    const toggleDarkMode = () => {
+        setIsDarkMode(!isDarkMode);
+        if (!isDarkMode) {
+            document.documentElement.classList.add('dark');
+            localStorage.setItem('theme', 'dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+            localStorage.setItem('theme', 'light');
+        }
+    };
+
+    // Carrega o tema salvo no localStorage ao montar o componente
+    useEffect(() => {
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme === 'dark') {
+            setIsDarkMode(true);
+            document.documentElement.classList.add('dark');
+        } else {
+            setIsDarkMode(false);
+            document.documentElement.classList.remove('dark');
+        }
+    }, []);
 
     return (
         <>
@@ -86,7 +111,7 @@ export default function Sidebar({ currentPage }: SidebarProps) {
                 className={`
                     fixed top-0 left-0 h-full z-30
                     flex flex-col
-                    bg-white border-r border-gray-200
+                    bg-(--cor-secundaria)
                     transition-all duration-300 ease-in-out
                     overflow-hidden
                     ${isOpen ? "w-56" : "w-16"}
@@ -104,7 +129,7 @@ export default function Sidebar({ currentPage }: SidebarProps) {
                         h-16 w-full shrink-0
                         text-gray-500 hover:text-gray-800
                         transition-colors duration-200
-                        border-b border-gray-100
+                        
                     "
                     aria-label={isOpen ? "Fechar menu" : "Abrir menu"}
                 >
@@ -133,7 +158,7 @@ export default function Sidebar({ currentPage }: SidebarProps) {
                                     transition-colors duration-200
                                     whitespace-nowrap
                                     ${isActive
-                                        ? "text-[#6c63ff]"          // cor do texto ativo
+                                        ? "text-white"          // cor do texto ativo
                                         : "text-gray-500 hover:text-gray-800 hover:bg-gray-100"
                                     }
                                 `}
@@ -156,7 +181,7 @@ export default function Sidebar({ currentPage }: SidebarProps) {
                                     <span
                                         className={`
                                             absolute inset-0 rounded-full
-                                            bg-[#6c63ff]/15
+                                            bg-(--cor-accent)
                                             transition-all duration-300
                                             ${isActive ? "scale-100 opacity-100" : "scale-0 opacity-0"}
                                         `}
@@ -200,6 +225,7 @@ export default function Sidebar({ currentPage }: SidebarProps) {
                 <div className="flex flex-col gap-1 py-4 px-2 border-t border-gray-100">
                     {/* Botão de modo escuro */}
                     <button
+                        onClick={toggleDarkMode}
                         className="
                             flex items-center gap-3 h-11 px-2 rounded-lg
                             text-gray-500 hover:text-gray-800 hover:bg-gray-100
@@ -208,7 +234,7 @@ export default function Sidebar({ currentPage }: SidebarProps) {
                         "
                     >
                         <span className="flex items-center justify-center w-8 h-8 shrink-0">
-                            <Moon size={20} />
+                            {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
                         </span>
                         <span
                             className={`
@@ -217,7 +243,7 @@ export default function Sidebar({ currentPage }: SidebarProps) {
                                 ${isOpen ? "opacity-100 max-w-[120px]" : "opacity-0 max-w-0"}
                             `}
                         >
-                            Modo Escuro
+                            {isDarkMode ? "Modo Claro" : "Modo Escuro"}
                         </span>
                     </button>
 

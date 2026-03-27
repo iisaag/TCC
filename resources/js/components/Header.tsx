@@ -126,7 +126,7 @@ export default function Header({ user }: HeaderProps) {
             sticky top-0 z-20
             flex items-center gap-4
             h-16 px-4
-            bg-white border-b border-gray-200
+            bg-[#7699B3] border-b border-gray-200
         ">
             {/*
              * ─── LOGO + SAUDAÇÃO ─────────────────────────────────────────
@@ -135,11 +135,11 @@ export default function Header({ user }: HeaderProps) {
              */}
             <div className="flex flex-col shrink-0">
                 {/* Nome do sistema — destaque em roxo */}
-                <span className="text-[#6c63ff] font-bold text-lg leading-tight tracking-tight">
+                <span className="text-[#173E5B] font-bold font-aclonica text-xl leading-tight tracking-tight">
                     AivyPM
                 </span>
                 {/* Saudação personalizada */}
-                <span className="text-gray-700 text-sm font-medium">
+                <span className="text-white text-lg font-medium">
                     Olá, {user.name.split(" ")[0]}! 👋
                 </span>
             </div>
@@ -198,10 +198,14 @@ export default function Header({ user }: HeaderProps) {
                         className="
                             relative
                             flex items-center justify-center
-                            w-9 h-9 rounded-full
-                            text-gray-500 hover:text-gray-800 hover:bg-gray-100
-                            transition-colors duration-200
-                        "
+                            bg-[#5F7C92]
+                            text-white
+                            w-9 h-9
+                            rounded-xl
+                            hover:bg-[#406179]
+                            shadow-sm hover:shadow-lg
+                            transition-all duration-300
+                            "
                         aria-expanded={isNotificationsOpen}
                         aria-label="Abrir notificacoes"
                     >
@@ -209,9 +213,9 @@ export default function Header({ user }: HeaderProps) {
                         {/* Ponto vermelho de notificação não lida */}
                         {unreadCount > 0 && (
                             <span className="
-                                absolute top-1.5 right-1.5
+                                absolute top-2 right-2
                                 w-2 h-2 rounded-full
-                                bg-red-500
+                                bg-[#B33B3B]
                                 ring-2 ring-white
                             " />
                         )}
@@ -263,10 +267,10 @@ export default function Header({ user }: HeaderProps) {
                  * Texto com nome e cargo. Oculto em telas muito pequenas (`hidden sm:flex`).
                  */}
                 <div className="hidden sm:flex flex-col items-end">
-                    <span className="text-sm font-semibold text-gray-800 leading-tight">
+                    <span className="text-lg font-semibold text-white leading-tight">
                         {user.name}
                     </span>
-                    <span className="text-xs text-gray-500">
+                    <span className="text-sm text-[#1B2F3D]">
                         {user.role}
                     </span>
                 </div>
