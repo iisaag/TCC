@@ -1,6 +1,7 @@
 import type { CSSProperties } from "react";
 
 interface ProfileUser {
+    id?: number;
     name: string;
     role: string;
     avatar?: string;
@@ -33,7 +34,7 @@ export default function UserProfileCard({
 
     return (
         <div
-            className={`${positionClassName} w-72 max-w-[92vw] bg-[#f3e5ef] border-2 border-[#dd8bc3] rounded-xl shadow-2xl overflow-hidden`}
+            className={`${positionClassName} w-72 max-w-[92vw] bg-[#f3e5ef] border-2 border-[#dd8bc3] rounded-xl shadow-2xl overflow-hidden animate-slide-in-right`}
             style={style}
         >
             <div className="h-20 bg-linear-to-r from-[#f6b5dd] via-[#efc4e6] to-[#d8b7ee]" />

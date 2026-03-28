@@ -126,7 +126,7 @@ export default function Header({ user }: HeaderProps) {
             sticky top-0 z-20
             flex items-center gap-4
             h-16 px-4
-            bg-white border-b border-gray-200
+            bg-(--cor-primaria)
         ">
             {/*
              * ─── LOGO + SAUDAÇÃO ─────────────────────────────────────────
@@ -135,11 +135,11 @@ export default function Header({ user }: HeaderProps) {
              */}
             <div className="flex flex-col shrink-0">
                 {/* Nome do sistema — destaque em roxo */}
-                <span className="text-[#6c63ff] font-bold text-lg leading-tight tracking-tight">
+                <span className="text-(--cor-logo) font-bold font-aclonica text-xl leading-tight tracking-tight">
                     AivyPM
                 </span>
                 {/* Saudação personalizada */}
-                <span className="text-gray-700 text-sm font-medium">
+                <span className="text-white text-lg font-medium">
                     Olá, {user.name.split(" ")[0]}! 👋
                 </span>
             </div>
@@ -198,10 +198,15 @@ export default function Header({ user }: HeaderProps) {
                         className="
                             relative
                             flex items-center justify-center
-                            w-9 h-9 rounded-full
-                            text-gray-500 hover:text-gray-800 hover:bg-gray-100
-                            transition-colors duration-200
-                        "
+                            bg-(--cor-noti)
+                            text-white
+                            w-9 h-9
+                            rounded-xl
+                            hover:bg-[#406179]
+                            hover:scale-110
+                            shadow-sm hover:shadow-lg
+                            transition-all duration-300
+                            "
                         aria-expanded={isNotificationsOpen}
                         aria-label="Abrir notificacoes"
                     >
@@ -209,9 +214,9 @@ export default function Header({ user }: HeaderProps) {
                         {/* Ponto vermelho de notificação não lida */}
                         {unreadCount > 0 && (
                             <span className="
-                                absolute top-1.5 right-1.5
+                                absolute top-2 right-2
                                 w-2 h-2 rounded-full
-                                bg-red-500
+                                bg-[#B33B3B]
                                 ring-2 ring-white
                             " />
                         )}
@@ -223,6 +228,7 @@ export default function Header({ user }: HeaderProps) {
                             w-88 max-w-[85vw]
                             bg-white border border-gray-200 rounded-2xl shadow-xl
                             overflow-hidden
+                            animate-scale-in
                         ">
                             <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
                                 <span className="text-sm font-semibold text-gray-800">Notificações</span>
@@ -235,10 +241,12 @@ export default function Header({ user }: HeaderProps) {
                                 {MOCK_NOTIFICATIONS.length === 0 ? (
                                     <p className="text-sm text-gray-500 text-center py-6">Sem notificações no momento</p>
                                 ) : (
-                                    MOCK_NOTIFICATIONS.map((item) => (
+                                    MOCK_NOTIFICATIONS.map((item, index) => (
                                         <div
                                             key={item.id}
-                                            className="px-4 py-3 border-b border-gray-100 last:border-b-0 hover:bg-[#c9deff]/20 transition-colors duration-150"
+                                            className={`px-4 py-3 border-b border-gray-100 last:border-b-0 hover:bg-[#c9deff]/20 transition-colors duration-150 ${
+                                                index === 0 ? "animate-stagger-1" : index === 1 ? "animate-stagger-2" : "animate-stagger-3"
+                                            }`}
                                         >
                                             <div className="flex items-start justify-between gap-3">
                                                 <div className="min-w-0">
@@ -263,10 +271,10 @@ export default function Header({ user }: HeaderProps) {
                  * Texto com nome e cargo. Oculto em telas muito pequenas (`hidden sm:flex`).
                  */}
                 <div className="hidden sm:flex flex-col items-end">
-                    <span className="text-sm font-semibold text-gray-800 leading-tight">
+                    <span className="text-lg font-semibold text-white leading-tight">
                         {user.name}
                     </span>
-                    <span className="text-xs text-gray-500">
+                    <span className="text-sm text-[#1B2F3D]">
                         {user.role}
                     </span>
                 </div>
@@ -285,7 +293,7 @@ export default function Header({ user }: HeaderProps) {
                             setIsUserMenuOpen((prev) => !prev);
                             setIsNotificationsOpen(false);
                         }}
-                        className="rounded-full focus:outline-none focus:ring-2 focus:ring-[#6c63ff]/30"
+                        className="rounded-full focus:outline-none focus:ring-2 focus:ring-(--cor-accent)/30 transition-all duration-300 hover:scale-110"
                         aria-expanded={isUserMenuOpen}
                         aria-label="Abrir menu do usuario"
                     >
@@ -293,15 +301,15 @@ export default function Header({ user }: HeaderProps) {
                             <img
                                 src={user.avatar}
                                 alt={user.name}
-                                className="w-9 h-9 rounded-full object-cover ring-2 ring-[#6c63ff]/30"
+                                className="w-9 h-9 rounded-full object-cover ring-2 ring-(--cor-logo2)/30"
                             />
                         ) : (
                             <div className="
                                 w-9 h-9 rounded-full
-                                bg-[#6c63ff] text-white
+                                bg-(--cor-foto) text-white
                                 flex items-center justify-center
                                 text-sm font-bold
-                                ring-2 ring-[#6c63ff]/30
+                                ring-2 ring-(--cor-logo2)/30
                             ">
                                 {getInitials(user.name)}
                             </div>

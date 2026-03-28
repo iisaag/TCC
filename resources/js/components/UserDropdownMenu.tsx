@@ -26,7 +26,7 @@ export default function UserDropdownMenu({
 
     return (
         <div
-            className={`${positionClassName} w-64 max-w-[85vw] bg-white border border-gray-200 rounded-2xl shadow-xl overflow-hidden`}
+            className={`${positionClassName} w-64 max-w-[85vw] bg-white border border-gray-200 rounded-2xl shadow-xl overflow-hidden animate-scale-in`}
         >
             <div className="px-4 py-3 border-b border-gray-100">
                 <p className="text-sm font-semibold text-gray-800 truncate">{user.name}</p>

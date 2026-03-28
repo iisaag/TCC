@@ -13,7 +13,7 @@ export default function Login() {
 					<div className="mt-6">
 						<Link
 							href="/dashboard"
-							className="inline-flex items-center rounded-lg bg-black px-4 py-2 text-sm font-medium text-white hover:bg-gray-800"
+							className="inline-flex items-center rounded-lg bg-black px-4 py-2 text-sm font-medium text-white transition-all duration-300 hover:bg-gray-800 hover:shadow-lg hover:scale-105"
 						>
 							Voltar para dashboard
 						</Link>
