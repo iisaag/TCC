@@ -34,7 +34,7 @@ export default function Welcome() {
                                         <a
                                             href="https://laravel.com/docs"
                                             target="_blank"
-                                            className="ml-1 inline-flex items-center space-x-1 font-medium text-[#f53003] underline underline-offset-4 dark:text-[#FF4433]"
+                                            className="ml-1 inline-flex items-center space-x-1 font-medium text-[#f53003] underline underline-offset-4 transition-all duration-200 hover:opacity-80 dark:text-[#FF4433]"
                                         >
                                             <span>Documentation</span>
                                             <svg
@@ -65,7 +65,7 @@ export default function Welcome() {
                                         <a
                                             href="https://laracasts.com"
                                             target="_blank"
-                                            className="ml-1 inline-flex items-center space-x-1 font-medium text-[#f53003] underline underline-offset-4 dark:text-[#FF4433]"
+                                            className="ml-1 inline-flex items-center space-x-1 font-medium text-[#f53003] underline underline-offset-4 transition-all duration-200 hover:opacity-80 dark:text-[#FF4433]"
                                         >
                                             <span>Laracasts</span>
                                             <svg
@@ -91,7 +91,7 @@ export default function Welcome() {
                                     <a
                                         href="https://cloud.laravel.com"
                                         target="_blank"
-                                        className="inline-block rounded-sm border border-black bg-[#1b1b18] px-5 py-1.5 text-sm leading-normal text-white hover:border-black hover:bg-black dark:border-[#eeeeec] dark:bg-[#eeeeec] dark:text-[#1C1C1A] dark:hover:border-white dark:hover:bg-white"
+                                        className="inline-block rounded-sm border border-black bg-[#1b1b18] px-5 py-1.5 text-sm leading-normal text-white transition-all duration-300 hover:border-black hover:bg-black hover:shadow-lg hover:scale-105 dark:border-[#eeeeec] dark:bg-[#eeeeec] dark:text-[#1C1C1A] dark:hover:border-white dark:hover:bg-white"
                                     >
                                         Deploy now
                                     </a>

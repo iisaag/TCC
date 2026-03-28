@@ -39,7 +39,7 @@ const MOCK_ACTIVE_USERS = [
 // ------------------------------------------------------------------
 export default function DashboardLayout({ children, currentPage }: DashboardLayoutProps) {
     return (
-        <div className="flex h-screen overflow-hidden bg-gray-50">
+        <div className="flex h-screen overflow-hidden" style={{ backgroundColor: 'var(--cor-fundo)' }}>
             <Sidebar currentPage={currentPage} />
 
             <div className="flex flex-col flex-1 min-w-0">
@@ -50,7 +50,7 @@ export default function DashboardLayout({ children, currentPage }: DashboardLayo
                         {children}
                     </main>
 
-                    <div className="overflow-y-auto p-4 border-l border-gray-200 bg-[#BFD6E7]">
+                    <div className="overflow-y-auto p-4" style={{ backgroundColor: 'var(--cor-secundaria)' }}>
                         <ActiveUsers users={MOCK_ACTIVE_USERS} />
                     </div>
                 </div>

@@ -60,6 +60,9 @@ export default function Sidebar({ currentPage }: SidebarProps) {
     const [isDarkMode, setIsDarkMode] = useState(false);
 
     const toggleDarkMode = () => {
+        // Adiciona animação ao documento
+        document.documentElement.classList.add('theme-switching');
+        
         setIsDarkMode(!isDarkMode);
         if (!isDarkMode) {
             document.documentElement.classList.add('dark');
@@ -68,6 +71,11 @@ export default function Sidebar({ currentPage }: SidebarProps) {
             document.documentElement.classList.remove('dark');
             localStorage.setItem('theme', 'light');
         }
+
+        // Remove a classe de animação após terminar
+        setTimeout(() => {
+            document.documentElement.classList.remove('theme-switching');
+        }, 300);
     };
 
     // Carrega o tema salvo no localStorage ao montar o componente
@@ -111,11 +119,11 @@ export default function Sidebar({ currentPage }: SidebarProps) {
                 className={`
                     fixed top-0 left-0 h-full z-30
                     flex flex-col
-                    bg-(--cor-secundaria)
                     transition-all duration-300 ease-in-out
                     overflow-hidden
                     ${isOpen ? "w-56" : "w-16"}
                 `}
+                style={{ backgroundColor: 'var(--cor-secundaria)' }}
             >
                 {/*
                  * ─── BOTÃO DE TOGGLE ─────────────────────────────────────
@@ -127,9 +135,9 @@ export default function Sidebar({ currentPage }: SidebarProps) {
                     className="
                         flex items-center justify-center
                         h-16 w-full shrink-0
-                        text-gray-500 hover:text-gray-800
-                        transition-colors duration-200
-                        
+                        text-(--cor-vetores) hover:text-gray-800
+                        transition-all duration-300
+                        hover:bg-gray-100/50 hover:shadow-md
                     "
                     aria-label={isOpen ? "Fechar menu" : "Abrir menu"}
                 >
@@ -155,11 +163,11 @@ export default function Sidebar({ currentPage }: SidebarProps) {
                                     relative
                                     flex items-center gap-3
                                     h-11 px-2 rounded-lg
-                                    transition-colors duration-200
+                                    transition-all duration-300
                                     whitespace-nowrap
                                     ${isActive
                                         ? "text-white"          // cor do texto ativo
-                                        : "text-gray-500 hover:text-gray-800 hover:bg-gray-100"
+                                        : "text-(--cor-textoII) hover:text-gray-800 hover:bg-gray-100 hover:shadow-md hover:scale-105"
                                     }
                                 `}
                             >
@@ -228,19 +236,19 @@ export default function Sidebar({ currentPage }: SidebarProps) {
                         onClick={toggleDarkMode}
                         className="
                             flex items-center gap-3 h-11 px-2 rounded-lg
-                            text-gray-500 hover:text-gray-800 hover:bg-gray-100
-                            transition-colors duration-200
+                            text-(--cor-textoII) hover:text-gray-800 hover:bg-gray-100
+                            transition-all duration-300 hover:shadow-md hover:scale-105
                             whitespace-nowrap
                         "
                     >
-                        <span className="flex items-center justify-center w-8 h-8 shrink-0">
+                        <span className="flex items-center justify-center w-8 h-8 shrink-0 transition-transform duration-500">
                             {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
                         </span>
                         <span
                             className={`
                                 text-sm font-medium overflow-hidden whitespace-nowrap
                                 transition-all duration-300
-                                ${isOpen ? "opacity-100 max-w-[120px]" : "opacity-0 max-w-0"}
+                                ${isOpen ? "opacity-100 max-w-30" : "opacity-0 max-w-0"}
                             `}
                         >
                             {isDarkMode ? "Modo Claro" : "Modo Escuro"}

@@ -14,7 +14,7 @@
 // =============================================================
 
 import { useEffect, useRef, useState } from "react";
-import { Users } from "lucide-react";
+import { Users, Circle, Moon, CircleMinus, Phone } from "lucide-react";
 import UserProfileCard from "@/components/UserProfileCard";
 
 // ------------------------------------------------------------------
@@ -33,7 +33,7 @@ interface ActiveUsersProps {
 }
 
 // ------------------------------------------------------------------
-// FUNÇÃO AUXILIAR — Gerar iniciais do nome
+// FUNÇÕES AUXILIARES
 // ------------------------------------------------------------------
 function getInitials(name: string): string {
     return name
@@ -41,6 +41,39 @@ function getInitials(name: string): string {
         .slice(0, 2)
         .map((word) => word[0].toUpperCase())
         .join("");
+}
+
+function getStatusColor(status: string): string {
+    const statusLower = status.toLowerCase();
+    
+    if (statusLower.includes("online") || statusLower.includes("disponível")) {
+        return "var(--cor-disponivel)";  // Verde
+    } else if (statusLower.includes("reunião") || statusLower.includes("busy") || statusLower.includes("ocupado")) {
+        return "var(--cor-ocupado)";     // Laranja
+    } else if (statusLower.includes("ausente") || statusLower.includes("away")) {
+        return "var(--cor-ausente)";     // Amarelo
+    } else if (statusLower.includes("perturbe") || statusLower.includes("dnd")) {
+        return "var(--cor-nperturbe)";   // Vermelho
+    }
+    
+    return "var(--cor-offline)";         // Cinza padrão
+}
+
+function getStatusIcon(status: string) {
+    const statusLower = status.toLowerCase();
+    const size = 8;
+    
+    if (statusLower.includes("online") || statusLower.includes("disponível")) {
+        return null;  // Sem ícone para online
+    } else if (statusLower.includes("reunião") || statusLower.includes("busy") || statusLower.includes("ocupado")) {
+        return <Phone size={size} />;
+    } else if (statusLower.includes("ausente") || statusLower.includes("away")) {
+        return <Moon size={size} />;
+    } else if (statusLower.includes("perturbe") || statusLower.includes("dnd")) {
+        return <CircleMinus size={size} />;
+    }
+    
+    return null;
 }
 
 // ------------------------------------------------------------------
@@ -53,7 +86,7 @@ function UserItem({ user, onClick }: { user: ActiveUser; onClick: (event: React.
         <button
             type="button"
             onClick={onClick}
-            className="w-full text-left flex items-center gap-3 p-2 rounded-lg hover:bg-[#c9deff]/30 transition-colors duration-200"
+            className="w-full text-left flex items-center gap-3 p-2 rounded-lg hover:bg-[#c9deff]/30 transition-all duration-300 hover:shadow-md hover:scale-105"
         >
 
             {/*
@@ -71,18 +104,18 @@ function UserItem({ user, onClick }: { user: ActiveUser; onClick: (event: React.
                 ) : (
                     // Avatar com iniciais quando não há foto
                     <div className="
-                        w-9 h-9 rounded-full
-                        bg-[#6c63ff] text-white
+                        w-9 h-9 rounded-full text-white
                         flex items-center justify-center
                         text-xs font-bold
-                    ">
+                    "
+                    style={{ backgroundColor: 'var(--cor-foto)' }}>
                         {getInitials(user.name)}
                     </div>
                 )}
 
                 {/*
                  * ── INDICADOR DE STATUS ONLINE ───────────────────────────
-                 * Bolinha verde com animação de "pulso" (ping).
+                 * Bolinha dinâmica com cor baseada no status.
                  *
                  * `animate-ping` → anel externo que pulsa e desaparece
                  * O círculo interno fica fixo sobre o anel pulsante
@@ -90,9 +123,19 @@ function UserItem({ user, onClick }: { user: ActiveUser; onClick: (event: React.
                  * O `ring-2 ring-white` cria uma borda branca ao redor,
                  * separando visualmente a bolinha do avatar.
                  */}
-                <span className="absolute -bottom-0.5 -right-0.5 flex h-3 w-3">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
-                    <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500 ring-2 ring-white" />
+                <span className="absolute -bottom-0.5 -right-0.5 flex h-3.5 w-3.5 items-center justify-center">
+                    <span 
+                        className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" 
+                        style={{ backgroundColor: getStatusColor(user.status) }}
+                    />
+                    <span 
+                        className="relative inline-flex rounded-full h-3.5 w-3.5 ring-2 ring-(--cor-widgets) items-center justify-center"
+                        style={{ backgroundColor: getStatusColor(user.status) }}
+                    >
+                        <span style={{ color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            {getStatusIcon(user.status)}
+                        </span>
+                    </span>
                 </span>
             </div>
 
@@ -102,14 +145,14 @@ function UserItem({ user, onClick }: { user: ActiveUser; onClick: (event: React.
              * Sem isso, um nome muito longo empurraria os outros elementos.
              */}
             <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold text-gray-800 truncate">
+                <p className="text-sm font-semibold text-(--cor-textoII) truncate">
                     {user.name}
                 </p>
-                <p className="text-xs text-gray-500 truncate">
+                <p className="text-xs text-(--cor-accentII) truncate">
                     {user.role}
                 </p>
-                {/* Status atual (ex: "em reunião no Teams") */}
-                <p className="text-xs text-[#6c63ff]/80 truncate mt-0.5">
+                {/* Status atual — cor dinâmica baseada no status */}
+                <p className="text-xs truncate mt-0.5" style={{ color: getStatusColor(user.status) }}>
                     {user.status}
                 </p>
             </div>
@@ -167,8 +210,8 @@ export default function ActiveUsers({ users }: ActiveUsersProps) {
             <div
                 className={`
                 flex items-center
-                bg-white border border-gray-200 rounded-full
-                text-sm font-semibold text-gray-700
+                bg-(--cor-widgets) border border-(--cor-borda) rounded-full
+                text-sm font-semibold text-(--cor-textoII)
                 transition-colors duration-200
                 ${isExpanded ? "w-full justify-between p-2.5" : "w-full justify-center p-2 mt-2"}
             `}
@@ -180,7 +223,7 @@ export default function ActiveUsers({ users }: ActiveUsersProps) {
                             setIsExpanded((prev) => !prev);
                             setSelectedUser(null);
                         }}
-                        className="w-7 h-7 rounded-full border border-gray-200 flex items-center justify-center hover:bg-[#c9deff]/30 transition-colors duration-200"
+                        className="w-7 h-7 rounded-full border border-gray-200 flex items-center justify-center hover:bg-[#c9deff]/30 hover:shadow-md hover:scale-110 transition-all duration-300"
                         aria-expanded={isExpanded}
                         aria-label={isExpanded ? "Recolher usuários ativos" : "Expandir usuários ativos"}
                     >
@@ -210,7 +253,7 @@ export default function ActiveUsers({ users }: ActiveUsersProps) {
              */}
             <div className={`
                 flex flex-col
-                bg-white border border-gray-200 rounded-2xl
+                bg-(--cor-widgets) border border-gray-200 rounded-2xl
                 p-2 gap-1
                 overflow-hidden transition-all duration-300
                 ${isExpanded ? "max-h-125 opacity-100" : "max-h-0 opacity-0 p-0 border-transparent pointer-events-none"}
@@ -221,11 +264,16 @@ export default function ActiveUsers({ users }: ActiveUsersProps) {
                         Nenhum usuário ativo
                     </p>
                 ) : (
-                    users.map((user) => (
-                        <UserItem
+                    users.map((user, index) => (
+                        <div
                             key={user.id}
-                            user={user}
-                            onClick={(event) => {
+                            className={`${
+                                index === 0 ? "animate-stagger-1" : index === 1 ? "animate-stagger-2" : "animate-stagger-3"
+                            }`}
+                        >
+                            <UserItem
+                                user={user}
+                                onClick={(event) => {
                                 const rect = event.currentTarget.getBoundingClientRect();
                                 const panelRect = panelRef.current?.getBoundingClientRect();
                                 if (!panelRect) {
@@ -246,6 +294,7 @@ export default function ActiveUsers({ users }: ActiveUsersProps) {
                                 setSelectedUser(user);
                             }}
                         />
+                        </div>
                     ))
                 )}
             </div>
@@ -253,7 +302,7 @@ export default function ActiveUsers({ users }: ActiveUsersProps) {
             </aside>
 
             {selectedUser && (
-                <div ref={popupRef}>
+                <div key={selectedUser.id} ref={popupRef}>
                     <UserProfileCard
                         user={selectedUser}
                         isOpen={Boolean(selectedUser)}
