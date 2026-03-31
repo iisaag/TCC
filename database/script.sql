@@ -7,18 +7,46 @@ id_cargo INT AUTO_INCREMENT PRIMARY KEY,
 nome_cargo VARCHAR(100) NOT NULL UNIQUE
 );
 
+
 # TABELA USUARIOS
 CREATE TABLE usuarios (
 id_usuario INT AUTO_INCREMENT PRIMARY KEY,
 nome VARCHAR(100) NOT NULL,
 email VARCHAR(150) NOT NULL UNIQUE,
-senha VARCHAR(255) NOT NULL,
 foto_perfil VARCHAR(255),
 cargo VARCHAR(100),
 nivel VARCHAR(50),
 data_criacao DATETIME DEFAULT CURRENT_TIMESTAMP,
 
 FOREIGN KEY (cargo) REFERENCES cargos(nome_cargo)
+);
+
+# TABELA SENHA
+CREATE TABLE senha (
+email VARCHAR(150) PRIMARY KEY,
+senha VARCHAR(100) NOT NULL,
+nivel_acesso VARCHAR(50) NOT NULL,
+FOREIGN KEY (email) REFERENCES usuarios(email)
+);
+
+
+#TABELA EQUIPE
+CREATE TABLE equipes (
+    id_equipe INT AUTO_INCREMENT PRIMARY KEY,
+    nome VARCHAR(100) NOT NULL,
+    
+    criado_por INT NOT NULL, -- usuário dono
+    equipe_pai INT DEFAULT NULL, -- NULL = equipe principal
+    tipo VARCHAR(50) DEFAULT 'SUBEQUIPE', -- 'EMPRESA' ou 'SUBEQUIPE'
+    
+    data_criacao DATETIME DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (criado_por) REFERENCES usuarios(id_usuario)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE,
+    FOREIGN KEY (equipe_pai) REFERENCES equipes(id_equipe)
+        ON DELETE SET NULL
+        ON UPDATE CASCADE
 );
 
 # TABELA PROJETOS
@@ -104,11 +132,14 @@ VALUES
 ('Analista');
 
 # USUARIOS
-INSERT INTO usuarios (nome, email, senha, foto_perfil, cargo, nivel, data_criacao)
+INSERT INTO usuarios (nome, email, foto_perfil, cargo, nivel, data_criacao)
 VALUES
-('Isabelli', 'belli@email.com', '123', 'uploads/perfis/isabelli.jpg', 'Designer', 'Pleno', NOW()),
-('Ana Clara', 'ana@email.com', '123', 'uploads/perfis/anaclara.jpg', 'Desenvolvedora', 'Pleno', NOW()),
-('Isabela', 'bela@email.com', '123', NULL, 'Analista', 'Pleno', NOW());
+('Isabelli', 'belli@email.com', 'uploads/perfis/isabelli.jpg', 'Designer', 'Pleno', NOW()),
+('Ana Clara', 'ana@email.com', 'uploads/perfis/anaclara.jpg', 'Desenvolvedora', 'Pleno', NOW()),
+('Isabela', 'bela@email.com', NULL, 'Analista', 'Pleno', NOW());
+
+INSERT INTO senha (email, senha, nivel_acesso)
+VALUES ('belli@email.com', '123', 'Pleno');
 
 # PROJETOS
 INSERT INTO projetos (nome_projeto, descricao, data_inicio, prazo_final, status_projeto, prioridade_proj)
