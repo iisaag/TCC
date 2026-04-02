@@ -157,7 +157,7 @@ export default function Header({ user }: HeaderProps) {
                      */}
                     <Search
                         size={16}
-                        className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+                        className="absolute left-3 top-1/2 -translate-y-1/2 text-[--cor-textoII] pointer-events-none"
                     />
                     <input
                         type="text"
@@ -166,11 +166,11 @@ export default function Header({ user }: HeaderProps) {
                             w-full
                             pl-9 pr-4 py-2
                             text-sm text-gray-700
-                            bg-gray-100 rounded-full
-                            border border-transparent
-                            focus:outline-none focus:border-[#6c63ff]/40 focus:bg-white
+                            bg-(--cor-widgets) rounded-full
+                            border border-(--cor-borda)
+                            focus:outline-none focus:border-[--cor-accentII]/40 focus:bg-(--cor-borda)
                             transition-colors duration-200
-                            placeholder:text-gray-400
+                            placeholder:text-(--cor-textoII)/50
                         "
                     />
                 </div>
@@ -274,7 +274,7 @@ export default function Header({ user }: HeaderProps) {
                     <span className="text-lg font-semibold text-white leading-tight">
                         {user.name}
                     </span>
-                    <span className="text-sm text-[#1B2F3D]">
+                    <span className="text-sm text-(--cor-accentII)">
                         {user.role}
                     </span>
                 </div>

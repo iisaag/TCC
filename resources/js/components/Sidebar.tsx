@@ -230,7 +230,7 @@ export default function Sidebar({ currentPage }: SidebarProps) {
                  * ─── RODAPÉ DA SIDEBAR ───────────────────────────────────
                  * Itens utilitários ficam fixados no fundo: modo escuro e configurações.
                  */}
-                <div className="flex flex-col gap-1 py-4 px-2 border-t border-gray-100">
+                <div className="flex flex-col gap-1 py-4 px-2">
                     {/* Botão de modo escuro */}
                     <button
                         onClick={toggleDarkMode}
@@ -264,7 +264,7 @@ export default function Sidebar({ currentPage }: SidebarProps) {
                             whitespace-nowrap
                             ${currentPage === "settings"
                                 ? "text-[#6c63ff]"
-                                : "text-gray-500 hover:text-gray-800 hover:bg-gray-100"
+                                : "text-[cor-textoII] hover:text-gray-800 hover:bg-gray-100"
                             }
                         `}
                     >

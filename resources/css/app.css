@@ -23,8 +23,8 @@
     /* cores telas */
     --cor-primaria: #7699B3;
     --cor-secundaria: #BFD6E7;
-    --cor-accent: #1B2F3D;
-    --cor-accentII: #5197C9;
+    --cor-accent: #5197C9;
+    --cor-accentII: #1B2F3D;
     --cor-logo: #173E5B;
     --cor-logo2: #467394; /* cor da logo e do cargo embaixo do nome */
     --cor-foto: #82C6E8;
@@ -92,10 +92,10 @@
         /* cores telas */
     --cor-primaria: #3E5668;
     --cor-secundaria: #5F7C92;
-    --cor-accent: #236688;
+    --cor-accent: #82C6E8;
+    --cor-accentII:#8BCEFF ;
     --cor-logo: #79BCEE; /* cor da logo e do cargo embaixo do nome */
     --cor-foto: #82C6E8;
-    --cor-accentII: #82C6E8;
     --cor-botao: #4A6273;
     --cor-noti: #213645;
     --cor-textoI: #000000;

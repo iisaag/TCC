@@ -148,7 +148,7 @@ function UserItem({ user, onClick }: { user: ActiveUser; onClick: (event: React.
                 <p className="text-sm font-semibold text-(--cor-textoII) truncate">
                     {user.name}
                 </p>
-                <p className="text-xs text-(--cor-accentII) truncate">
+                <p className="text-xs text-(--cor-accent) truncate">
                     {user.role}
                 </p>
                 {/* Status atual — cor dinâmica baseada no status */}
@@ -253,7 +253,7 @@ export default function ActiveUsers({ users }: ActiveUsersProps) {
              */}
             <div className={`
                 flex flex-col
-                bg-(--cor-widgets) border border-gray-200 rounded-2xl
+                bg-(--cor-widgets) border border-(--cor-borda) 200 rounded-2xl
                 p-2 gap-1
                 overflow-hidden transition-all duration-300
                 ${isExpanded ? "max-h-125 opacity-100" : "max-h-0 opacity-0 p-0 border-transparent pointer-events-none"}
