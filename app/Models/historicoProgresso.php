@@ -1,54 +1,29 @@
 <?php
-declare(strict_types=1);
-require_once __DIR__ . '/tarefas.php';
-require_once __DIR__ . '/usuarios.php';
 
-class historicoProgresso implements JsonSerializable
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+
+class HistoricoProgresso extends Model
 {
-    public function __construct(
-        private ?int      $id_historico     = null,
-        private ?tarefas  $tarefa           = null,
-        private ?int      $progresso        = null,
-        private ?string   $data_atualizacao = null,
-        private ?usuarios $usuario          = null
-    ) {}
+    protected $table      = 'historico_progresso';
+    protected $primaryKey = 'id_historico';
+    public    $timestamps = false;
 
-    public function jsonSerialize(): array
+    protected $fillable = [
+        'id_tarefa',
+        'id_usuario',
+        'progresso',
+        'data_atualizacao',
+    ];
+
+    public function tarefa()
     {
-        return [
-            'id_historico'     => $this->getIdHistorico(),
-            'progresso'        => $this->getProgresso(),
-            'data_atualizacao' => $this->getDataAtualizacao(),
-            'tarefa' => $this->tarefa ? [
-                'id_tarefa'   => $this->tarefa->getIdTarefa(),
-                'titulo'      => $this->tarefa->getTitulo(),
-                'status_task' => $this->tarefa->getStatusTask(),
-            ] : null,
-            'usuario' => $this->usuario ? [
-                'id_usuario' => $this->usuario->getIdUsuario(),
-                'nome'       => $this->usuario->getNome(),
-            ] : null,
-        ];
+        return $this->belongsTo(Tarefa::class, 'id_tarefa', 'id_tarefa');
     }
 
-    public function getIdHistorico(): ?int { return $this->id_historico; }
-    public function setIdHistorico(int $id): self { $this->id_historico = $id; return $this; }
-
-    public function getTarefa(): ?tarefas { return $this->tarefa; }
-    public function setTarefa(?tarefas $tarefa): self { $this->tarefa = $tarefa; return $this; }
-
-    public function getProgresso(): ?int { return $this->progresso; }
-    public function setProgresso(?int $progresso): self
+    public function usuario()
     {
-        if ($progresso !== null && ($progresso < 0 || $progresso > 100)) {
-            throw new InvalidArgumentException('Progresso deve ser entre 0 e 100.');
-        }
-        $this->progresso = $progresso;
-        return $this;
+        return $this->belongsTo(Usuario::class, 'id_usuario', 'id_usuario');
     }
-
-    public function getDataAtualizacao(): ?string { return $this->data_atualizacao; }
-
-    public function getUsuario(): ?usuarios { return $this->usuario; }
-    public function setUsuario(?usuarios $usuario): self { $this->usuario = $usuario; return $this; }
 }

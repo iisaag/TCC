@@ -1,19 +1,30 @@
 <?php
-class logProjeto
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+use App\Models\Projeto;  
+use App\Models\Usuario;  
+class LogProjeto extends Model
 {
-    public function __construct(
-        private ?int $id_log_projeto,
-        private ?int $id_projeto,
-        private ?int $id_usuario,
-        private ?string $mensagem,
-        private ?string $data_hora = null
-    ) {}
+    protected $table      = 'log_projetos';
+    protected $primaryKey = 'id_log_projeto';
+    public    $timestamps = false;
 
-    public function getIdLogProjeto(): ?int { return $this->id_log_projeto; }
-    public function setIdLogProjeto(int $id): void { $this->id_log_projeto = $id; }
+    protected $fillable = [
+        'id_projeto',
+        'id_usuario',
+        'mensagem',
+        'data_hora',
+    ];
 
-    public function getIdProjeto(): ?int { return $this->id_projeto; }
-    public function getIdUsuario(): ?int { return $this->id_usuario; }
-    public function getMensagem(): ?string { return $this->mensagem; }
-    public function getDataHora(): ?string { return $this->data_hora; }
+    public function projeto()
+    {
+        return $this->belongsTo(Projeto::class, 'id_projeto', 'id_projeto');
+    }
+
+    public function usuario()
+    {
+        return $this->belongsTo(Usuario::class, 'id_usuario', 'id_usuario');
+    }
 }

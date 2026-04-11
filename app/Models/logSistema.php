@@ -1,19 +1,25 @@
 <?php
-class logSistema
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+use App\Models\Usuario;  // ← adiciona isso
+
+class LogSistema extends Model
 {
-    public function __construct(
-        private ?int $id_log_sistema,
-        private ?int $id_usuario,
-        private ?string $acao,
-        private ?string $descricao,
-        private ?string $data_hora = null
-    ) {}
+    protected $table      = 'log_sistema';
+    protected $primaryKey = 'id_log_sistema';
+    public    $timestamps = false;
 
-    public function getIdLogSistema(): ?int { return $this->id_log_sistema; }
-    public function setIdLogSistema(int $id): void { $this->id_log_sistema = $id; }
+    protected $fillable = [
+        'id_usuario',
+        'acao',
+        'descricao',
+        'data_hora',
+    ];
 
-    public function getIdUsuario(): ?int { return $this->id_usuario; }
-    public function getAcao(): ?string { return $this->acao; }
-    public function getDescricao(): ?string { return $this->descricao; }
-    public function getDataHora(): ?string { return $this->data_hora; }
+    public function usuario()
+    {
+        return $this->belongsTo(Usuario::class, 'id_usuario', 'id_usuario');
+    }
 }

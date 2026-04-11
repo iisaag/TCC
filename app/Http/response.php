@@ -1,5 +1,10 @@
 <?php 
     declare(strict_types=1);
+
+    namespace App\Http;
+
+    use JsonSerializable;
+
     class Response implements JsonSerializable{
         
         public function __construct(
