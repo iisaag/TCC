@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Crypt;
 
 class Usuario extends Model
 {
@@ -16,6 +17,7 @@ class Usuario extends Model
         'foto_perfil',
         'cargo',
         'nivel',
+        'status_atual',
         'data_criacao',
     ];
 
@@ -31,6 +33,26 @@ class Usuario extends Model
     public function setEmailAttribute(string $value): void
     {
         $this->attributes['email'] = strtolower(trim($value));
+    }
+
+    public function setFotoPerfilAttribute(?string $value): void
+    {
+        $this->attributes['foto_perfil'] = $value === null || $value === ''
+            ? null
+            : Crypt::encryptString($value);
+    }
+
+    public function getFotoPerfilAttribute(?string $value): ?string
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        try {
+            return Crypt::decryptString($value);
+        } catch (\Throwable) {
+            return $value;
+        }
     }
 
     public function cargo()

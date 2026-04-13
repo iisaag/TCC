@@ -2,13 +2,32 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Usuario;
 use App\Models\Senha;
+use App\Models\UserPresence;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Session;
+use Carbon\Carbon;
+use Inertia\Inertia;
 
 class SenhaController extends Controller
 {
+    private function senhaConfere(string $senhaDigitada, string $senhaArmazenada): bool
+    {
+        if ($this->senhaPareceHash($senhaArmazenada)) {
+            return Hash::check($senhaDigitada, $senhaArmazenada);
+        }
+
+        return hash_equals($senhaArmazenada, $senhaDigitada);
+    }
+
+    private function senhaPareceHash(string $senha): bool
+    {
+        return preg_match('/^\$(2y|2a|2b|argon2i|argon2id)\$/', $senha) === 1;
+    }
+
     public function index(Request $request): JsonResponse
     {
         try {
@@ -52,7 +71,7 @@ class SenhaController extends Controller
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'email'        => 'required|email|unique:senhas,email',
+            'email'        => 'required|email|unique:senha,email',
             'senha'        => 'required|string|min:6',
             'nivel_acesso' => 'required|string',
         ]);
@@ -121,7 +140,7 @@ class SenhaController extends Controller
 
         $registro = Senha::with('usuario')->find($validated['email']);
 
-        if (!$registro || !Hash::check($validated['senha'], $registro->senha)) {
+        if (!$registro || !$this->senhaConfere($validated['senha'], $registro->senha)) {
             return response()->json([
                 'success' => false,
                 'message' => 'Credenciais inválidas',
@@ -133,6 +152,60 @@ class SenhaController extends Controller
             'message' => 'Autenticação realizada com sucesso',
             'data'    => ['senha' => $registro],
         ]);
+    }
+
+    public function authenticate(Request $request)
+    {
+        $validated = $request->validate([
+            'email' => 'required|email',
+            'senha' => 'required|string',
+        ]);
+
+        $registro = Senha::with('usuario')->find($validated['email']);
+
+        if (!$registro || !$this->senhaConfere($validated['senha'], $registro->senha) || !$registro->usuario) {
+            return back()->withErrors([
+                'email' => 'Credenciais inválidas',
+            ]);
+        }
+
+        $usuario = $registro->usuario;
+        $nivelAcesso = strtolower((string) $registro->nivel_acesso);
+        $temPermissaoTotal = in_array($nivelAcesso, ['total', 'admin', 'administrador', 'geral'], true);
+        $cargoTexto = $usuario->getRawOriginal('cargo');
+
+        $request->session()->regenerate();
+        $request->session()->put('auth.user', [
+            'id' => $usuario->id_usuario,
+            'name' => $usuario->nome,
+            'role' => is_string($cargoTexto) && $cargoTexto !== '' ? $cargoTexto : $nivelAcesso,
+            'avatar' => $usuario->foto_perfil ?: null,
+            'permissions' => [
+                'total' => $temPermissaoTotal,
+            ],
+            'nivel_acesso' => $registro->nivel_acesso,
+        ]);
+
+        UserPresence::updateOrCreate(
+            ['session_id' => $request->session()->getId()],
+            [
+                'user_id' => (int) $usuario->id_usuario,
+                'last_seen' => Carbon::now(),
+            ]
+        );
+
+        return redirect()->route('dashboard');
+    }
+
+    public function logout(Request $request)
+    {
+        UserPresence::query()->where('session_id', $request->session()->getId())->delete();
+
+        $request->session()->forget('auth.user');
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
+        return redirect()->route('login');
     }
 
     public function destroy(string $email): JsonResponse

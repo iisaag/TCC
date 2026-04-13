@@ -19,6 +19,7 @@
 
 import { Bell, Search } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { router } from "@inertiajs/react";
 import UserDropdownMenu from "@/components/UserDropdownMenu";
 
 interface NotificationItem {
@@ -38,13 +39,6 @@ const MOCK_NOTIFICATIONS: NotificationItem[] = [
         read: false,
     },
     {
-        id: 2,
-        title: "Comentario no projeto",
-        description: "Ana Clara comentou no projeto 'Aivy PM'.",
-        time: "Ha 12 min",
-        read: false,
-    },
-    {
         id: 3,
         title: "Meta atualizada",
         description: "A meta 'Entrega Sprint 3' foi atualizada.",
@@ -59,12 +53,36 @@ const MOCK_NOTIFICATIONS: NotificationItem[] = [
 interface User {
     name: string;       // Ex: "Isabelli Arantes"
     role: string;       // Ex: "Chefe - Design & Front"
+    status?: string;
     avatar?: string;    // URL da foto. Se não tiver, mostra as iniciais.
 }
 
 interface HeaderProps {
     user: User;
 }
+
+function resolveAvatarUrl(avatar?: string | null): string | undefined {
+    if (!avatar) {
+        return undefined;
+    }
+
+    if (
+        avatar.startsWith("data:image/") ||
+        avatar.startsWith("http://") ||
+        avatar.startsWith("https://")
+    ) {
+        return avatar;
+    }
+
+    return undefined;
+}
+                <a
+                    href="/settings"
+                    className="hidden md:inline-flex items-center rounded-full bg-white/15 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-white/25"
+                >
+                    Configurações
+                </a>
+
 
 // ------------------------------------------------------------------
 // FUNÇÃO AUXILIAR — Gerar iniciais do nome
@@ -89,6 +107,12 @@ export default function Header({ user }: HeaderProps) {
     const userMenuRef = useRef<HTMLDivElement | null>(null);
 
     const unreadCount = MOCK_NOTIFICATIONS.filter((item) => !item.read).length;
+    const avatar = resolveAvatarUrl(user.avatar);
+    const [currentStatus, setCurrentStatus] = useState(user.status ?? "online");
+
+    useEffect(() => {
+        setCurrentStatus(user.status ?? "online");
+    }, [user.status]);
 
     useEffect(() => {
         function handleClickOutside(event: MouseEvent) {
@@ -182,7 +206,6 @@ export default function Header({ user }: HeaderProps) {
              * `shrink-0` evita compressão.
              */}
             <div className="flex items-center gap-3 shrink-0">
-
                 {/*
                  * ── BOTÃO DE NOTIFICAÇÕES ────────────────────────────────
                  * Círculo com ícone de sino. O ponto vermelho indica notificações não lidas.
@@ -297,9 +320,9 @@ export default function Header({ user }: HeaderProps) {
                         aria-expanded={isUserMenuOpen}
                         aria-label="Abrir menu do usuario"
                     >
-                        {user.avatar ? (
+                        {avatar ? (
                             <img
-                                src={user.avatar}
+                                src={avatar}
                                 alt={user.name}
                                 className="w-9 h-9 rounded-full object-cover ring-2 ring-(--cor-logo2)/30"
                             />
@@ -316,7 +339,32 @@ export default function Header({ user }: HeaderProps) {
                         )}
                     </button>
 
-                    <UserDropdownMenu user={user} isOpen={isUserMenuOpen} />
+                    <UserDropdownMenu
+                        user={user}
+                        isOpen={isUserMenuOpen}
+                        currentStatus={currentStatus}
+                        onStatusChange={(status) => {
+                            setCurrentStatus(status);
+
+                            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? '';
+
+                            void fetch('/presence/status', {
+                                method: 'POST',
+                                headers: {
+                                    Accept: 'application/json',
+                                    'Content-Type': 'application/json',
+                                    'X-Requested-With': 'XMLHttpRequest',
+                                    'X-CSRF-TOKEN': csrfToken,
+                                },
+                                body: JSON.stringify({ status }),
+                            });
+
+                            window.dispatchEvent(new CustomEvent('presence:status-updated', {
+                                detail: { status },
+                            }));
+                        }}
+                        onLogoutClick={() => router.post("/logout")}
+                    />
                 </div>
             </div>
         </header>

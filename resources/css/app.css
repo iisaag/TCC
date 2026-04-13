@@ -1,11 +1,320 @@
 @import 'tailwindcss';
+@import '@fontsource/noto-color-emoji/400.css';
+@import '@fontsource/aclonica/400.css';
+@import '@fontsource/belanosima/400.css';
+@import '@fontsource/belanosima/600.css';
+@import '@fontsource/belanosima/700.css';
 
+@source '../views';
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
-@source '../../storage/framework/views/*.php';
-@source '../**/*.blade.php';
-@source '../**/*.js';
 
-@theme {
-    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
-        'Segoe UI Symbol', 'Noto Color Emoji';
+@theme { /* TEMA CLARO (padrão) */
+
+    /* fontes */
+    --font-sans:
+        'Belanosima',
+        'Instrument Sans', ui-sans-serif, system-ui, sans-serif,
+        'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',
+        'Noto Color Emoji';
+
+    --font-aclonica:
+        'Aclonica', ui-sans-serif, system-ui, sans-serif;
+
+    /* cores telas */
+    --cor-primaria: #7699B3;
+    --cor-secundaria: #BFD6E7;
+    --cor-accent: #5197C9;
+    --cor-accentII: #1B2F3D;
+    --cor-logo: #173E5B;
+    --cor-logo2: #467394; /* cor da logo e do cargo embaixo do nome */
+    --cor-foto: #82C6E8;
+    --cor-botao: #8BAFC9;
+    --cor-noti: #5F7C92;
+    --cor-textoI: #000000;
+    --cor-vetores: #000000;
+    --cor-fundo: #F4F4F4;
+    --cor-widgets: #F8F8F8;
+    --cor-borda: #C4C4C4; 
+
+    /* cores status */
+    --cor-offline: #989898;
+    --cor-disponivel: #84B976; /* status disponivel)*/
+    --cor-ausente: #CF9007;/* status ausente */
+    --cor-nperturbe: #7E1E27; /* status não perturbe */
+    --cor-ocupado: #D36A32;
+
+    /* cores status - projeto */
+    --cor-atrasoI: #DB3E4E; /* atraso nivel 1 */
+    --cor-atrasoII: #B9272A; /* atraso nivel 2 */
+    --cor-atrasoIII: #D3080B; /* atraso nivel 3 */
+    --cor-adiantado: #448AF4;
+    --cor-emdia: #7BC768;
+    
+}
+
+@layer base {
+    :root,
+    html {
+        font-size: 100% !important;
+    }
+
+    body {
+        font-size: 1rem;
+        zoom: 110%;
+    }
+
+    @supports not (zoom: 1) {
+        #app {
+            transform: scale(1.1);
+            transform-origin: top left;
+            width: 90.9091%;
+        }
+    }
+
+    body,
+    #app {
+        font-weight: 500;
+    }
+
+    body,
+    #app,
+    #app * {
+        font-family: 'Belanosima', ui-sans-serif, system-ui, sans-serif;
+        font-weight: 500 !important;
+    }
+}
+
+
+@layer base { /* TEMA ESCURO (class-based) */
+    .dark {
+        color-scheme: dark;
+
+        /* cores telas */
+    --cor-primaria: #3E5668;
+    --cor-secundaria: #5F7C92;
+    --cor-accent: #82C6E8;
+    --cor-accentII:#8BCEFF ;
+    --cor-logo: #79BCEE; /* cor da logo e do cargo embaixo do nome */
+    --cor-foto: #82C6E8;
+    --cor-botao: #4A6273;
+    --cor-noti: #213645;
+    --cor-textoI: #000000;
+    --cor-textoII: #FFFFFF;
+    --cor-vetores: #FFFFFF;
+    --cor-fundo: #2F2F2F;
+    --cor-widgets: #616161;
+    --cor-borda: #464646; 
+    --cor-hover: #F3F4F6; /* cor de hover para botões e elementos interativos */
+
+    /* cores status */
+    --cor-offline: #989898;
+    --cor-disponivel: #84B976; /* status disponivel)*/
+    --cor-ausente: #F4DA71;/* status ausente */
+    --cor-nperturbe: #7E1E27; /* status não perturbe */
+    --cor-ocupado: #D36A32;
+
+    /* cores status - projeto */
+    --cor-atrasoI: #DB3E4E; /* atraso nivel 1 */
+    --cor-atrasoII: #B9272A; /* atraso nivel 2 */
+    --cor-atrasoIII: #D3080B; /* atraso nivel 3 */
+    --cor-adiantado: #448AF4;
+    --cor-emdia: #7BC768;
+    
+    }
+}
+
+@layer utilities {
+    @keyframes fadeIn {
+        0% {
+            opacity: 0;
+        }
+        100% {
+            opacity: 1;
+        }
+    }
+
+    @keyframes fadeOut {
+        0% {
+            opacity: 1;
+        }
+        100% {
+            opacity: 0;
+        }
+    }
+
+    @keyframes slideIn {
+        0% {
+            opacity: 0;
+            transform: translateY(-8px);
+        }
+        100% {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    @keyframes slideInUp {
+        0% {
+            opacity: 0;
+            transform: translateY(8px);
+        }
+        100% {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    @keyframes slideInRight {
+        0% {
+            opacity: 0;
+            transform: translateX(8px);
+        }
+        100% {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+
+    @keyframes scaleIn {
+        0% {
+            opacity: 0;
+            transform: scale(0.95);
+        }
+        100% {
+            opacity: 1;
+            transform: scale(1);
+        }
+    }
+
+    @keyframes scaleInSmall {
+        0% {
+            opacity: 0;
+            transform: scale(0.98);
+        }
+        100% {
+            opacity: 1;
+            transform: scale(1);
+        }
+    }
+
+    @keyframes popIn {
+        0% {
+            opacity: 0;
+            transform: scale(0.9);
+        }
+        50% {
+            transform: scale(1.05);
+        }
+        100% {
+            opacity: 1;
+            transform: scale(1);
+        }
+    }
+
+    .animate-fade-in {
+        animation: fadeIn 0.3s ease-out;
+    }
+
+    .animate-slide-in {
+        animation: slideIn 0.3s ease-out;
+    }
+
+    .animate-scale-in {
+        animation: scaleIn 0.2s ease-out;
+    }
+
+    .animate-scale-in-small {
+        animation: scaleInSmall 0.2s ease-out;
+    }
+
+    .animate-slide-in-up {
+        animation: slideInUp 0.3s ease-out;
+    }
+
+    .animate-slide-in-right {
+        animation: slideInRight 0.3s ease-out;
+    }
+
+    .animate-pop-in {
+        animation: popIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    .animate-slide-in {
+        animation: slideIn 0.3s ease-out;
+    }
+
+    /* Hover animations */
+    .hover-scale-up {
+        @apply transition-transform duration-300 ease-out;
+        &:hover {
+            @apply scale-105;
+        }
+    }
+
+    .hover-shadow-lift {
+        @apply transition-all duration-300 ease-out;
+        &:hover {
+            @apply shadow-lg;
+        }
+    }
+
+    .hover-smooth {
+        @apply transition-all duration-300 ease-out;
+    }
+
+    /* Stagger animations for lists */
+    @keyframes staggerFadeIn {
+        0% {
+            opacity: 0;
+            transform: translateY(8px);
+        }
+        100% {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .animate-stagger-1 {
+        animation: staggerFadeIn 0.3s ease-out 0.05s backwards;
+    }
+
+    .animate-stagger-2 {
+        animation: staggerFadeIn 0.3s ease-out 0.1s backwards;
+    }
+
+    .animate-stagger-3 {
+        animation: staggerFadeIn 0.3s ease-out 0.15s backwards;
+    }
+
+    @keyframes themeSwitch {
+        0% {
+            opacity: 1;
+        }
+        50% {
+            opacity: 0.95;
+        }
+        100% {
+            opacity: 1;
+        }
+    }
+
+    @keyframes iconFade {
+        0% {
+            opacity: 1;
+        }
+        50% {
+            opacity: 0.6;
+        }
+        100% {
+            opacity: 1;
+        }
+    }
+
+    .theme-switching {
+        animation: themeSwitch 0.3s ease-in-out;
+    }
+
+    .theme-switching svg {
+        animation: iconFade 0.3s ease-in-out;
+    }
 }

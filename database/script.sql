@@ -13,7 +13,7 @@ CREATE TABLE usuarios (
 id_usuario INT AUTO_INCREMENT PRIMARY KEY,
 nome VARCHAR(100) NOT NULL,
 email VARCHAR(150) NOT NULL UNIQUE,
-foto_perfil VARCHAR(255),
+foto_perfil LONGTEXT,
 cargo VARCHAR(100),
 nivel VARCHAR(50),
 data_criacao DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -134,12 +134,12 @@ VALUES
 # USUARIOS
 INSERT INTO usuarios (nome, email, foto_perfil, cargo, nivel, data_criacao)
 VALUES
-('Isabelli', 'belli@email.com', 'uploads/perfis/isabelli.jpg', 'Designer', 'Pleno', NOW()),
-('Ana Clara', 'ana@email.com', 'uploads/perfis/anaclara.jpg', 'Desenvolvedora', 'Pleno', NOW()),
+('Isabelli Arantes', 'belli.arantess@gmail.com', NULL, 'Designer', 'Pleno', NOW()),
+('Ana Clara', 'ana@email.com', NULL, 'Desenvolvedora', 'Pleno', NOW()),
 ('Isabela', 'bela@email.com', NULL, 'Analista', 'Pleno', NOW());
 
 INSERT INTO senha (email, senha, nivel_acesso)
-VALUES ('belli@email.com', '123', 'Pleno');
+VALUES ('belli.arantess@gmail.com', '123', 'total');
 
 # PROJETOS
 INSERT INTO projetos (nome_projeto, descricao, data_inicio, prazo_final, status_projeto, prioridade_proj)

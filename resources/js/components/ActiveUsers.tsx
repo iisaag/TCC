@@ -13,7 +13,7 @@
 // ou de um estado global (ex: broadcasting com Pusher/Echo).
 // =============================================================
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Users, Circle, Moon, CircleMinus, Phone } from "lucide-react";
 import UserProfileCard from "@/components/UserProfileCard";
 
@@ -29,6 +29,12 @@ interface ActiveUser {
 }
 
 interface ActiveUsersProps {
+    users: ActiveUser[];
+    currentUserId?: number;
+}
+
+interface UserGroup {
+    groupLabel: string;
     users: ActiveUser[];
 }
 
@@ -76,12 +82,70 @@ function getStatusIcon(status: string) {
     return null;
 }
 
+function resolveAvatarUrl(avatar?: string): string | undefined {
+    if (!avatar) {
+        return undefined;
+    }
+
+    if (
+        avatar.startsWith("data:image/") ||
+        avatar.startsWith("http://") ||
+        avatar.startsWith("https://")
+    ) {
+        return avatar;
+    }
+
+    return undefined;
+}
+
+function rolePriority(role: string): number {
+    const normalized = role.toLowerCase();
+
+    if (normalized.includes("chefe")) {
+        return 0;
+    }
+
+    if (normalized.includes("owner") || normalized.includes("admin")) {
+        return 1;
+    }
+
+    if (normalized.includes("leader") || normalized.includes("lider") || normalized.includes("gerente")) {
+        return 2;
+    }
+
+    if (normalized.includes("moderator") || normalized.includes("moderador")) {
+        return 3;
+    }
+
+    if (normalized.includes("operator") || normalized.includes("operador")) {
+        return 4;
+    }
+
+    return 5;
+}
+
+function roleGroupLabel(role: string): string {
+    const normalized = role.toLowerCase();
+
+    if (normalized.includes("chefe")) {
+        return "CHEFE";
+    }
+
+    return role.toUpperCase();
+}
+
+function statusPriority(status: string): number {
+    return status.toLowerCase().includes("online") ? 0 : 1;
+}
+
 // ------------------------------------------------------------------
 // COMPONENTE — ITEM DE USUÁRIO
 // ------------------------------------------------------------------
 // Separamos o item individual em seu próprio componente.
 // Isso é uma boa prática: mantém o código organizado e reutilizável.
 function UserItem({ user, onClick }: { user: ActiveUser; onClick: (event: React.MouseEvent<HTMLButtonElement>) => void }) {
+    const avatar = resolveAvatarUrl(user.avatar);
+
     return (
         <button
             type="button"
@@ -95,9 +159,9 @@ function UserItem({ user, onClick }: { user: ActiveUser; onClick: (event: React.
              * no canto inferior direito do avatar com `absolute`.
              */}
             <div className="relative shrink-0">
-                {user.avatar ? (
+                {avatar ? (
                     <img
-                        src={user.avatar}
+                        src={avatar}
                         alt={user.name}
                         className="w-9 h-9 rounded-full object-cover"
                     />
@@ -163,12 +227,48 @@ function UserItem({ user, onClick }: { user: ActiveUser; onClick: (event: React.
 // ------------------------------------------------------------------
 // COMPONENTE PRINCIPAL
 // ------------------------------------------------------------------
-export default function ActiveUsers({ users }: ActiveUsersProps) {
+export default function ActiveUsers({ users, currentUserId }: ActiveUsersProps) {
     const [isExpanded, setIsExpanded] = useState(true);
     const [selectedUser, setSelectedUser] = useState<ActiveUser | null>(null);
     const [popupPosition, setPopupPosition] = useState<{ top: number; left: number } | null>(null);
     const panelRef = useRef<HTMLDivElement | null>(null);
     const popupRef = useRef<HTMLDivElement | null>(null);
+
+    const groupedUsers = useMemo<UserGroup[]>(() => {
+        const groupMap = new Map<string, { role: string; users: ActiveUser[] }>();
+
+        for (const user of users) {
+            const role = user.role && user.role.trim() !== "" ? user.role : "Sem cargo";
+            const groupLabel = roleGroupLabel(role);
+            const current = groupMap.get(groupLabel) ?? { role, users: [] };
+
+            current.users.push(user);
+            groupMap.set(groupLabel, current);
+        }
+
+        const groups = Array.from(groupMap.entries()).map(([groupLabel, group]) => ({
+            groupLabel,
+            users: [...group.users].sort((left, right) => {
+                const statusDiff = statusPriority(left.status) - statusPriority(right.status);
+
+                if (statusDiff !== 0) {
+                    return statusDiff;
+                }
+
+                return left.name.localeCompare(right.name, "pt-BR");
+            }),
+        }));
+
+        return groups.sort((left, right) => {
+            const roleDiff = rolePriority(left.groupLabel) - rolePriority(right.groupLabel);
+
+            if (roleDiff !== 0) {
+                return roleDiff;
+            }
+
+            return left.groupLabel.localeCompare(right.groupLabel, "pt-BR");
+        });
+    }, [users]);
 
     useEffect(() => {
         function handleClickOutside(event: MouseEvent) {
@@ -258,42 +358,50 @@ export default function ActiveUsers({ users }: ActiveUsersProps) {
                 overflow-hidden transition-all duration-300
                 ${isExpanded ? "max-h-125 opacity-100" : "max-h-0 opacity-0 p-0 border-transparent pointer-events-none"}
             `}>
-                {users.length === 0 ? (
+                {groupedUsers.length === 0 ? (
                     // Estado vazio — nenhum usuário online
                     <p className="text-sm text-gray-400 text-center py-4">
-                        Nenhum usuário ativo
+                        Nenhum usuário disponível
                     </p>
                 ) : (
-                    users.map((user, index) => (
-                        <div
-                            key={user.id}
-                            className={`${
-                                index === 0 ? "animate-stagger-1" : index === 1 ? "animate-stagger-2" : "animate-stagger-3"
-                            }`}
-                        >
-                            <UserItem
-                                user={user}
-                                onClick={(event) => {
-                                const rect = event.currentTarget.getBoundingClientRect();
-                                const panelRect = panelRef.current?.getBoundingClientRect();
-                                if (!panelRect) {
-                                    return;
-                                }
+                    groupedUsers.map((group) => (
+                        <div key={group.groupLabel} className="space-y-1 pt-1">
+                            <div className="flex items-center justify-between px-2 py-1">
+                                <p className="text-xs font-semibold uppercase tracking-wide text-(--cor-accent)">
+                                    {group.groupLabel}
+                                </p>
+                                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
+                                    {group.users.length}
+                                </span>
+                            </div>
 
-                                const cardWidth = 352;
-                                const cardHeight = 520;
-                                const gap = 16;
+                            {group.users.map((user) => (
+                                <div key={user.id}>
+                                    <UserItem
+                                        user={user}
+                                        onClick={(event) => {
+                                        const rect = event.currentTarget.getBoundingClientRect();
+                                        const panelRect = panelRef.current?.getBoundingClientRect();
+                                        if (!panelRect) {
+                                            return;
+                                        }
 
-                                // Sempre abre no lado esquerdo do painel de usuários ativos.
-                                const left = panelRect.left - cardWidth - gap;
+                                        const cardWidth = 352;
+                                        const cardHeight = 520;
+                                        const gap = 16;
 
-                                const maxTop = Math.max(12, window.innerHeight - cardHeight);
-                                const top = Math.min(Math.max(80, rect.top - 12), maxTop);
+                                        // Sempre abre no lado esquerdo do painel de usuários ativos.
+                                        const left = panelRect.left - cardWidth - gap;
 
-                                setPopupPosition({ top, left });
-                                setSelectedUser(user);
-                            }}
-                        />
+                                        const maxTop = Math.max(12, window.innerHeight - cardHeight);
+                                        const top = Math.min(Math.max(80, rect.top - 12), maxTop);
+
+                                        setPopupPosition({ top, left });
+                                        setSelectedUser(user);
+                                    }}
+                                />
+                                </div>
+                            ))}
                         </div>
                     ))
                 )}

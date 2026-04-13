@@ -8,6 +8,32 @@ use Illuminate\Http\Request;
 
 class UsuariosController extends Controller
 {
+    private function cargoTexto(Usuario $usuario): ?string
+    {
+        $cargo = $usuario->getRawOriginal('cargo');
+
+        return is_string($cargo) && $cargo !== '' ? $cargo : null;
+    }
+
+    private function respostaUsuario(Usuario $usuario): array
+    {
+        $usuario->loadMissing('cargo');
+
+        return [
+            'id_usuario' => $usuario->id_usuario,
+            'nome' => $usuario->nome,
+            'email' => $usuario->email,
+            'foto_perfil' => $usuario->foto_perfil,
+            'cargo' => $this->cargoTexto($usuario),
+            'cargo_relation' => $usuario->cargo ? [
+                'id_cargo' => $usuario->cargo->id_cargo,
+                'nome_cargo' => $usuario->cargo->nome_cargo,
+            ] : null,
+            'nivel' => $usuario->nivel,
+            'data_criacao' => $usuario->data_criacao,
+        ];
+    }
+
     public function index(Request $request): JsonResponse
     {
         try {
@@ -24,7 +50,7 @@ class UsuariosController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Usuários listados com sucesso',
-                'data'    => ['usuarios' => $query->get()],
+                'data'    => ['usuarios' => $query->get()->map(fn (Usuario $usuario) => $this->respostaUsuario($usuario))->values()],
             ]);
         } catch (\Exception $e) {
             return response()->json([
@@ -48,7 +74,7 @@ class UsuariosController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Usuário encontrado com sucesso',
-            'data'    => ['usuario' => $usuario],
+            'data'    => ['usuario' => $this->respostaUsuario($usuario)],
         ]);
     }
 
@@ -57,7 +83,12 @@ class UsuariosController extends Controller
         $validated = $request->validate([
             'nome'        => 'required|string|min:2|max:255',
             'email'       => 'required|email|unique:usuarios,email',
-            'foto_perfil' => 'nullable|string',
+            'foto_perfil' => [
+                'nullable',
+                'string',
+                'starts_with:data:image/',
+                'regex:/^data:image\/(png|jpe?g|webp|gif);base64,[A-Za-z0-9+\/=\r\n]+$/',
+            ],
             'cargo'       => 'nullable|string|exists:cargos,nome_cargo',
             'nivel'       => 'nullable|string',
         ]);
@@ -68,7 +99,7 @@ class UsuariosController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Usuário cadastrado com sucesso',
-            'data'    => ['usuario' => $usuario],
+            'data'    => ['usuario' => $this->respostaUsuario($usuario)],
         ], 201);
     }
 
@@ -86,7 +117,12 @@ class UsuariosController extends Controller
         $validated = $request->validate([
             'nome'        => 'required|string|min:2|max:255',
             'email'       => 'required|email|unique:usuarios,email,' . $id . ',id_usuario',
-            'foto_perfil' => 'nullable|string',
+            'foto_perfil' => [
+                'nullable',
+                'string',
+                'starts_with:data:image/',
+                'regex:/^data:image\/(png|jpe?g|webp|gif);base64,[A-Za-z0-9+\/=\r\n]+$/',
+            ],
             'cargo'       => 'nullable|string|exists:cargos,nome_cargo',
             'nivel'       => 'nullable|string',
         ]);
@@ -97,7 +133,7 @@ class UsuariosController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Usuário atualizado com sucesso',
-            'data'    => ['usuario' => $usuario],
+            'data'    => ['usuario' => $this->respostaUsuario($usuario)],
         ]);
     }
 

@@ -4,6 +4,7 @@ interface ProfileUser {
     id?: number;
     name: string;
     role: string;
+    status: string;
     avatar?: string;
 }
 
@@ -32,6 +33,10 @@ export default function UserProfileCard({
         return null;
     }
 
+    const avatar = user.avatar && (user.avatar.startsWith("data:image/") || user.avatar.startsWith("http://") || user.avatar.startsWith("https://"))
+        ? user.avatar
+        : undefined;
+
     return (
         <div
             className={`${positionClassName} w-72 max-w-[92vw] bg-[#f3e5ef] border-2 border-[#dd8bc3] rounded-xl shadow-2xl overflow-hidden animate-slide-in-right`}
@@ -41,9 +46,9 @@ export default function UserProfileCard({
 
             <div className="px-3 pb-3 -mt-6">
                 <div className="flex items-start justify-between gap-2">
-                    {user.avatar ? (
+                    {avatar ? (
                         <img
-                            src={user.avatar}
+                            src={avatar}
                             alt={user.name}
                             className="w-14 h-14 rounded-full object-cover ring-3 ring-white shadow-sm"
                         />
@@ -61,7 +66,14 @@ export default function UserProfileCard({
                 <div className="mt-2">
                     <p className="text-2xl font-semibold text-[#3f3340] leading-none truncate">{user.name}</p>
                     <p className="text-xs text-[#5b4b5a] mt-0.5 truncate">{user.role}</p>
-                    <p className="text-xs text-[#6b5a6a] mt-0.5">@{user.name.split(" ")[0].toLowerCase()} • online</p>
+                    <p className="text-xs text-[#6b5a6a] mt-0.5">@{user.name.split(" ")[0].toLowerCase()} • {user.status}</p>
+                </div>
+
+                <div className="mt-3 rounded-lg bg-white border-2 border-[#e6c7da] p-2">
+                    <label className="text-[11px] font-bold uppercase tracking-wide text-[#7b5d73]" htmlFor="status-select">Status</label>
+                    <p className="mt-1 rounded-md border border-[#e6c7da] bg-[#fff7fc] px-2 py-2 text-xs font-semibold text-[#5f5060]">
+                        {user.status}
+                    </p>
                 </div>
 
                 <div className="mt-2 flex flex-wrap gap-1">

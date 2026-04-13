@@ -28,6 +28,7 @@ import {
     Menu,
     X,
 } from "lucide-react";
+import { frontRoutes } from "@/lib/routes";
 
 // TIPOS
 
@@ -44,10 +45,10 @@ interface SidebarProps {
 // Centralizamos aqui todos os itens de navegação.
 // Para adicionar uma nova página: basta adicionar um novo objeto nessa lista!
 const navItems = [
-    { name: "dashboard"   as PageName, label: "Dashboard",  href: "/dashboard",  icon: <LayoutDashboard size={20} /> },
-    { name: "performance" as PageName, label: "Desempenho", href: "/desempenho", icon: <BarChart2 size={20} /> },
-    { name: "tasks"       as PageName, label: "Projetos",   href: "/projetos",   icon: <ClipboardList size={20} /> },
-    { name: "team"        as PageName, label: "Equipe",     href: "/equipe",     icon: <Users size={20} /> },
+    { name: "dashboard"   as PageName, label: "Dashboard",  href: frontRoutes.dashboard,  icon: <LayoutDashboard size={20} /> },
+    { name: "performance" as PageName, label: "Desempenho", href: frontRoutes.desempenho, icon: <BarChart2 size={20} /> },
+    { name: "tasks"       as PageName, label: "Projetos",   href: frontRoutes.projetos,   icon: <ClipboardList size={20} /> },
+    { name: "team"        as PageName, label: "Equipe",     href: frontRoutes.equipe,     icon: <Users size={20} /> },
 ];
 
 // ------------------------------------------------------------------
@@ -257,7 +258,7 @@ export default function Sidebar({ currentPage }: SidebarProps) {
 
                     {/* Link para configurações */}
                     <Link
-                        href="/settings"
+                        href={frontRoutes.settings}
                         className={`
                             flex items-center gap-3 h-11 px-2 rounded-lg
                             transition-colors duration-200
