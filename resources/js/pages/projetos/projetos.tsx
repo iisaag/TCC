@@ -846,19 +846,6 @@ export default function Projetos() {
 								<div className="flex items-center gap-2">
 									<button
 										type="button"
-										onClick={() => {
-											setForm(EMPTY_FORM);
-											setIsModalOpen(true);
-										}}
-										className="inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-base"
-										style={{ borderColor: "var(--cor-borda)", backgroundColor: "#ffffff", color: "var(--cor-textoI)" }}
-									>
-										<Plus size={18} />
-										Novo card
-									</button>
-
-									<button
-										type="button"
 										onClick={() => setIsProjectModalOpen(true)}
 										className="inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-base"
 										style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-botao)", color: "var(--cor-textoI)" }}
