@@ -16,8 +16,21 @@ class Tarefa extends Model
         'id_projeto',
         'id_responsavel',
         'prioridade_task',
+        'tipo_task',
+        'data_inicio',
+        'data_prevista_termino',
+        'progresso',
+        'bloqueada',
         'prazo',
         'status_task',
+    ];
+
+    protected $casts = [
+        'data_inicio' => 'date',
+        'data_prevista_termino' => 'date',
+        'prazo' => 'date',
+        'bloqueada' => 'boolean',
+        'progresso' => 'integer',
     ];
 
     public function setTituloAttribute(string $value): void
@@ -42,5 +55,15 @@ class Tarefa extends Model
     public function responsavel()
     {
         return $this->belongsTo(Usuario::class, 'id_responsavel', 'id_usuario');
+    }
+
+    public function relacionados()
+    {
+        return $this->belongsToMany(
+            Usuario::class,
+            'tarefa_usuarios_relacionados',
+            'id_tarefa',
+            'id_usuario'
+        );
     }
 }

@@ -144,7 +144,7 @@ VALUES ('belli.arantess@gmail.com', '123', 'total');
 # PROJETOS
 INSERT INTO projetos (nome_projeto, descricao, data_inicio, prazo_final, status_projeto, prioridade_proj)
 VALUES
-('Sistema de Gestão', 'Plataforma para gerenciar projetos', '2026-03-10', '2026-06-30', 'Em andamento', 'Alta'),
+('Sistema de Gestao', 'Plataforma para gerenciar projetos', '2026-03-10', '2026-06-30', 'Em andamento', 'Alta'),
 ('Aplicativo Mobile', 'App para controle de tarefas', '2026-04-01', '2026-08-01', 'Planejamento', 'Média');
 
 # METAS

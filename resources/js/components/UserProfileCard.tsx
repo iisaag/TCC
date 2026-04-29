@@ -79,7 +79,7 @@ export default function UserProfileCard({
                 <div className="mt-2 flex flex-wrap gap-1">
                     <span className="text-xs px-2 py-0.5 rounded-full bg-white/90 border border-[#e6c7da] text-[#6d5468]">Time Produto</span>
                     <span className="text-xs px-2 py-0.5 rounded-full bg-white/90 border border-[#e6c7da] text-[#6d5468]">UX</span>
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-white/90 border border-[#e6c7da] text-[#6d5468]">Gestao</span>
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-white/90 border border-[#e6c7da] text-[#6d5468]">Coordenacao</span>
                 </div>
 
                 <div className="mt-3 rounded-lg bg-white/80 border border-[#e6c7da] p-2">

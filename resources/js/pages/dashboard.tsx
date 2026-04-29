@@ -1,5 +1,6 @@
 import DashboardLayout from "@/layouts/DashboardLayout";
-import { ReactNode } from "react";
+import { apiRoutes } from "@/lib/routes";
+import { ReactNode, useEffect, useMemo, useState } from "react";
 import { Download, Upload } from "lucide-react";
 import {
     Area,
@@ -19,49 +20,114 @@ import {
     YAxis,
 } from "recharts";
 
-const progressoProjetos = [
-    { mes: "Jan", produto: 14, frontend: 10, backend: 9, dados: 6, qa: 4, design: 7 },
-    { mes: "Fev", produto: 16, frontend: 12, backend: 10, dados: 8, qa: 5, design: 8 },
-    { mes: "Mar", produto: 19, frontend: 14, backend: 12, dados: 9, qa: 7, design: 10 },
-    { mes: "Abr", produto: 22, frontend: 16, backend: 13, dados: 10, qa: 8, design: 11 },
-    { mes: "Mai", produto: 24, frontend: 18, backend: 15, dados: 12, qa: 9, design: 12 },
-    { mes: "Jun", produto: 26, frontend: 19, backend: 16, dados: 13, qa: 10, design: 13 },
-    { mes: "Jul", produto: 27, frontend: 21, backend: 18, dados: 14, qa: 11, design: 15 },
-    { mes: "Ago", produto: 29, frontend: 22, backend: 19, dados: 15, qa: 12, design: 16 },
-    { mes: "Set", produto: 31, frontend: 24, backend: 21, dados: 16, qa: 13, design: 17 },
-    { mes: "Out", produto: 32, frontend: 25, backend: 22, dados: 17, qa: 14, design: 18 },
-    { mes: "Nov", produto: 34, frontend: 26, backend: 23, dados: 18, qa: 15, design: 19 },
-    { mes: "Dez", produto: 36, frontend: 28, backend: 25, dados: 19, qa: 16, design: 21 },
-];
+type BoardStatus = "TO_DO" | "DOING" | "TESTE" | "APROVADO";
 
-const previsaoDemanda = [
-    { mes: "Jan", baixa: 8, media: 13, alta: 6, critica: 4 },
-    { mes: "Fev", baixa: 7, media: 12, alta: 5, critica: 3 },
-    { mes: "Mar", baixa: 9, media: 14, alta: 7, critica: 4 },
-    { mes: "Abr", baixa: 10, media: 15, alta: 8, critica: 5 },
-    { mes: "Mai", baixa: 9, media: 14, alta: 8, critica: 4 },
-    { mes: "Jun", baixa: 11, media: 16, alta: 9, critica: 6 },
-];
+interface TarefaApi {
+    id_tarefa: number;
+    id_projeto?: number | null;
+    prioridade_task?: string | null;
+    tipo_task?: string | null;
+    data_inicio?: string | null;
+    data_prevista_termino?: string | null;
+    prazo?: string | null;
+    progresso?: number | null;
+    bloqueada?: boolean | null;
+    status_task?: string | null;
+}
 
-const distribuicaoTarefas = [
-    { nome: "Em execucao", valor: 41, cor: "#46d5be" },
-    { nome: "Em revisao", valor: 22, cor: "#39a4f8" },
-    { nome: "Bloqueadas", valor: 11, cor: "#ec6f86" },
-    { nome: "Planejadas", valor: 26, cor: "#f4c04f" },
-];
+interface ProjetoApi {
+    id_projeto: number;
+    nome_projeto: string;
+}
 
-const riscoPorSquad = [
-    { squad: "Sistema Web", previsto: 8, realizado: 7 },
-    { squad: "App Mobile", previsto: 6, realizado: 9 },
-    { squad: "Dados", previsto: 5, realizado: 6 },
-];
+interface ApiEnvelope<T> {
+    data?: T;
+}
 
-const kpisExecutivos = [
-    { titulo: "Taxa de atraso", valor: "18%", apoio: "-4 p.p. vs ultimo ciclo" },
-    { titulo: "Lead time medio", valor: "6,2 dias", apoio: "tarefas concluidas" },
-    { titulo: "Capacidade ocupada", valor: "82%", apoio: "equipe dentro do limite" },
-    { titulo: "Risco preditivo", valor: "Moderado", apoio: "2 projetos em alerta" },
-];
+const MONTH_LABELS = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+
+function normalizeStatus(status?: string | null): BoardStatus {
+    const value = (status ?? "").toUpperCase().trim();
+
+    if (["DOING", "EM ANDAMENTO"].includes(value)) {
+        return "DOING";
+    }
+
+    if (["TESTE", "EM TESTE", "REVIEW"].includes(value)) {
+        return "TESTE";
+    }
+
+    if (["APROVADO", "CONCLUIDA", "CONCLUÍDA", "DONE"].includes(value)) {
+        return "APROVADO";
+    }
+
+    return "TO_DO";
+}
+
+function normalizePriority(priority?: string | null): "BAIXA" | "MEDIA" | "ALTA" | "CRITICA" {
+    const raw = (priority ?? "")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toUpperCase()
+        .trim();
+
+    if (raw.includes("CRIT")) {
+        return "CRITICA";
+    }
+
+    if (raw.includes("ALTA")) {
+        return "ALTA";
+    }
+
+    if (raw.includes("BAIXA")) {
+        return "BAIXA";
+    }
+
+    return "MEDIA";
+}
+
+function normalizeType(type?: string | null): "FRONT" | "BACK" | "FULLSTACK" {
+    const raw = (type ?? "").toUpperCase().trim();
+
+    if (raw.includes("FULL")) {
+        return "FULLSTACK";
+    }
+
+    if (raw.includes("BACK")) {
+        return "BACK";
+    }
+
+    return "FRONT";
+}
+
+function displayWithoutAccents(value?: string | null): string {
+    return (value ?? "")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^\x20-\x7E]/g, "")
+        .replace(/\bSistem(?:a|o|u)?\b/gi, "Sistema")
+        .replace(/\bGest(?:a|u)?o\b/gi, "Gestao")
+        .replace(/\s+/g, " ")
+        .trim();
+}
+
+function parseDate(value?: string | null): Date | null {
+    if (!value) {
+        return null;
+    }
+
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) {
+        return null;
+    }
+
+    return parsed;
+}
+
+function taskMonthIndex(task: TarefaApi): number {
+    const date = parseDate(task.data_inicio) ?? parseDate(task.data_prevista_termino) ?? parseDate(task.prazo) ?? new Date();
+    return date.getMonth();
+}
 
 function formatNumericTooltip(
     value: string | number | null | undefined | readonly (string | number)[],
@@ -107,6 +173,197 @@ function ChartCard({
 }
 
 export default function Dashboard() {
+    const [tarefas, setTarefas] = useState<TarefaApi[]>([]);
+    const [projetos, setProjetos] = useState<ProjetoApi[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchDashboardData = async () => {
+            setIsLoading(true);
+
+            try {
+                const [tarefasResponse, projetosResponse] = await Promise.all([
+                    fetch(apiRoutes.tarefas, { headers: { Accept: "application/json" } }),
+                    fetch(apiRoutes.projetos, { headers: { Accept: "application/json" } }),
+                ]);
+
+                const tarefasPayload = (await tarefasResponse.json()) as ApiEnvelope<{ tarefas?: TarefaApi[] }>;
+                const projetosPayload = (await projetosResponse.json()) as ApiEnvelope<{ projetos?: ProjetoApi[] }>;
+
+                setTarefas(tarefasPayload.data?.tarefas ?? []);
+                setProjetos(projetosPayload.data?.projetos ?? []);
+            } catch {
+                setTarefas([]);
+                setProjetos([]);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        void fetchDashboardData();
+    }, []);
+
+    const lineData = useMemo(() => {
+        const base = MONTH_LABELS.map((mes) => ({ mes, total: 0, front: 0, back: 0, fullstack: 0 }));
+
+        tarefas.forEach((task) => {
+            const monthIndex = taskMonthIndex(task);
+            const row = base[monthIndex];
+            row.total += 1;
+
+            const type = normalizeType(task.tipo_task);
+            if (type === "FRONT") {
+                row.front += 1;
+            } else if (type === "BACK") {
+                row.back += 1;
+            } else {
+                row.fullstack += 1;
+            }
+        });
+
+        return base;
+    }, [tarefas]);
+
+    const areaData = useMemo(() => {
+        const base = MONTH_LABELS.map((mes) => ({ mes, baixa: 0, media: 0, alta: 0, critica: 0 }));
+
+        tarefas.forEach((task) => {
+            const monthIndex = taskMonthIndex(task);
+            const row = base[monthIndex];
+            const priority = normalizePriority(task.prioridade_task);
+
+            if (priority === "BAIXA") {
+                row.baixa += 1;
+            } else if (priority === "MEDIA") {
+                row.media += 1;
+            } else if (priority === "ALTA") {
+                row.alta += 1;
+            } else {
+                row.critica += 1;
+            }
+        });
+
+        return base;
+    }, [tarefas]);
+
+    const pieData = useMemo(() => {
+        const counts = {
+            toDo: 0,
+            doing: 0,
+            teste: 0,
+            aprovado: 0,
+            bloqueadas: 0,
+        };
+
+        tarefas.forEach((task) => {
+            const status = normalizeStatus(task.status_task);
+            if (status === "TO_DO") {
+                counts.toDo += 1;
+            } else if (status === "DOING") {
+                counts.doing += 1;
+            } else if (status === "TESTE") {
+                counts.teste += 1;
+            } else {
+                counts.aprovado += 1;
+            }
+
+            if (task.bloqueada) {
+                counts.bloqueadas += 1;
+            }
+        });
+
+        return [
+            { nome: "To Do", valor: counts.toDo, cor: "#f4c04f" },
+            { nome: "Doing", valor: counts.doing, cor: "#46d5be" },
+            { nome: "Teste", valor: counts.teste, cor: "#39a4f8" },
+            { nome: "Aprovado", valor: counts.aprovado, cor: "#6fae5a" },
+            { nome: "Bloqueadas", valor: counts.bloqueadas, cor: "#ec6f86" },
+        ].filter((item) => item.valor > 0);
+    }, [tarefas]);
+
+    const barData = useMemo(() => {
+        const projectNames = new Map<number, string>();
+        projetos.forEach((p) => projectNames.set(Number(p.id_projeto), displayWithoutAccents(p.nome_projeto)));
+
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const grouped = new Map<string, { projeto: string; atrasadas: number; emDia: number }>();
+
+        tarefas.forEach((task) => {
+            const key = task.id_projeto ? String(task.id_projeto) : "sem-projeto";
+            const nomeProjeto = task.id_projeto ? (projectNames.get(Number(task.id_projeto)) ?? `Projeto ${task.id_projeto}`) : "Sem projeto";
+
+            if (!grouped.has(key)) {
+                grouped.set(key, { projeto: nomeProjeto, atrasadas: 0, emDia: 0 });
+            }
+
+            const row = grouped.get(key);
+            if (!row) {
+                return;
+            }
+
+            const dueDate = parseDate(task.data_prevista_termino) ?? parseDate(task.prazo);
+            const isDone = normalizeStatus(task.status_task) === "APROVADO";
+            const isLate = Boolean(dueDate && dueDate < today && !isDone);
+
+            if (isLate) {
+                row.atrasadas += 1;
+            } else {
+                row.emDia += 1;
+            }
+        });
+
+        return Array.from(grouped.values()).slice(0, 8);
+    }, [tarefas, projetos]);
+
+    const kpisExecutivos = useMemo(() => {
+        const total = tarefas.length;
+        const atrasadas = tarefas.filter((task) => {
+            const dueDate = parseDate(task.data_prevista_termino) ?? parseDate(task.prazo);
+            const isDone = normalizeStatus(task.status_task) === "APROVADO";
+
+            if (!dueDate || isDone) {
+                return false;
+            }
+
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            return dueDate < today;
+        }).length;
+
+        const taxaAtraso = total > 0 ? (atrasadas / total) * 100 : 0;
+
+        const approvedWithDates = tarefas.filter((task) => {
+            const start = parseDate(task.data_inicio);
+            const end = parseDate(task.data_prevista_termino) ?? parseDate(task.prazo);
+            return normalizeStatus(task.status_task) === "APROVADO" && Boolean(start && end && end >= start);
+        });
+
+        const leadTime = approvedWithDates.length > 0
+            ? approvedWithDates.reduce((acc, task) => {
+                const start = parseDate(task.data_inicio) as Date;
+                const end = (parseDate(task.data_prevista_termino) ?? parseDate(task.prazo)) as Date;
+                const days = Math.max(1, Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)));
+                return acc + days;
+            }, 0) / approvedWithDates.length
+            : 0;
+
+        const activeTasks = tarefas.filter((task) => normalizeStatus(task.status_task) !== "APROVADO");
+        const ocupacao = activeTasks.length > 0
+            ? activeTasks.reduce((acc, task) => acc + Number(task.progresso ?? 0), 0) / activeTasks.length
+            : 0;
+
+        const risco = taxaAtraso >= 35 ? "Alto" : taxaAtraso >= 20 ? "Moderado" : "Baixo";
+
+        return [
+            { titulo: "Taxa de atraso", valor: `${taxaAtraso.toFixed(1)}%`, apoio: `${atrasadas} de ${total} tarefas atrasadas` },
+            { titulo: "Lead time medio", valor: `${leadTime.toFixed(1)} dias`, apoio: "tarefas aprovadas com datas" },
+            { titulo: "Capacidade ocupada", valor: `${ocupacao.toFixed(0)}%`, apoio: "media de progresso das tarefas ativas" },
+            { titulo: "Risco preditivo", valor: risco, apoio: "baseado na taxa atual de atrasos" },
+        ];
+    }, [tarefas]);
+
     return (
         <DashboardLayout currentPage="dashboard">
             <div className="space-y-4">
@@ -115,6 +372,12 @@ export default function Dashboard() {
                         Dashboard
                     </h1>
                 </div>
+
+                {isLoading ? (
+                    <div className="rounded-2xl border px-4 py-3 text-sm" style={{ borderColor: "var(--cor-borda)", color: "var(--cor-logo2)" }}>
+                        Carregando graficos com dados reais...
+                    </div>
+                ) : null}
 
                 <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
                     {kpisExecutivos.map((kpi) => (
@@ -134,20 +397,18 @@ export default function Dashboard() {
 
                 <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
                     <div className="space-y-4">
-                        <ChartCard title="Produtividade mensal por equipe (tarefas concluidas)">
+                        <ChartCard title="Produtividade mensal por tipo de tarefa">
                             <div className="h-[380px] w-full">
                                 <ResponsiveContainer width="100%" height="100%">
-                                    <LineChart data={progressoProjetos} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+                                    <LineChart data={lineData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
                                         <CartesianGrid strokeDasharray="3 3" stroke="#d6dbe1" />
                                         <XAxis dataKey="mes" tick={{ fontSize: 12 }} />
-                                        <YAxis tick={{ fontSize: 12 }} />
-                                        <Tooltip formatter={(value) => formatNumericTooltip(value)} />
-                                        <Line type="monotone" dataKey="produto" stroke="#4aa7ff" strokeWidth={3} dot={false} />
-                                        <Line type="monotone" dataKey="frontend" stroke="#6fae5a" strokeWidth={2.3} dot={false} />
-                                        <Line type="monotone" dataKey="backend" stroke="#8f84d8" strokeWidth={2.3} dot={false} />
-                                        <Line type="monotone" dataKey="dados" stroke="#e6ab4d" strokeWidth={2.3} dot={false} />
-                                        <Line type="monotone" dataKey="qa" stroke="#b6be50" strokeWidth={2.3} dot={false} />
-                                        <Line type="monotone" dataKey="design" stroke="#e56a63" strokeWidth={2.3} dot={false} />
+                                        <YAxis tick={{ fontSize: 12 }} allowDecimals={false} />
+                                        <Tooltip formatter={(value) => `${formatNumericTooltip(value)} tarefas`} />
+                                        <Line type="monotone" dataKey="total" name="Total" stroke="#4aa7ff" strokeWidth={3} dot={false} />
+                                        <Line type="monotone" dataKey="front" name="Front" stroke="#6fae5a" strokeWidth={2.3} dot={false} />
+                                        <Line type="monotone" dataKey="back" name="Back" stroke="#8f84d8" strokeWidth={2.3} dot={false} />
+                                        <Line type="monotone" dataKey="fullstack" name="Full Stack" stroke="#e56a63" strokeWidth={2.3} dot={false} />
                                     </LineChart>
                                 </ResponsiveContainer>
                             </div>
@@ -178,7 +439,7 @@ export default function Dashboard() {
                                     <ResponsiveContainer width="100%" height="100%">
                                         <PieChart>
                                             <Pie
-                                                data={distribuicaoTarefas}
+                                                data={pieData}
                                                 dataKey="valor"
                                                 nameKey="nome"
                                                 cx="45%"
@@ -188,7 +449,7 @@ export default function Dashboard() {
                                                 label={({ percent }) => `${Math.round((percent ?? 0) * 100)}%`}
                                                 labelLine={false}
                                             >
-                                                {distribuicaoTarefas.map((entry) => (
+                                                {pieData.map((entry) => (
                                                     <Cell key={entry.nome} fill={entry.cor} />
                                                 ))}
                                             </Pie>
@@ -199,7 +460,7 @@ export default function Dashboard() {
                                                 iconType="circle"
                                                 formatter={(value) => <span style={{ color: "var(--cor-textoI)", fontSize: 12 }}>{value}</span>}
                                             />
-                                            <Tooltip formatter={(value) => `${formatNumericTooltip(value)}%`} />
+                                            <Tooltip formatter={(value) => `${formatNumericTooltip(value)} tarefas`} />
                                         </PieChart>
                                     </ResponsiveContainer>
                                 </div>
@@ -208,34 +469,34 @@ export default function Dashboard() {
                     </div>
 
                     <div className="space-y-4">
-                        <ChartCard title="Previsao de demanda por prioridade">
+                        <ChartCard title="Demanda mensal por prioridade">
                             <div className="h-[320px] w-full">
                                 <ResponsiveContainer width="100%" height="100%">
-                                    <AreaChart data={previsaoDemanda} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+                                    <AreaChart data={areaData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
                                         <CartesianGrid strokeDasharray="3 3" stroke="#d6dbe1" />
                                         <XAxis dataKey="mes" tick={{ fontSize: 12 }} />
-                                        <YAxis tick={{ fontSize: 12 }} />
+                                        <YAxis tick={{ fontSize: 12 }} allowDecimals={false} />
                                         <Tooltip formatter={(value) => `${formatNumericTooltip(value)} tarefas`} />
-                                        <Area type="monotone" dataKey="baixa" stackId="1" stroke="#5aa7e2" fill="#5aa7e2" />
-                                        <Area type="monotone" dataKey="media" stackId="1" stroke="#e4884d" fill="#e4884d" />
-                                        <Area type="monotone" dataKey="alta" stackId="1" stroke="#989898" fill="#989898" />
-                                        <Area type="monotone" dataKey="critica" stackId="1" stroke="#f2c11e" fill="#f2c11e" />
+                                        <Area type="monotone" dataKey="baixa" stackId="1" name="Baixa" stroke="#5aa7e2" fill="#5aa7e2" />
+                                        <Area type="monotone" dataKey="media" stackId="1" name="Media" stroke="#e4884d" fill="#e4884d" />
+                                        <Area type="monotone" dataKey="alta" stackId="1" name="Alta" stroke="#989898" fill="#989898" />
+                                        <Area type="monotone" dataKey="critica" stackId="1" name="Critica" stroke="#f2c11e" fill="#f2c11e" />
                                     </AreaChart>
                                 </ResponsiveContainer>
                             </div>
                         </ChartCard>
 
-                        <ChartCard title="Atrasos previstos x realizados por projeto">
+                        <ChartCard title="Atrasadas x em dia por projeto">
                             <div className="h-[280px] w-full">
                                 <ResponsiveContainer width="100%" height="100%">
-                                    <BarChart data={riscoPorSquad} barGap={24} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+                                    <BarChart data={barData} barGap={24} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
                                         <CartesianGrid strokeDasharray="3 3" stroke="#d6dbe1" />
-                                        <XAxis dataKey="squad" tick={{ fontSize: 12 }} />
-                                        <YAxis tick={{ fontSize: 12 }} />
-                                        <Tooltip />
+                                        <XAxis dataKey="projeto" tick={{ fontSize: 12 }} />
+                                        <YAxis tick={{ fontSize: 12 }} allowDecimals={false} />
+                                        <Tooltip formatter={(value) => `${formatNumericTooltip(value)} tarefas`} />
                                         <Legend />
-                                        <Bar dataKey="previsto" fill="#e979a0" radius={[6, 6, 0, 0]} />
-                                        <Bar dataKey="realizado" fill="#7ca1cf" radius={[6, 6, 0, 0]} />
+                                        <Bar dataKey="atrasadas" name="Atrasadas" fill="#e979a0" radius={[6, 6, 0, 0]} />
+                                        <Bar dataKey="emDia" name="Em dia" fill="#7ca1cf" radius={[6, 6, 0, 0]} />
                                     </BarChart>
                                 </ResponsiveContainer>
                             </div>
