@@ -24,6 +24,7 @@ interface SessionUser {
 }
 
 interface PageProps {
+    [key: string]: unknown;
     auth?: {
         user?: SessionUser | null;
     };
