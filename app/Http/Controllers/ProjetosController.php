@@ -11,7 +11,7 @@ class ProjetosController extends Controller
     public function index(Request $request): JsonResponse
     {
         try {
-            $query = Projeto::query();
+            $query = Projeto::with('responsavel');
 
             if ($request->filled('nome')) {
                 $query->whereRaw('LOWER(nome_projeto) LIKE LOWER(?)', ["%{$request->nome}%"]);
@@ -61,6 +61,7 @@ class ProjetosController extends Controller
             'prazo_final'     => 'nullable|date',
             'status_projeto'  => 'nullable|string',
             'prioridade_proj' => 'nullable|string|in:BAIXA,MEDIA,ALTA',
+            'id_responsavel'  => 'nullable|integer|exists:usuarios,id_usuario',
         ]);
 
         $projeto = Projeto::create($validated);
@@ -90,6 +91,7 @@ class ProjetosController extends Controller
             'prazo_final'     => 'nullable|date',
             'status_projeto'  => 'nullable|string',
             'prioridade_proj' => 'nullable|string|in:BAIXA,MEDIA,ALTA',
+            'id_responsavel'  => 'nullable|integer|exists:usuarios,id_usuario',
         ]);
 
         $projeto->update($validated);

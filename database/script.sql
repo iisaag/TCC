@@ -57,7 +57,10 @@ descricao TEXT,
 data_inicio DATE,
 prazo_final DATE,
 status_projeto VARCHAR(50),
-prioridade_proj VARCHAR(15)
+prioridade_proj VARCHAR(15),
+id_responsavel INT,
+
+FOREIGN KEY (id_responsavel) REFERENCES usuarios(id_usuario)
 );
 
 # TABELA METAS

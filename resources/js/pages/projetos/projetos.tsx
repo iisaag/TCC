@@ -29,6 +29,8 @@ interface PageProps {
 interface Projeto {
 	id_projeto: number;
 	nome_projeto: string;
+	id_responsavel?: number | null;
+	responsavel?: Usuario | null;
 }
 
 interface TarefaApi {
@@ -73,6 +75,7 @@ interface ProjectFormState {
 	descricao: string;
 	prioridade_proj: "" | "BAIXA" | "MEDIA" | "ALTA";
 	status_projeto: string;
+	id_responsavel: string;
 }
 
 const STATUS_COLUMNS: Array<{ key: BoardStatus; label: string }> = [
@@ -109,6 +112,7 @@ const EMPTY_PROJECT_FORM: ProjectFormState = {
 	descricao: "",
 	prioridade_proj: "",
 	status_projeto: "",
+	id_responsavel: "",
 };
 
 function normalizeStatus(status?: string | null): BoardStatus {
@@ -587,6 +591,7 @@ export default function Projetos() {
 				descricao: projectForm.descricao || null,
 				prioridade_proj: projectForm.prioridade_proj || null,
 				status_projeto: projectForm.status_projeto || null,
+				id_responsavel: projectForm.id_responsavel ? Number(projectForm.id_responsavel) : null,
 			};
 
 			const response = await fetch(apiRoutes.projetos, {
@@ -876,6 +881,10 @@ export default function Projetos() {
 										{projeto.total} card(s) no total
 									</p>
 
+									<p className="mt-1 text-base" style={{ color: "var(--cor-logo2)" }}>
+										Resp.: {projeto.responsavel?.nome ?? "Nao definido"}
+									</p>
+
 									<div className="mt-3 grid grid-cols-2 gap-2 text-base" style={{ color: "var(--cor-logo2)" }}>
 										<span>To Do: {projeto.toDo}</span>
 										<span>Doing: {projeto.doing}</span>
@@ -1127,6 +1136,22 @@ export default function Projetos() {
 										<option value="BAIXA">Baixa</option>
 										<option value="MEDIA">Media</option>
 										<option value="ALTA">Alta</option>
+									</select>
+								</label>
+
+								<label className="flex flex-col gap-1 text-base md:col-span-2" style={{ color: "var(--cor-textoI)" }}>
+									Responsavel do projeto
+									<select
+										value={projectForm.id_responsavel}
+										onChange={(e) => setProjectForm((c) => ({ ...c, id_responsavel: e.target.value }))}
+										className="rounded-xl border bg-white px-4 py-3 text-base shadow-sm"
+									>
+										<option value="">Selecione</option>
+										{usuarios.map((usuario) => (
+											<option key={usuario.id_usuario} value={usuario.id_usuario}>
+												{usuario.nome}
+											</option>
+										))}
 									</select>
 								</label>
 

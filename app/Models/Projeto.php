@@ -17,7 +17,13 @@ class Projeto extends Model
         'prazo_final',
         'status_projeto',
         'prioridade_proj',
+        'id_responsavel',
     ];
+
+    public function responsavel()
+    {
+        return $this->belongsTo(Usuario::class, 'id_responsavel', 'id_usuario');
+    }
 
     public function setNomeProjetoAttribute(string $value): void
     {
