@@ -4,6 +4,8 @@ import react from '@vitejs/plugin-react';
 import laravel from 'laravel-vite-plugin';
 import { defineConfig } from 'vite';
 
+const isCI = process.env.CI === 'true' || process.env.GITHUB_ACTIONS === 'true';
+
 export default defineConfig({
     plugins: [
         laravel({
@@ -17,10 +19,14 @@ export default defineConfig({
             },
         }),
         tailwindcss(),
-        wayfinder({
-            command: 'node scripts/wayfinder-generate.mjs',
-            formVariants: true,
-        }),
+        ...(!isCI
+            ? [
+                  wayfinder({
+                      command: 'node scripts/wayfinder-generate.mjs',
+                      formVariants: true,
+                  }),
+              ]
+            : []),
     ],
     esbuild: {
         jsx: 'automatic',
