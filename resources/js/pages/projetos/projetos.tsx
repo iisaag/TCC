@@ -941,6 +941,7 @@ export default function Projetos() {
 											setForm((current) => ({
 												...current,
 												id_projeto: String(selectedProjectId),
+												id_responsavel: me?.id ? String(me.id) : "",
 											}));
 											setIsModalOpen(true);
 										}}

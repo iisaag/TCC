@@ -17,7 +17,9 @@ class UsuariosController extends Controller
 
     private function respostaUsuario(Usuario $usuario): array
     {
-        $usuario->loadMissing('cargo');
+        $usuario->loadMissing('cargoRelation');
+
+        $cargoRelation = $usuario->cargoRelation;
 
         return [
             'id_usuario' => $usuario->id_usuario,
@@ -25,9 +27,9 @@ class UsuariosController extends Controller
             'email' => $usuario->email,
             'foto_perfil' => $usuario->foto_perfil,
             'cargo' => $this->cargoTexto($usuario),
-            'cargo_relation' => $usuario->cargo ? [
-                'id_cargo' => $usuario->cargo->id_cargo,
-                'nome_cargo' => $usuario->cargo->nome_cargo,
+            'cargo_relation' => $cargoRelation ? [
+                'id_cargo' => $cargoRelation->id_cargo,
+                'nome_cargo' => $cargoRelation->nome_cargo,
             ] : null,
             'nivel' => $usuario->nivel,
             'data_criacao' => $usuario->data_criacao,
@@ -37,7 +39,7 @@ class UsuariosController extends Controller
     public function index(Request $request): JsonResponse
     {
         try {
-            $query = Usuario::with('cargo')->orderBy('nome', 'asc');
+            $query = Usuario::with('cargoRelation')->orderBy('nome', 'asc');
 
             if ($request->filled('nome')) {
                 $query->whereRaw('LOWER(nome) LIKE LOWER(?)', ["%{$request->nome}%"]);
@@ -62,7 +64,7 @@ class UsuariosController extends Controller
 
     public function show(int $id): JsonResponse
     {
-        $usuario = Usuario::with('cargo')->find($id);
+        $usuario = Usuario::with('cargoRelation')->find($id);
 
         if (!$usuario) {
             return response()->json([
@@ -94,7 +96,7 @@ class UsuariosController extends Controller
         ]);
 
         $usuario = Usuario::create($validated);
-        $usuario->load('cargo');
+        $usuario->load('cargoRelation');
 
         return response()->json([
             'success' => true,
@@ -128,7 +130,7 @@ class UsuariosController extends Controller
         ]);
 
         $usuario->update($validated);
-        $usuario->load('cargo');
+        $usuario->load('cargoRelation');
 
         return response()->json([
             'success' => true,

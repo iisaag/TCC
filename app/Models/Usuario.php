@@ -55,8 +55,8 @@ class Usuario extends Model
         }
     }
 
-    public function cargo()
+    public function cargoRelation()
     {
-         return $this->belongsTo('App\Models\Cargo', 'cargo', 'nome_cargo');
+        return $this->belongsTo('App\Models\Cargo', 'cargo', 'nome_cargo');
     }
 }
