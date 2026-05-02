@@ -1,7 +1,7 @@
 import DashboardLayout from "@/layouts/DashboardLayout";
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { usePage } from "@inertiajs/react";
-import { ArrowLeft, CalendarDays, GripVertical, Plus, Search } from "lucide-react";
+import { ArrowLeft, CalendarDays, ChevronDown, GripVertical, Plus, Search } from "lucide-react";
 import { apiRoutes } from "@/lib/routes";
 
 type BoardStatus = "TO_DO" | "DOING" | "TESTE" | "APROVADO";
@@ -11,6 +11,7 @@ interface Usuario {
 	id?: number | null;
 	nome: string;
 	foto_perfil?: string | null;
+	cargo_relation?: { id_cargo: number; nome_cargo: string } | null;
 }
 
 interface SessionUser {
@@ -306,6 +307,77 @@ function displayWithoutAccents(value?: string | null): string {
 		.trim();
 
 	return sanitized;
+}
+
+interface SelectOption { value: string; label: string }
+
+function CustomSelect({
+	value,
+	onChange,
+	options,
+	disabled,
+	placeholder = "Selecione",
+}: {
+	value: string;
+	onChange: (value: string) => void;
+	options: SelectOption[];
+	disabled?: boolean;
+	placeholder?: string;
+}) {
+	const [open, setOpen] = useState(false);
+	const ref = useRef<HTMLDivElement>(null);
+
+	useEffect(() => {
+		if (!open) return;
+		const handler = (e: MouseEvent) => {
+			if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+		};
+		document.addEventListener("mousedown", handler);
+		return () => document.removeEventListener("mousedown", handler);
+	}, [open]);
+
+	const selected = options.find((o) => o.value === value);
+
+	return (
+		<div ref={ref} className="relative">
+			<button
+				type="button"
+				disabled={disabled}
+				onClick={() => !disabled && setOpen((v) => !v)}
+				className="w-full rounded-xl border px-4 py-3 text-xl text-left flex items-center justify-between outline-none transition"
+				style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-widgets)", color: "var(--cor-logo)" }}
+			>
+				<span>{selected?.label ?? placeholder}</span>
+				<ChevronDown
+					size={20}
+					style={{ transition: "transform 0.2s ease", transform: open ? "rotate(180deg)" : "rotate(0deg)", color: "var(--cor-logo2)", flexShrink: 0 }}
+				/>
+			</button>
+			{open ? (
+				<div
+					className="absolute z-[200] w-full mt-1 rounded-xl border shadow-xl overflow-hidden animate-dropdown"
+					style={{ backgroundColor: "var(--cor-widgets)", borderColor: "var(--cor-borda)" }}
+				>
+					{options.map((option) => (
+						<button
+							key={option.value}
+							type="button"
+							onClick={() => { onChange(option.value); setOpen(false); }}
+							className="w-full px-4 py-3 text-xl text-left transition-colors"
+							style={{
+								color: "var(--cor-logo)",
+								backgroundColor: value === option.value ? "var(--cor-botao)" : "transparent",
+							}}
+							onMouseEnter={(e) => { if (value !== option.value) (e.currentTarget as HTMLButtonElement).style.backgroundColor = "var(--cor-fundo)"; }}
+							onMouseLeave={(e) => { if (value !== option.value) (e.currentTarget as HTMLButtonElement).style.backgroundColor = "transparent"; }}
+						>
+							{option.label}
+						</button>
+					))}
+				</div>
+			) : null}
+		</div>
+	);
 }
 
 function AvatarPill({ usuario, size = 30 }: { usuario: Usuario; size?: number }) {
@@ -836,11 +908,11 @@ export default function Projetos() {
 					<section className="space-y-4">
 						<div
 							className="rounded-3xl border p-5 shadow-sm"
-							style={{ borderColor: "var(--cor-borda)", background: "linear-gradient(140deg, #eef5fb 0%, #f8fbff 100%)" }}
+							style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-widgets)" }}
 						>
 							<div className="flex items-center justify-between gap-3">
 								<div>
-									<h1 className="text-4xl" style={{ color: "var(--cor-textoI)" }}>
+									<h1 className="text-4xl" style={{ color: "var(--cor-logo)" }}>
 										Projetos
 									</h1>
 									<p className="mt-2 text-lg" style={{ color: "var(--cor-logo2)" }}>
@@ -853,7 +925,7 @@ export default function Projetos() {
 										type="button"
 										onClick={() => setIsProjectModalOpen(true)}
 										className="inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-base"
-										style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-botao)", color: "var(--cor-textoI)" }}
+										style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-botao)", color: "var(--cor-logo)" }}
 									>
 										<Plus size={18} />
 										Novo projeto
@@ -872,9 +944,9 @@ export default function Projetos() {
 										setQuery("");
 									}}
 									className="rounded-2xl border p-4 text-left shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg"
-									style={{ borderColor: "var(--cor-borda)", background: "linear-gradient(180deg, #ffffff 0%, #f6f9fc 100%)" }}
+									style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-widgets)" }}
 								>
-									<p className="text-2xl" style={{ color: "var(--cor-textoI)" }}>
+									<p className="text-2xl" style={{ color: "var(--cor-logo)" }}>
 										{displayWithoutAccents(projeto.nome_projeto)}
 									</p>
 									<p className="mt-1 text-base" style={{ color: "var(--cor-logo2)" }}>
@@ -991,13 +1063,13 @@ export default function Projetos() {
 									void moveTaskToColumn(taskId, column.key);
 								}
 							}}
-							style={{ borderColor: "var(--cor-borda)", backgroundColor: "#eef2f6" }}
+							style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-fundo)" }}
 						>
 							<div className="mb-3 flex items-center justify-between">
-								<h2 className="text-3xl" style={{ color: "var(--cor-textoI)" }}>
+								<h2 className="text-3xl" style={{ color: "var(--cor-logo)" }}>
 									{column.label}
 								</h2>
-								<span className="rounded-full bg-white px-2.5 py-1 text-sm" style={{ color: "var(--cor-logo2)" }}>
+								<span className="rounded-full px-2.5 py-1 text-sm" style={{ backgroundColor: "var(--cor-widgets)", color: "var(--cor-logo2)" }}>
 									{filteredGrouped[column.key].length}
 								</span>
 							</div>
@@ -1012,13 +1084,13 @@ export default function Projetos() {
 											event.dataTransfer.effectAllowed = "move";
 										}}
 										onClick={() => openTaskDetails(tarefa)}
-										className="cursor-grab rounded-xl border bg-white p-0 active:cursor-grabbing"
-										style={{ borderColor: "#d8dde4" }}
+										className="cursor-grab rounded-xl border p-0 active:cursor-grabbing"
+										style={{ borderColor: "#d8dde4", backgroundColor: "var(--cor-widgets)" }}
 									>
 										<div className="h-2 w-full rounded-t-xl" style={{ backgroundColor: priorityColor(tarefa.prioridade_task) }} />
 										<div className="p-3">
 											<div className="mb-2 flex items-start justify-between gap-2">
-												<p className="text-xl leading-tight font-semibold" style={{ color: "var(--cor-textoI)" }}>
+												<p className="text-xl leading-tight font-semibold" style={{ color: "var(--cor-logo)" }}>
 													{tarefa.titulo}
 												</p>
 												<GripVertical size={16} style={{ color: "#94a2b3" }} />
@@ -1107,7 +1179,7 @@ export default function Projetos() {
 							style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-widgets)" }}
 						>
 							<div className="mb-4 flex items-center justify-between">
-								<h2 className="text-2xl" style={{ color: "var(--cor-textoI)" }}>
+								<h2 className="text-2xl" style={{ color: "var(--cor-logo)" }}>
 									Novo projeto
 								</h2>
 								<button type="button" onClick={() => setIsProjectModalOpen(false)} className="rounded-lg border px-3 py-1.5 text-sm">
@@ -1116,7 +1188,7 @@ export default function Projetos() {
 							</div>
 
 							<div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-								<label className="flex flex-col gap-1 text-base" style={{ color: "var(--cor-textoI)" }}>
+								<label className="flex flex-col gap-1 text-base" style={{ color: "var(--cor-logo)" }}>
 									Nome do projeto *
 									<input
 										required
@@ -1126,7 +1198,7 @@ export default function Projetos() {
 									/>
 								</label>
 
-								<label className="flex flex-col gap-1 text-base" style={{ color: "var(--cor-textoI)" }}>
+								<label className="flex flex-col gap-1 text-base" style={{ color: "var(--cor-logo)" }}>
 									Prioridade
 									<select
 										value={projectForm.prioridade_proj}
@@ -1140,7 +1212,7 @@ export default function Projetos() {
 									</select>
 								</label>
 
-								<label className="flex flex-col gap-1 text-base md:col-span-2" style={{ color: "var(--cor-textoI)" }}>
+								<label className="flex flex-col gap-1 text-base md:col-span-2" style={{ color: "var(--cor-logo)" }}>
 									Responsavel do projeto
 									<select
 										value={projectForm.id_responsavel}
@@ -1156,7 +1228,7 @@ export default function Projetos() {
 									</select>
 								</label>
 
-								<label className="md:col-span-2 flex flex-col gap-1 text-base" style={{ color: "var(--cor-textoI)" }}>
+								<label className="md:col-span-2 flex flex-col gap-1 text-base" style={{ color: "var(--cor-logo)" }}>
 									Descricao
 									<textarea
 										rows={4}
@@ -1175,7 +1247,7 @@ export default function Projetos() {
 									type="submit"
 									disabled={isSavingProject}
 									className="rounded-xl border px-4 py-2.5 text-base"
-									style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-botao)", color: "var(--cor-textoI)" }}
+									style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-botao)", color: "var(--cor-logo)" }}
 								>
 									{isSavingProject ? "Salvando..." : "Criar projeto"}
 								</button>
@@ -1195,7 +1267,7 @@ export default function Projetos() {
 								className="mb-5 flex items-center justify-between rounded-2xl border px-4 py-3"
 								style={{ borderColor: "#d6e0ea", background: "linear-gradient(135deg, #eef5fb 0%, #f8fbff 100%)" }}
 							>
-								<h2 className="text-2xl" style={{ color: "var(--cor-textoI)" }}>
+								<h2 className="text-2xl" style={{ color: "var(--cor-logo)" }}>
 									Novo card de tarefa
 								</h2>
 
@@ -1203,14 +1275,14 @@ export default function Projetos() {
 									type="button"
 									onClick={() => setIsModalOpen(false)}
 									className="rounded-xl border px-4 py-2 text-sm transition-transform duration-200 hover:-translate-y-0.5"
-									style={{ color: "var(--cor-textoI)", borderColor: "#d0dbe7" }}
+									style={{ color: "var(--cor-logo)", borderColor: "#d0dbe7" }}
 								>
 									Fechar
 								</button>
 							</div>
 
 							<div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-								<label className="flex flex-col gap-1 text-base" style={{ color: "var(--cor-textoI)" }}>
+								<label className="flex flex-col gap-1 text-base" style={{ color: "var(--cor-logo)" }}>
 									Titulo da tarefa *
 									<input
 										required
@@ -1220,7 +1292,7 @@ export default function Projetos() {
 									/>
 								</label>
 
-								<label className="flex flex-col gap-1 text-base" style={{ color: "var(--cor-textoI)" }}>
+								<label className="flex flex-col gap-1 text-base" style={{ color: "var(--cor-logo)" }}>
 									Responsavel principal
 									<select
 										value={form.id_responsavel}
@@ -1236,7 +1308,7 @@ export default function Projetos() {
 									</select>
 								</label>
 
-								<label className="flex flex-col gap-1 text-base" style={{ color: "var(--cor-textoI)" }}>
+								<label className="flex flex-col gap-1 text-base" style={{ color: "var(--cor-logo)" }}>
 									Projeto
 									<select
 										value={form.id_projeto}
@@ -1252,7 +1324,7 @@ export default function Projetos() {
 									</select>
 								</label>
 
-								<label className="flex flex-col gap-1 text-base" style={{ color: "var(--cor-textoI)" }}>
+								<label className="flex flex-col gap-1 text-base" style={{ color: "var(--cor-logo)" }}>
 									Prioridade
 									<select
 										value={form.prioridade_task}
@@ -1266,7 +1338,7 @@ export default function Projetos() {
 									</select>
 								</label>
 
-								<label className="flex flex-col gap-1 text-base" style={{ color: "var(--cor-textoI)" }}>
+								<label className="flex flex-col gap-1 text-base" style={{ color: "var(--cor-logo)" }}>
 									Tipo tecnico
 									<select
 										value={form.tipo_task}
@@ -1279,7 +1351,7 @@ export default function Projetos() {
 									</select>
 								</label>
 
-								<label className="flex flex-col gap-1 text-base" style={{ color: "var(--cor-textoI)" }}>
+								<label className="flex flex-col gap-1 text-base" style={{ color: "var(--cor-logo)" }}>
 									Data de inicio
 									<input
 										type="date"
@@ -1289,7 +1361,7 @@ export default function Projetos() {
 									/>
 								</label>
 
-								<label className="flex flex-col gap-1 text-base" style={{ color: "var(--cor-textoI)" }}>
+								<label className="flex flex-col gap-1 text-base" style={{ color: "var(--cor-logo)" }}>
 									Data prevista para terminar
 									<input
 										type="date"
@@ -1299,7 +1371,7 @@ export default function Projetos() {
 									/>
 								</label>
 
-								<label className="flex flex-col gap-1 text-base" style={{ color: "var(--cor-textoI)" }}>
+								<label className="flex flex-col gap-1 text-base" style={{ color: "var(--cor-logo)" }}>
 									Status
 									<select
 										value={form.status_task}
@@ -1314,7 +1386,7 @@ export default function Projetos() {
 									</select>
 								</label>
 
-								<label className="flex flex-col gap-1 text-base" style={{ color: "var(--cor-textoI)" }}>
+								<label className="flex flex-col gap-1 text-base" style={{ color: "var(--cor-logo)" }}>
 									Progresso (%)
 									<input
 										type="number"
@@ -1327,7 +1399,7 @@ export default function Projetos() {
 								</label>
 							</div>
 
-							<label className="mt-4 flex items-center gap-2 text-base" style={{ color: "var(--cor-textoI)" }}>
+							<label className="mt-4 flex items-center gap-2 text-base" style={{ color: "var(--cor-logo)" }}>
 								<input
 									type="checkbox"
 									checked={form.bloqueada}
@@ -1336,7 +1408,7 @@ export default function Projetos() {
 								Tarefa bloqueada
 							</label>
 
-							<label className="mt-4 flex flex-col gap-1 text-base" style={{ color: "var(--cor-textoI)" }}>
+							<label className="mt-4 flex flex-col gap-1 text-base" style={{ color: "var(--cor-logo)" }}>
 								Detalhes da tarefa
 								<textarea
 									rows={5}
@@ -1348,7 +1420,7 @@ export default function Projetos() {
 
 							<div className="mt-4 rounded-2xl border p-3" style={{ borderColor: "#dce4ec", backgroundColor: "#f7fafc" }}>
 								<div className="mb-1 flex items-center justify-between">
-									<p className="text-base" style={{ color: "var(--cor-textoI)" }}>
+									<p className="text-base" style={{ color: "var(--cor-logo)" }}>
 										Pessoas relacionadas
 									</p>
 									{me?.id ? (
@@ -1363,7 +1435,7 @@ export default function Projetos() {
 								</div>
 								<div className="grid grid-cols-1 gap-2 md:grid-cols-2">
 									{usuarios.map((usuario) => (
-										<label key={usuario.id_usuario} className="flex items-center gap-2 text-base" style={{ color: "var(--cor-textoI)" }}>
+										<label key={usuario.id_usuario} className="flex items-center gap-2 text-base" style={{ color: "var(--cor-logo)" }}>
 											<input
 												type="checkbox"
 												checked={form.relacionados.includes(usuario.id_usuario)}
@@ -1388,7 +1460,7 @@ export default function Projetos() {
 									type="submit"
 									disabled={isSaving}
 									className="rounded-xl border px-5 py-2.5 text-base transition-transform duration-200 hover:-translate-y-0.5"
-									style={{ backgroundColor: "var(--cor-botao)", color: "var(--cor-textoI)", borderColor: "var(--cor-borda)" }}
+									style={{ backgroundColor: "var(--cor-botao)", color: "var(--cor-logo)", borderColor: "var(--cor-borda)" }}
 								>
 									{isSaving ? "Salvando..." : "Salvar card"}
 								</button>
@@ -1401,23 +1473,24 @@ export default function Projetos() {
 					<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 p-4 backdrop-blur-[2px] animate-fade-in">
 						<form
 							onSubmit={onSaveDetails}
-							className="w-full max-w-5xl rounded-3xl border p-8 shadow-2xl animate-pop-in md:p-10"
-							style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-widgets)" }}
+							className="w-full max-w-4xl overflow-hidden rounded-2xl shadow-2xl animate-pop-in"
+							style={{ backgroundColor: "var(--cor-widgets)", border: "1px solid var(--cor-borda)" }}
 						>
+							{/* Cabeçalho azul */}
 							<div
-								className="mb-6 flex items-center justify-between rounded-2xl border px-5 py-4"
-								style={{ borderColor: "#d6e0ea", background: "linear-gradient(135deg, #eef5fb 0%, #f8fbff 100%)" }}
+								className="flex items-center justify-between px-8 py-5"
+								style={{ backgroundColor: "var(--cor-primaria)" }}
 							>
-								<h2 className="text-3xl" style={{ color: "var(--cor-textoI)" }}>
+								<h2 className="text-4xl font-bold text-white">
 									Card #{selectedTask.id_tarefa}
 								</h2>
-								<div className="flex gap-2">
+								<div className="flex gap-3">
 									{!isEditingDetails ? (
 										<>
 											<button
 												type="button"
 												onClick={() => setIsEditingDetails(true)}
-												className="rounded-xl border px-5 py-2.5 text-lg transition-transform duration-200 hover:-translate-y-0.5"
+												className="rounded-xl border border-white/60 bg-white/10 px-5 py-2 text-lg text-white transition hover:bg-white/20"
 											>
 												Editar
 											</button>
@@ -1425,8 +1498,7 @@ export default function Projetos() {
 												type="button"
 												onClick={() => setIsDeleteConfirmOpen(true)}
 												disabled={isDeleting}
-													className="rounded-xl border px-5 py-2.5 text-lg transition-transform duration-200 hover:-translate-y-0.5"
-												style={{ borderColor: "#d66", color: "#b02323", backgroundColor: "#fff5f5" }}
+												className="rounded-xl border border-white/60 bg-white/10 px-5 py-2 text-lg text-white transition hover:bg-white/20"
 											>
 												Excluir
 											</button>
@@ -1440,180 +1512,216 @@ export default function Projetos() {
 											setIsEditingDetails(false);
 											setSelectedTask(null);
 										}}
-										className="rounded-xl border px-5 py-2.5 text-lg transition-transform duration-200 hover:-translate-y-0.5"
+										className="rounded-xl border border-white/60 bg-white/10 px-5 py-2 text-lg text-white transition hover:bg-white/20"
 									>
 										Fechar
 									</button>
 								</div>
 							</div>
 
-							<div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-								<label className="flex flex-col gap-1 text-base" style={{ color: "var(--cor-textoI)" }}>
-									Titulo
-									<input
+							{/* Corpo do modal */}
+							<div className="p-8">
+								<div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+									<label className="flex flex-col gap-2 text-lg font-medium" style={{ color: "var(--cor-logo)" }}>
+										Título
+										<input
+											disabled={!isEditingDetails}
+											value={detailsForm.titulo}
+											onChange={(e) => setDetailsForm((c) => ({ ...c, titulo: e.target.value }))}
+											className="rounded-xl border px-4 py-3 text-xl outline-none transition focus:ring-2"
+											style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-widgets)", color: "var(--cor-logo)" }}
+										/>
+									</label>
+
+									<label className="flex flex-col gap-2 text-lg font-medium" style={{ color: "var(--cor-logo)" }}>
+										Responsável
+										<CustomSelect
+											disabled={!isEditingDetails}
+											value={detailsForm.id_responsavel}
+											onChange={(v) => setDetailsForm((c) => ({ ...c, id_responsavel: v }))}
+											options={[
+												{ value: "", label: "Selecione" },
+												...usuarios.map((u) => ({ value: String(u.id_usuario), label: u.nome })),
+											]}
+										/>
+									</label>
+
+									<label className="flex flex-col gap-2 text-lg font-medium" style={{ color: "var(--cor-logo)" }}>
+										Prioridade
+										<CustomSelect
+											disabled={!isEditingDetails}
+											value={detailsForm.prioridade_task}
+											onChange={(v) => setDetailsForm((c) => ({ ...c, prioridade_task: v as FormState["prioridade_task"] }))}
+											options={[
+												{ value: "BAIXA", label: "Baixa" },
+												{ value: "MEDIA", label: "Media" },
+												{ value: "ALTA", label: "Alta" },
+												{ value: "CRITICA", label: "Critica" },
+											]}
+										/>
+									</label>
+
+									<label className="flex flex-col gap-2 text-lg font-medium" style={{ color: "var(--cor-logo)" }}>
+										Status
+										<CustomSelect
+											disabled={!isEditingDetails}
+											value={detailsForm.status_task}
+											onChange={(v) => setDetailsForm((c) => ({ ...c, status_task: v as BoardStatus }))}
+											options={STATUS_COLUMNS.map((s) => ({ value: s.key, label: s.label }))}
+										/>
+									</label>
+								</div>
+
+								{/* Badges de prioridade e tipo */}
+								<div className="mt-4 flex flex-wrap gap-2">
+									<span
+										className="rounded-full px-4 py-1.5 text-base font-semibold text-white"
+										style={{ backgroundColor: priorityColor(detailsForm.prioridade_task) }}
+									>
+										Prioridade: {priorityLabel(detailsForm.prioridade_task)}
+									</span>
+									<span
+										className="rounded-full px-4 py-1.5 text-base font-semibold text-white"
+										style={{ backgroundColor: typeColor(detailsForm.tipo_task) }}
+									>
+										{typeLabel(detailsForm.tipo_task)}
+									</span>
+									{detailsForm.bloqueada ? (
+										<span className="rounded-full bg-rose-500 px-4 py-1.5 text-base font-semibold text-white">Bloqueada</span>
+									) : null}
+								</div>
+
+								<label className="mt-5 flex flex-col gap-2 text-lg font-medium" style={{ color: "var(--cor-logo)" }}>
+									Detalhes
+									<textarea
 										disabled={!isEditingDetails}
-										value={detailsForm.titulo}
-										onChange={(e) => setDetailsForm((c) => ({ ...c, titulo: e.target.value }))}
-										className="rounded-lg border px-3 py-2"
+										rows={5}
+										value={detailsForm.descricao}
+										onChange={(e) => setDetailsForm((c) => ({ ...c, descricao: e.target.value }))}
+										className="rounded-xl border px-4 py-3 text-lg outline-none transition focus:ring-2 resize-none"
+										style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-widgets)", color: "var(--cor-logo)" }}
 									/>
 								</label>
 
-								<label className="flex flex-col gap-1 text-base" style={{ color: "var(--cor-textoI)" }}>
-									Responsavel
-									<select
-										disabled={!isEditingDetails}
-										value={detailsForm.id_responsavel}
-										onChange={(e) => setDetailsForm((c) => ({ ...c, id_responsavel: e.target.value }))}
-										className="rounded-lg border px-3 py-2"
-									>
-										<option value="">Selecione</option>
-										{usuarios.map((usuario) => (
-											<option key={usuario.id_usuario} value={usuario.id_usuario}>
-												{usuario.nome}
-											</option>
-										))}
-									</select>
-								</label>
+								{/* Pessoas relacionadas */}
+								<div
+									className="mt-5 rounded-xl p-5"
+									style={{ backgroundColor: "var(--cor-fundo)", border: "1px solid var(--cor-borda)" }}
+								>
+									<div className="mb-4 flex items-center justify-between">
+										<p className="text-lg font-semibold" style={{ color: "var(--cor-logo)" }}>Pessoas relacionadas</p>
+										{isEditingDetails && me?.id ? (
+											<button
+												type="button"
+												onClick={addMeToRelacionadosDetails}
+												className="rounded-lg border px-4 py-1.5 text-base"
+												style={{ borderColor: "var(--cor-borda)", color: "var(--cor-logo)" }}
+											>
+												Me adicionar
+											</button>
+										) : null}
+									</div>
 
-								<label className="flex flex-col gap-1 text-base" style={{ color: "var(--cor-textoI)" }}>
-									Prioridade
-									<select
-										disabled={!isEditingDetails}
-										value={detailsForm.prioridade_task}
-										onChange={(e) => setDetailsForm((c) => ({ ...c, prioridade_task: e.target.value as FormState["prioridade_task"] }))}
-										className="rounded-lg border px-3 py-2"
-									>
-										<option value="BAIXA">Baixa</option>
-										<option value="MEDIA">Media</option>
-										<option value="ALTA">Alta</option>
-										<option value="CRITICA">Critica</option>
-									</select>
-								</label>
-
-								<label className="flex flex-col gap-1 text-base" style={{ color: "var(--cor-textoI)" }}>
-									Status
-									<select
-										disabled={!isEditingDetails}
-										value={detailsForm.status_task}
-										onChange={(e) => setDetailsForm((c) => ({ ...c, status_task: e.target.value as BoardStatus }))}
-										className="rounded-lg border px-3 py-2"
-									>
-										{STATUS_COLUMNS.map((status) => (
-											<option key={status.key} value={status.key}>{status.label}</option>
-										))}
-									</select>
-								</label>
-							</div>
-
-							<label className="mt-4 flex flex-col gap-1 text-base" style={{ color: "var(--cor-textoI)" }}>
-								Detalhes
-								<textarea
-									disabled={!isEditingDetails}
-									rows={4}
-									value={detailsForm.descricao}
-									onChange={(e) => setDetailsForm((c) => ({ ...c, descricao: e.target.value }))}
-									className="rounded-lg border px-3 py-2"
-								/>
-							</label>
-
-							<div className="mt-5 rounded-2xl border p-4" style={{ borderColor: "#dce4ec", backgroundColor: "#f7fafc" }}>
-								<div className="mb-1 flex items-center justify-between">
-									<p className="text-base" style={{ color: "var(--cor-textoI)" }}>Pessoas relacionadas</p>
-									{isEditingDetails && me?.id ? (
-										<button
-											type="button"
-											onClick={addMeToRelacionadosDetails}
-											className="rounded-lg border px-3 py-1.5 text-sm"
-										>
-											Me adicionar
-										</button>
-									) : null}
-								</div>
-								<div className="mt-2 flex flex-wrap items-center gap-3">
-									{selectedRelatedUsers.length > 0 ? selectedRelatedUsers.map((usuario) => (
-										<span
-											key={`related-avatar-${getUsuarioId(usuario) ?? usuario.nome}`}
-											className="inline-flex items-center gap-2.5 rounded-full border bg-white px-3 py-2"
-											style={{ borderColor: "#d6e0ea", color: "var(--cor-textoI)" }}
-										>
-											<AvatarPill usuario={usuario} size={44} />
-											<span className="text-lg">{usuario.nome}</span>
-										</span>
-									)) : (
-										<span className="text-base" style={{ color: "var(--cor-logo2)" }}>
+									{selectedRelatedUsers.length > 0 ? (
+										<div className="flex flex-col gap-3">
+											{selectedRelatedUsers.map((usuario) => {
+												const fullUser = usuarios.find((u) => u.id_usuario === getUsuarioId(usuario));
+												const nomeCargo = fullUser?.cargo_relation?.nome_cargo ?? null;
+												return (
+													<div
+														key={`related-avatar-${getUsuarioId(usuario) ?? usuario.nome}`}
+														className="flex items-center gap-4"
+													>
+														<AvatarPill usuario={usuario} size={48} />
+														<div className="flex flex-col">
+															<span className="text-base font-medium" style={{ color: "var(--cor-logo)" }}>{usuario.nome}</span>
+															{nomeCargo ? (
+																<span className="text-sm" style={{ color: "var(--cor-logo2)" }}>{nomeCargo}</span>
+															) : null}
+														</div>
+													</div>
+												);
+											})}
+										</div>
+									) : (
+										<span className="text-lg" style={{ color: "var(--cor-logo2)" }}>
 											Sem pessoas relacionadas neste card.
 										</span>
 									)}
+
+									{isEditingDetails ? (
+										<div className="mt-4 grid grid-cols-1 gap-2 md:grid-cols-2">
+											{usuarios.map((usuario) => (
+												<label key={usuario.id_usuario} className="flex items-center gap-2 text-lg" style={{ color: "var(--cor-logo)" }}>
+													<input
+														type="checkbox"
+														checked={detailsForm.relacionados.includes(usuario.id_usuario)}
+														onChange={() => onToggleRelacionadoDetails(usuario.id_usuario)}
+													/>
+													<AvatarPill usuario={usuario} size={28} />
+													{usuario.nome}
+												</label>
+											))}
+										</div>
+									) : null}
 								</div>
 
 								{isEditingDetails ? (
-									<div className="mt-3 grid grid-cols-1 gap-1 md:grid-cols-2">
-										{usuarios.map((usuario) => (
-											<label key={usuario.id_usuario} className="flex items-center gap-2 text-base" style={{ color: "var(--cor-textoI)" }}>
-												<input
-													type="checkbox"
-													checked={detailsForm.relacionados.includes(usuario.id_usuario)}
-													onChange={() => onToggleRelacionadoDetails(usuario.id_usuario)}
-												/>
-												<AvatarPill usuario={usuario} size={28} />
-												{usuario.nome}
-											</label>
-										))}
+									<div className="mt-6 flex justify-end gap-3">
+										<button
+											type="button"
+											onClick={() => setIsEditingDetails(false)}
+											className="rounded-xl border px-6 py-2.5 text-lg"
+											style={{ borderColor: "var(--cor-borda)", color: "var(--cor-logo)" }}
+										>
+											Cancelar edição
+										</button>
+										<button
+											type="submit"
+											disabled={isUpdating}
+											className="rounded-xl px-6 py-2.5 text-lg text-white transition hover:opacity-90"
+											style={{ backgroundColor: "var(--cor-primaria)" }}
+										>
+											{isUpdating ? "Salvando..." : "Salvar alterações"}
+										</button>
 									</div>
 								) : null}
 							</div>
-
-							{isEditingDetails ? (
-								<div className="mt-5 flex justify-end gap-3">
-									<button
-										type="button"
-										onClick={() => setIsEditingDetails(false)}
-										className="rounded-xl border px-5 py-2.5 text-base"
-									>
-										Cancelar edicao
-									</button>
-									<button
-										type="submit"
-										disabled={isUpdating}
-										className="rounded-xl border px-5 py-2.5 text-base"
-										style={{ backgroundColor: "var(--cor-botao)", color: "var(--cor-textoI)", borderColor: "var(--cor-borda)" }}
-									>
-										{isUpdating ? "Salvando..." : "Salvar alteracoes"}
-									</button>
-								</div>
-							) : null}
 						</form>
 
 						{isDeleteConfirmOpen ? (
 							<div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/45 p-4 backdrop-blur-[3px] animate-fade-in">
 								<div
-									className="w-full max-w-3xl rounded-3xl border p-10 shadow-2xl animate-pop-in"
-									style={{ borderColor: "#d7e0ea", background: "linear-gradient(145deg, #f8fbff 0%, #eef5fb 100%)" }}
+									className="w-full max-w-md overflow-hidden rounded-2xl shadow-2xl animate-pop-in"
+									style={{ backgroundColor: "var(--cor-widgets)", border: "1px solid var(--cor-borda)" }}
 								>
-									<h3 className="text-3xl" style={{ color: "var(--cor-textoI)" }}>
-										Confirmar exclusao
-									</h3>
-									<p className="mt-5 text-xl" style={{ color: "var(--cor-logo2)", lineHeight: 1.45 }}>
-										Tem certeza que deseja excluir este card? Essa acao nao pode ser desfeita.
-									</p>
-									<div className="mt-9 flex justify-end gap-3">
-										<button
-											type="button"
-											onClick={() => setIsDeleteConfirmOpen(false)}
-											className="rounded-xl border px-7 py-3.5 text-lg transition-transform duration-200 hover:-translate-y-0.5"
-											disabled={isDeleting}
-										>
-											Cancelar
-										</button>
-										<button
-											type="button"
-											onClick={onDeleteSelectedTask}
-											disabled={isDeleting}
-											className="rounded-xl border px-7 py-3.5 text-lg transition-transform duration-200 hover:-translate-y-0.5"
-											style={{ borderColor: "#d66", color: "#b02323", backgroundColor: "#fff5f5" }}
-										>
-											{isDeleting ? "Excluindo..." : "Excluir card"}
-										</button>
+									<div className="px-6 py-4" style={{ backgroundColor: "var(--cor-primaria)" }}>
+										<h3 className="text-xl font-bold text-white">Confirmar exclusão</h3>
+									</div>
+									<div className="p-6">
+										<p className="text-sm" style={{ color: "var(--cor-logo2)" }}>
+											Tem certeza que deseja excluir este card? Essa ação não pode ser desfeita.
+										</p>
+										<div className="mt-6 flex justify-end gap-3">
+											<button
+												type="button"
+												onClick={() => setIsDeleteConfirmOpen(false)}
+												disabled={isDeleting}
+												className="rounded-xl border px-5 py-2 text-sm"
+												style={{ borderColor: "var(--cor-borda)", color: "var(--cor-logo)" }}
+											>
+												Cancelar
+											</button>
+											<button
+												type="button"
+												onClick={onDeleteSelectedTask}
+												disabled={isDeleting}
+												className="rounded-xl px-5 py-2 text-sm text-white transition hover:opacity-90"
+												style={{ backgroundColor: "#c0392b" }}
+											>
+												{isDeleting ? "Excluindo..." : "Excluir card"}
+											</button>
+										</div>
 									</div>
 								</div>
 							</div>

@@ -30,7 +30,7 @@
     --cor-foto: #82C6E8;
     --cor-botao: #8BAFC9;
     --cor-noti: #5F7C92;
-    --cor-textoI: #000000;
+    --cor-textoI: #F5F7FA;
     --cor-vetores: #000000;
     --cor-fundo: #F4F4F4;
     --cor-widgets: #F8F8F8;
@@ -237,6 +237,16 @@
 
     .animate-pop-in {
         animation: popIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    @keyframes dropdownOpen {
+        0% { opacity: 0; transform: translateY(-6px) scaleY(0.96); }
+        100% { opacity: 1; transform: translateY(0) scaleY(1); }
+    }
+
+    .animate-dropdown {
+        animation: dropdownOpen 0.18s ease-out;
+        transform-origin: top;
     }
 
     .animate-slide-in {

@@ -163,7 +163,7 @@ function ChartCard({
             }}
         >
             {title ? (
-                <h2 className="mb-2 text-center text-sm tracking-wide" style={{ color: "var(--cor-textoI)" }}>
+                <h2 className="mb-2 text-center text-sm tracking-wide" style={{ color: "var(--cor-logo)" }}>
                     {title}
                 </h2>
             ) : null}
@@ -400,7 +400,7 @@ export default function Desempenho() {
         <DashboardLayout currentPage="performance">
             <div className="space-y-4">
                 <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
-                    <h1 className="text-4xl" style={{ color: "var(--cor-textoI)" }}>
+                    <h1 className="text-4xl" style={{ color: "var(--cor-logo)" }}>
                         Desempenho
                     </h1>
 
@@ -507,7 +507,7 @@ export default function Desempenho() {
                             <p className="text-sm" style={{ color: "var(--cor-logo2)" }}>
                                 {kpi.titulo}
                             </p>
-                            <p className="text-3xl leading-tight" style={{ color: "var(--cor-textoI)" }}>
+                            <p className="text-3xl leading-tight" style={{ color: "var(--cor-logo)" }}>
                                 {kpi.valor}
                             </p>
                             <p className="text-sm" style={{ color: "var(--cor-logo2)" }}>
@@ -560,7 +560,7 @@ export default function Desempenho() {
                                             verticalAlign="middle"
                                             layout="vertical"
                                             iconType="circle"
-                                            formatter={(value) => <span style={{ color: "var(--cor-textoI)", fontSize: 12 }}>{value}</span>}
+                                            formatter={(value) => <span style={{ color: "var(--cor-logo)", fontSize: 12 }}>{value}</span>}
                                         />
                                         <Tooltip formatter={(value) => `${formatNumericTooltip(value)} tarefas`} />
                                     </PieChart>
