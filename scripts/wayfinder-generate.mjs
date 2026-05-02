@@ -1,3 +1,5 @@
+/* global process */
+
 import { spawnSync } from 'node:child_process';
 import { closeSync, existsSync, mkdirSync, openSync, unlinkSync } from 'node:fs';
 import path from 'node:path';

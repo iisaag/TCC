@@ -15,7 +15,6 @@
 // =============================================================
 
 
-import { useState, useEffect } from "react";
 import { Link } from "@inertiajs/react";
 import {
     LayoutDashboard,
@@ -28,6 +27,7 @@ import {
     Menu,
     X,
 } from "lucide-react";
+import { useState, useEffect } from "react";
 import { frontRoutes } from "@/lib/routes";
 
 // TIPOS
@@ -58,13 +58,14 @@ export default function Sidebar({ currentPage }: SidebarProps) {
     // `isOpen` controla se a sidebar está expandida (mostrando texto) ou colapsada (só ícones).
     // Começa fechada (false). Troque para `true` se quiser que inicie aberta.
     const [isOpen, setIsOpen] = useState(false);
-    const [isDarkMode, setIsDarkMode] = useState(false);
+    const [isDarkMode, setIsDarkMode] = useState(() => localStorage.getItem('theme') === 'dark');
 
     const toggleDarkMode = () => {
         // Adiciona animação ao documento
         document.documentElement.classList.add('theme-switching');
         
         setIsDarkMode(!isDarkMode);
+
         if (!isDarkMode) {
             document.documentElement.classList.add('dark');
             localStorage.setItem('theme', 'dark');
@@ -81,14 +82,13 @@ export default function Sidebar({ currentPage }: SidebarProps) {
 
     // Carrega o tema salvo no localStorage ao montar o componente
     useEffect(() => {
-        const savedTheme = localStorage.getItem('theme');
-        if (savedTheme === 'dark') {
-            setIsDarkMode(true);
+        if (isDarkMode) {
             document.documentElement.classList.add('dark');
-        } else {
-            setIsDarkMode(false);
-            document.documentElement.classList.remove('dark');
+
+            return;
         }
+
+        document.documentElement.classList.remove('dark');
     }, []);
 
     return (

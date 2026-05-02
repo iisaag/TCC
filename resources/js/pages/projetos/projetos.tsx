@@ -1,7 +1,8 @@
-import DashboardLayout from "@/layouts/DashboardLayout";
-import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { usePage } from "@inertiajs/react";
 import { ArrowLeft, CalendarDays, ChevronDown, GripVertical, Plus, Search } from "lucide-react";
+import type { FormEvent} from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import DashboardLayout from "@/layouts/DashboardLayout";
 import { apiRoutes } from "@/lib/routes";
 
 type BoardStatus = "TO_DO" | "DOING" | "TESTE" | "APROVADO";
@@ -156,6 +157,7 @@ function formatDate(value?: string | null): string {
 	}
 
 	const date = new Date(value);
+
 	if (Number.isNaN(date.getTime())) {
 		return value;
 	}
@@ -237,6 +239,7 @@ function priorityLabel(priority?: string | null): string {
 
 function typeLabel(type?: string | null): string {
 	const normalized = normalizeTipoValue(type);
+
     if (normalized === "FULLSTACK") {
         return "FULL STACK";
     }
@@ -262,6 +265,7 @@ function getInitials(name?: string): string {
 	}
 
 	const parts = name.trim().split(/\s+/).filter(Boolean);
+
 	if (parts.length === 0) {
 		return "--";
 	}
@@ -328,11 +332,17 @@ function CustomSelect({
 	const ref = useRef<HTMLDivElement>(null);
 
 	useEffect(() => {
-		if (!open) return;
+		if (!open) {
+return;
+}
+
 		const handler = (e: MouseEvent) => {
-			if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+			if (ref.current && !ref.current.contains(e.target as Node)) {
+setOpen(false);
+}
 		};
 		document.addEventListener("mousedown", handler);
+
 		return () => document.removeEventListener("mousedown", handler);
 	}, [open]);
 
@@ -362,14 +372,24 @@ function CustomSelect({
 						<button
 							key={option.value}
 							type="button"
-							onClick={() => { onChange(option.value); setOpen(false); }}
+							onClick={() => {
+ onChange(option.value); setOpen(false); 
+}}
 							className="w-full px-4 py-3 text-xl text-left transition-colors"
 							style={{
 								color: "var(--cor-logo)",
 								backgroundColor: value === option.value ? "var(--cor-botao)" : "transparent",
 							}}
-							onMouseEnter={(e) => { if (value !== option.value) (e.currentTarget as HTMLButtonElement).style.backgroundColor = "var(--cor-fundo)"; }}
-							onMouseLeave={(e) => { if (value !== option.value) (e.currentTarget as HTMLButtonElement).style.backgroundColor = "transparent"; }}
+							onMouseEnter={(e) => {
+ if (value !== option.value) {
+(e.currentTarget as HTMLButtonElement).style.backgroundColor = "var(--cor-fundo)";
+} 
+}}
+							onMouseLeave={(e) => {
+ if (value !== option.value) {
+(e.currentTarget as HTMLButtonElement).style.backgroundColor = "transparent";
+} 
+}}
 						>
 							{option.label}
 						</button>
@@ -545,6 +565,7 @@ export default function Projetos() {
 		( Object.keys(grouped) as BoardStatus[] ).forEach((status) => {
 			base[status] = grouped[status].filter((item) => {
 				const title = normalizeSearchText(item.titulo);
+
 				return title.includes(term);
 			});
 		});
@@ -566,6 +587,7 @@ export default function Projetos() {
 
 			usuarios.forEach((usuario) => {
 				const id = getUsuarioId(usuario);
+
 				if (id !== null) {
 					usersById.set(id, usuario);
 				}
@@ -573,6 +595,7 @@ export default function Projetos() {
 
 			(selectedTask?.relacionados ?? []).forEach((usuario) => {
 				const id = getUsuarioId(usuario);
+
 				if (id !== null && !usersById.has(id)) {
 					usersById.set(id, usuario);
 				}
@@ -842,6 +865,7 @@ export default function Projetos() {
 		}
 
 		const oldStatus = normalizeStatus(tarefaAtual.status_task);
+
 		if (oldStatus === nextStatus) {
 			return;
 		}
@@ -1059,6 +1083,7 @@ export default function Projetos() {
 								event.preventDefault();
 								const rawId = event.dataTransfer.getData("text/plain");
 								const taskId = Number(rawId);
+
 								if (Number.isFinite(taskId)) {
 									void moveTaskToColumn(taskId, column.key);
 								}
@@ -1627,6 +1652,7 @@ export default function Projetos() {
 											{selectedRelatedUsers.map((usuario) => {
 												const fullUser = usuarios.find((u) => u.id_usuario === getUsuarioId(usuario));
 												const nomeCargo = fullUser?.cargo_relation?.nome_cargo ?? null;
+
 												return (
 													<div
 														key={`related-avatar-${getUsuarioId(usuario) ?? usuario.nome}`}

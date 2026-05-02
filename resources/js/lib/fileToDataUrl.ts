@@ -5,6 +5,7 @@ export async function fileToDataUrl(file: File): Promise<string> {
         reader.onload = () => {
             if (typeof reader.result === "string") {
                 resolve(reader.result);
+
                 return;
             }
 

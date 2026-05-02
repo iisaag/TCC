@@ -36,6 +36,7 @@ export default function ImageUpload({
         if (!file) {
             onChange(null);
             setError(null);
+
             return;
         }
 
@@ -43,6 +44,7 @@ export default function ImageUpload({
             setError("Selecione uma imagem válida.");
             onChange(null);
             event.target.value = "";
+
             return;
         }
 
@@ -50,6 +52,7 @@ export default function ImageUpload({
             setError("A imagem precisa ter no máximo 2 MB.");
             onChange(null);
             event.target.value = "";
+
             return;
         }
 

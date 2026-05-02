@@ -13,8 +13,8 @@
 // ou de um estado global (ex: broadcasting com Pusher/Echo).
 // =============================================================
 
+import { Users, Moon, CircleMinus, Phone } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Users, Circle, Moon, CircleMinus, Phone } from "lucide-react";
 import UserProfileCard from "@/components/UserProfileCard";
 
 // ------------------------------------------------------------------
@@ -30,7 +30,6 @@ interface ActiveUser {
 
 interface ActiveUsersProps {
     users: ActiveUser[];
-    currentUserId?: number;
 }
 
 interface UserGroup {
@@ -227,7 +226,7 @@ function UserItem({ user, onClick }: { user: ActiveUser; onClick: (event: React.
 // ------------------------------------------------------------------
 // COMPONENTE PRINCIPAL
 // ------------------------------------------------------------------
-export default function ActiveUsers({ users, currentUserId }: ActiveUsersProps) {
+export default function ActiveUsers({ users }: ActiveUsersProps) {
     const [isExpanded, setIsExpanded] = useState(true);
     const [selectedUser, setSelectedUser] = useState<ActiveUser | null>(null);
     const [popupPosition, setPopupPosition] = useState<{ top: number; left: number } | null>(null);
@@ -382,6 +381,7 @@ export default function ActiveUsers({ users, currentUserId }: ActiveUsersProps) 
                                         onClick={(event) => {
                                         const rect = event.currentTarget.getBoundingClientRect();
                                         const panelRect = panelRef.current?.getBoundingClientRect();
+
                                         if (!panelRect) {
                                             return;
                                         }

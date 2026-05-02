@@ -1,7 +1,6 @@
-import DashboardLayout from "@/layouts/DashboardLayout";
-import { apiRoutes } from "@/lib/routes";
-import { ReactNode, useEffect, useMemo, useState } from "react";
-import { Download, ChevronDown, Search, X } from "lucide-react";
+import { Download, ChevronDown, Search } from "lucide-react";
+import type { ReactNode} from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
     Area,
     AreaChart,
@@ -19,6 +18,8 @@ import {
     XAxis,
     YAxis,
 } from "recharts";
+import DashboardLayout from "@/layouts/DashboardLayout";
+import { apiRoutes } from "@/lib/routes";
 
 type BoardStatus = "TO_DO" | "DOING" | "TESTE" | "APROVADO";
 
@@ -117,6 +118,7 @@ function parseDate(value?: string | null): Date | null {
     }
 
     const parsed = new Date(value);
+
     if (Number.isNaN(parsed.getTime())) {
         return null;
     }
@@ -126,6 +128,7 @@ function parseDate(value?: string | null): Date | null {
 
 function taskMonthIndex(task: TarefaApi): number {
     const date = parseDate(task.data_inicio) ?? parseDate(task.data_prevista_termino) ?? parseDate(task.prazo) ?? new Date();
+
     return date.getMonth();
 }
 
@@ -142,6 +145,7 @@ function formatNumericTooltip(
     }
 
     const coerced = Number(value);
+
     return Number.isFinite(coerced) ? coerced.toLocaleString(locale) : "0";
 }
 
@@ -210,6 +214,7 @@ export default function Desempenho() {
         if (!selectedProjetoId) {
             return tarefas;
         }
+
         return tarefas.filter(t => Number(t.id_projeto) === selectedProjetoId);
     }, [tarefas, selectedProjetoId]);
 
@@ -232,6 +237,7 @@ export default function Desempenho() {
             row.total += 1;
 
             const type = normalizeType(task.tipo_task);
+
             if (type === "FRONT") {
                 row.front += 1;
             } else if (type === "BACK") {
@@ -277,6 +283,7 @@ export default function Desempenho() {
 
         tarefasFiltradas.forEach((task) => {
             const status = normalizeStatus(task.status_task);
+
             if (status === "TO_DO") {
                 counts.toDo += 1;
             } else if (status === "DOING") {
@@ -309,6 +316,7 @@ export default function Desempenho() {
             const atrasadas = tarefasFiltradas.filter((task) => {
                 const dueDate = parseDate(task.data_prevista_termino) ?? parseDate(task.prazo);
                 const isDone = normalizeStatus(task.status_task) === "APROVADO";
+
                 return Boolean(dueDate && dueDate < today && !isDone);
             }).length;
 
@@ -331,6 +339,7 @@ export default function Desempenho() {
             }
 
             const row = grouped.get(key);
+
             if (!row) {
                 return;
             }
@@ -361,6 +370,7 @@ export default function Desempenho() {
 
             const today = new Date();
             today.setHours(0, 0, 0, 0);
+
             return dueDate < today;
         }).length;
 
@@ -369,6 +379,7 @@ export default function Desempenho() {
         const approvedWithDates = tarefasFiltradas.filter((task) => {
             const start = parseDate(task.data_inicio);
             const end = parseDate(task.data_prevista_termino) ?? parseDate(task.prazo);
+
             return normalizeStatus(task.status_task) === "APROVADO" && Boolean(start && end && end >= start);
         });
 
@@ -377,6 +388,7 @@ export default function Desempenho() {
                 const start = parseDate(task.data_inicio) as Date;
                 const end = (parseDate(task.data_prevista_termino) ?? parseDate(task.prazo)) as Date;
                 const days = Math.max(1, Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)));
+
                 return acc + days;
             }, 0) / approvedWithDates.length
             : 0;
@@ -410,7 +422,7 @@ export default function Desempenho() {
                             style={{
                                 borderColor: "var(--cor-borda)",
                                 backgroundColor: "var(--cor-botao)",
-                                color: "var(--cor-textoI)",
+                                color: "var(--cor-logo)",
                             }}
                             type="button"
                         >
@@ -425,7 +437,7 @@ export default function Desempenho() {
                                 style={{
                                     borderColor: "var(--cor-borda)",
                                     backgroundColor: "var(--cor-botao)",
-                                    color: "var(--cor-textoI)",
+                                    color: "var(--cor-logo)",
                                 }}
                             >
                                 <span className="truncate">
@@ -436,7 +448,7 @@ export default function Desempenho() {
 
                             {searchOpen && (
                                 <div
-                                    className="absolute top-full z-10 mt-2 w-full rounded-lg border shadow-lg"
+                                    className="animate-dropdown absolute top-full z-10 mt-2 w-full rounded-lg border shadow-lg"
                                     style={{
                                         borderColor: "var(--cor-borda)",
                                         backgroundColor: "var(--cor-widgets)",
@@ -450,7 +462,7 @@ export default function Desempenho() {
                                             value={searchTerm}
                                             onChange={(e) => setSearchTerm(e.target.value)}
                                             className="flex-1 bg-transparent outline-none"
-                                            style={{ color: "var(--cor-textoI)" }}
+                                            style={{ color: "var(--cor-logo)" }}
                                         />
                                     </div>
 
@@ -464,7 +476,7 @@ export default function Desempenho() {
                                             className="w-full px-4 py-2 text-left transition hover:brightness-110"
                                             style={{
                                                 backgroundColor: !selectedProjetoId ? "var(--cor-borda)" : "transparent",
-                                                color: "var(--cor-textoI)",
+                                                color: "var(--cor-logo)",
                                             }}
                                         >
                                             Todos os projetos
@@ -482,7 +494,7 @@ export default function Desempenho() {
                                                 style={{
                                                     backgroundColor:
                                                         selectedProjetoId === projeto.id_projeto ? "var(--cor-borda)" : "transparent",
-                                                    color: "var(--cor-textoI)",
+                                                    color: "var(--cor-logo)",
                                                 }}
                                             >
                                                 {displayWithoutAccents(projeto.nome_projeto)}

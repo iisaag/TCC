@@ -1,8 +1,9 @@
-import { ReactNode, useEffect, useState } from "react";
 import { usePage } from "@inertiajs/react";
-import Sidebar from "@/components/Sidebar";
-import Header from "@/components/Header";
+import type { ReactNode} from "react";
+import { useEffect, useState } from "react";
 import ActiveUsers from "@/components/ActiveUsers";
+import Header from "@/components/Header";
+import Sidebar from "@/components/Sidebar";
 
 type PageName = "dashboard" | "performance" | "tasks" | "team" | "settings";
 
@@ -141,6 +142,7 @@ export default function DashboardLayout({ children, currentPage }: DashboardLayo
                     setActiveUsers(mappedUsers);
 
                     const me = mappedUsers.find((item) => item.id === sessionUser.id);
+
                     if (me) {
                         setHeaderUser((current) => ({
                             ...current,
@@ -199,47 +201,56 @@ export default function DashboardLayout({ children, currentPage }: DashboardLayo
     }, [sessionUser?.id]);
 
     useEffect(() => {
-        if (projectUsers.length === 0 && !sessionUser) {
+        const timeoutId = window.setTimeout(() => {
+            if (projectUsers.length === 0 && !sessionUser) {
+                setHeaderUser(DEFAULT_USER);
+                setActiveUsers(DEFAULT_ACTIVE_USERS);
+
+                return;
+            }
+
+            const mappedUsers = projectUsers.map((usuario) => ({
+                id: usuario.id,
+                name: usuario.name,
+                role: resolveRoleLabel(usuario.role),
+                status: usuario.status || "offline",
+                avatar: resolveAvatarUrl(usuario.avatar),
+            }));
+
+            setActiveUsers(mappedUsers);
+
+            if (sessionUser) {
+                const role = resolveRoleLabel(sessionUser.role);
+
+                setHeaderUser({
+                    name: sessionUser.name,
+                    role,
+                    status: sessionUser.status || "online",
+                    avatar: resolveAvatarUrl(sessionUser.avatar),
+                });
+
+                return;
+            }
+
+            const firstUser = mappedUsers[0];
+
+            if (firstUser) {
+                setHeaderUser({
+                    name: firstUser.name,
+                    role: firstUser.role,
+                    status: firstUser.status,
+                    avatar: firstUser.avatar,
+                });
+
+                return;
+            }
+
             setHeaderUser(DEFAULT_USER);
-            setActiveUsers(DEFAULT_ACTIVE_USERS);
-            return;
-        }
+        }, 0);
 
-        const mappedUsers = projectUsers.map((usuario) => ({
-            id: usuario.id,
-            name: usuario.name,
-            role: resolveRoleLabel(usuario.role),
-            status: usuario.status || "offline",
-            avatar: resolveAvatarUrl(usuario.avatar),
-        }));
-
-        setActiveUsers(mappedUsers);
-
-        if (sessionUser) {
-            const role = resolveRoleLabel(sessionUser.role);
-
-            setHeaderUser({
-                name: sessionUser.name,
-                role,
-                status: sessionUser.status || "online",
-                avatar: resolveAvatarUrl(sessionUser.avatar),
-            });
-            return;
-        }
-
-        const firstUser = mappedUsers[0];
-
-        if (firstUser) {
-            setHeaderUser({
-                name: firstUser.name,
-                role: firstUser.role,
-                status: firstUser.status,
-                avatar: firstUser.avatar,
-            });
-            return;
-        }
-
-        setHeaderUser(DEFAULT_USER);
+        return () => {
+            window.clearTimeout(timeoutId);
+        };
     }, [sessionUser, projectUsers]);
 
     return (
@@ -255,7 +266,7 @@ export default function DashboardLayout({ children, currentPage }: DashboardLayo
                     </main>
 
                     <div className="overflow-y-auto p-4" style={{ backgroundColor: 'var(--cor-secundaria)' }}>
-                        <ActiveUsers users={activeUsers} currentUserId={sessionUser?.id} />
+                        <ActiveUsers users={activeUsers} />
                     </div>
                 </div>
             </div>

@@ -17,9 +17,9 @@
 //   npm install lucide-react
 // =============================================================
 
+import { router } from "@inertiajs/react";
 import { Bell, Search } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { router } from "@inertiajs/react";
 import UserDropdownMenu from "@/components/UserDropdownMenu";
 
 interface NotificationItem {
@@ -76,13 +76,6 @@ function resolveAvatarUrl(avatar?: string | null): string | undefined {
 
     return undefined;
 }
-                <a
-                    href="/settings"
-                    className="hidden md:inline-flex items-center rounded-full bg-white/15 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-white/25"
-                >
-                    Configurações
-                </a>
-
 
 // ------------------------------------------------------------------
 // FUNÇÃO AUXILIAR — Gerar iniciais do nome
@@ -111,7 +104,13 @@ export default function Header({ user }: HeaderProps) {
     const [currentStatus, setCurrentStatus] = useState(user.status ?? "online");
 
     useEffect(() => {
-        setCurrentStatus(user.status ?? "online");
+        const timeoutId = window.setTimeout(() => {
+            setCurrentStatus(user.status ?? "online");
+        }, 0);
+
+        return () => {
+            window.clearTimeout(timeoutId);
+        };
     }, [user.status]);
 
     useEffect(() => {
