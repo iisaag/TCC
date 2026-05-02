@@ -52,6 +52,9 @@ jobs:
       - name: Prepare Database
         run: touch database/database.sqlite
 
+      - name: Run Migrations
+        run: php artisan migrate --force
+
       - name: Build Assets
         run: npm run build
 
