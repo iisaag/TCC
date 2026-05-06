@@ -30,6 +30,8 @@ class PerfilController extends Controller
                 'email' => $usuario->email,
                 'telefone' => $usuario->telefone,
                 'localizacao' => $usuario->localizacao,
+                'perfil_tags' => $usuario->perfil_tags,
+                'perfil_sobre' => $usuario->perfil_sobre,
                 'role' => $authUser['role'] ?? null,
                 'avatar' => $usuario->foto_perfil,
             ],
@@ -49,6 +51,8 @@ class PerfilController extends Controller
         $validated = $request->validate([
             'telefone' => ['nullable', 'string', 'max:30'],
             'localizacao' => ['nullable', 'string', 'max:120'],
+            'perfil_tags' => ['nullable', 'string', 'max:255'],
+            'perfil_sobre' => ['nullable', 'string', 'max:600'],
         ]);
 
         $usuario = Usuario::find($authUser['id']);
@@ -63,6 +67,14 @@ class PerfilController extends Controller
 
         $usuario->localizacao = isset($validated['localizacao']) && trim($validated['localizacao']) !== ''
             ? trim($validated['localizacao'])
+            : null;
+
+        $usuario->perfil_tags = isset($validated['perfil_tags']) && trim($validated['perfil_tags']) !== ''
+            ? trim($validated['perfil_tags'])
+            : null;
+
+        $usuario->perfil_sobre = isset($validated['perfil_sobre']) && trim($validated['perfil_sobre']) !== ''
+            ? trim($validated['perfil_sobre'])
             : null;
 
         $usuario->save();

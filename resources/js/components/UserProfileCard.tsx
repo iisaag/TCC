@@ -5,6 +5,11 @@ interface ProfileUser {
     name: string;
     role: string;
     status: string;
+    email?: string | null;
+    phone?: string | null;
+    location?: string | null;
+    profileTags?: string | null;
+    profileBio?: string | null;
     avatar?: string;
 }
 
@@ -23,6 +28,13 @@ function getInitials(name: string): string {
         .join("");
 }
 
+    function parseCommaList(value?: string | null): string[] {
+        return (value ?? "")
+        .split(",")
+        .map((item) => item.trim())
+        .filter((item) => item.length > 0);
+    }
+
 export default function UserProfileCard({
     user,
     isOpen,
@@ -36,13 +48,16 @@ export default function UserProfileCard({
     const avatar = user.avatar && (user.avatar.startsWith("data:image/") || user.avatar.startsWith("http://") || user.avatar.startsWith("https://"))
         ? user.avatar
         : undefined;
+    const tags = parseCommaList(user.profileTags);
+    const aboutText = user.profileBio?.trim() || "Sem descrição cadastrada.";
+    const contactLines = [user.email?.trim(), user.phone?.trim(), user.location?.trim()].filter(Boolean) as string[];
 
     return (
         <div
-            className={`${positionClassName} w-72 max-w-[92vw] bg-[#f3e5ef] border-2 border-[#dd8bc3] rounded-xl shadow-2xl overflow-hidden animate-slide-in-right`}
+            className={`${positionClassName} w-72 max-w-[92vw] overflow-hidden rounded-2xl border border-[var(--cor-borda)] bg-[var(--cor-widgets)] shadow-[0_20px_45px_rgba(23,62,91,0.18)] animate-slide-in-right`}
             style={style}
         >
-            <div className="h-20 bg-linear-to-r from-[#f6b5dd] via-[#efc4e6] to-[#d8b7ee]" />
+            <div className="h-20 bg-linear-to-r from-[var(--cor-primaria)] via-[var(--cor-foto)] to-[var(--cor-secundaria)]" />
 
             <div className="px-3 pb-3 -mt-6">
                 <div className="flex items-start justify-between gap-2">
@@ -50,52 +65,57 @@ export default function UserProfileCard({
                         <img
                             src={avatar}
                             alt={user.name}
-                            className="w-14 h-14 rounded-full object-cover ring-3 ring-white shadow-sm"
+                            className="h-14 w-14 rounded-full object-cover ring-3 ring-white shadow-sm"
                         />
                     ) : (
-                        <div className="w-14 h-14 rounded-full bg-[#6c63ff] text-white flex items-center justify-center text-sm font-bold ring-3 ring-white shadow-sm">
+                        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[var(--cor-foto)] text-sm font-bold text-white ring-3 ring-white shadow-sm">
                             {getInitials(user.name)}
                         </div>
                     )}
 
-                    <span className="mt-1 text-xs font-semibold text-[#7b5d73] bg-white/90 px-2 py-0.5 rounded-full border border-[#e8c6da]">
+                    <span className="mt-1 rounded-full border border-[var(--cor-borda)] bg-white/90 px-2 py-0.5 text-xs font-semibold text-[var(--cor-logo2)]">
                         Perfil
                     </span>
                 </div>
 
                 <div className="mt-2">
-                    <p className="text-2xl font-semibold text-[#3f3340] leading-none truncate">{user.name}</p>
-                    <p className="text-xs text-[#5b4b5a] mt-0.5 truncate">{user.role}</p>
-                    <p className="text-xs text-[#6b5a6a] mt-0.5">@{user.name.split(" ")[0].toLowerCase()} • {user.status}</p>
+                    <p className="truncate text-2xl leading-none font-semibold text-[var(--cor-logo)]">{user.name}</p>
+                    <p className="mt-0.5 truncate text-xs text-[var(--cor-logo2)]">{user.role}</p>
+                    <p className="mt-0.5 text-xs text-slate-500">@{user.name.split(" ")[0].toLowerCase()} • {user.status}</p>
                 </div>
 
-                <div className="mt-3 rounded-lg bg-white border-2 border-[#e6c7da] p-2">
-                    <label className="text-[11px] font-bold uppercase tracking-wide text-[#7b5d73]" htmlFor="status-select">Status</label>
-                    <p className="mt-1 rounded-md border border-[#e6c7da] bg-[#fff7fc] px-2 py-2 text-xs font-semibold text-[#5f5060]">
+                <div className="mt-3 rounded-xl border border-[var(--cor-borda)] bg-white p-3">
+                    <label className="text-[11px] font-bold uppercase tracking-wide text-[var(--cor-logo2)]" htmlFor="status-select">Status</label>
+                    <p className="mt-2 rounded-lg border border-[var(--cor-borda)] bg-[var(--cor-fundo)] px-3 py-2 text-xs font-semibold text-[var(--cor-accentII)]">
                         {user.status}
                     </p>
                 </div>
 
-                <div className="mt-2 flex flex-wrap gap-1">
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-white/90 border border-[#e6c7da] text-[#6d5468]">Time Produto</span>
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-white/90 border border-[#e6c7da] text-[#6d5468]">UX</span>
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-white/90 border border-[#e6c7da] text-[#6d5468]">Coordenacao</span>
-                </div>
-
-                <div className="mt-3 rounded-lg bg-white/80 border border-[#e6c7da] p-2">
-                    <p className="text-xs uppercase tracking-wide text-[#8c7088]">Sobre</p>
-                    <p className="text-xs text-[#5f5060] mt-1">Responsavel por alinhamento de prioridades e qualidade das entregas.</p>
-                </div>
-
-                <div className="mt-2 rounded-lg bg-white/80 border border-[#e6c7da] p-2">
-                    <p className="text-xs uppercase tracking-wide text-[#8c7088]">Colecao</p>
-                    <div className="mt-1 flex items-center gap-1 text-base">
-                        <span>🎨</span>
-                        <span>🧩</span>
-                        <span>📌</span>
-                        <span className="text-xs px-1 py-0.5 rounded bg-gray-100 text-gray-600">+5</span>
+                {tags.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-1">
+                        {tags.map((tag) => (
+                            <span key={tag} className="rounded-full border border-[var(--cor-borda)] bg-white px-2 py-0.5 text-xs text-[var(--cor-logo2)]">
+                                {tag}
+                            </span>
+                        ))}
                     </div>
+                )}
+
+                <div className="mt-3 rounded-xl border border-[var(--cor-borda)] bg-white p-3">
+                    <p className="text-xs uppercase tracking-wide text-[var(--cor-logo2)]">Sobre</p>
+                    <p className="mt-1 text-xs text-slate-600">{aboutText}</p>
                 </div>
+
+                {contactLines.length > 0 && (
+                    <div className="mt-2 rounded-xl border border-[var(--cor-borda)] bg-white p-3">
+                        <p className="text-xs uppercase tracking-wide text-[var(--cor-logo2)]">Contato</p>
+                        <div className="mt-1 space-y-1 text-xs text-slate-600">
+                            {contactLines.map((line) => (
+                                <p key={line}>{line}</p>
+                            ))}
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );

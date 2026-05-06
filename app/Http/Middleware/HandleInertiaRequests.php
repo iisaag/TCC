@@ -91,6 +91,8 @@ class HandleInertiaRequests extends Middleware
                 'email' => $usuario->email,
                 'phone' => $usuario->telefone,
                 'location' => $usuario->localizacao,
+                'profileTags' => $usuario->perfil_tags,
+                'profileBio' => $usuario->perfil_sobre,
                 'avatar' => $usuario->foto_perfil ?: null,
                 'status' => $isOnline ? $customStatus : 'offline',
             ];

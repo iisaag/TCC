@@ -25,6 +25,11 @@ interface ActiveUser {
     name: string;          // Ex: "Isabelli Arantes"
     role: string;          // Ex: "Chefe - Design & Front-End"
     status: string;        // Ex: "em reunião no Teams"
+    email?: string | null;
+    phone?: string | null;
+    location?: string | null;
+    profileTags?: string | null;
+    profileBio?: string | null;
     avatar?: string;       // URL da foto. Se não tiver, mostra as iniciais.
 }
 

@@ -16,6 +16,8 @@ class Usuario extends Model
         'email',
         'telefone',
         'localizacao',
+        'perfil_tags',
+        'perfil_sobre',
         'foto_perfil',
         'cargo',
         'nivel',

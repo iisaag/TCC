@@ -43,6 +43,11 @@ interface ActiveUser {
     name: string;
     role: string;
     status: string;
+    email?: string | null;
+    phone?: string | null;
+    location?: string | null;
+    profileTags?: string | null;
+    profileBio?: string | null;
     avatar?: string;
 }
 
@@ -135,6 +140,11 @@ export default function DashboardLayout({ children, currentPage }: DashboardLayo
                     name: usuario.name,
                     role: resolveRoleLabel(usuario.role),
                     status: usuario.status || 'offline',
+                    email: usuario.email,
+                    phone: usuario.phone,
+                    location: usuario.location,
+                    profileTags: usuario.profileTags,
+                    profileBio: usuario.profileBio,
                     avatar: resolveAvatarUrl(usuario.avatar),
                 }));
 
@@ -214,6 +224,11 @@ export default function DashboardLayout({ children, currentPage }: DashboardLayo
                 name: usuario.name,
                 role: resolveRoleLabel(usuario.role),
                 status: usuario.status || "offline",
+                email: usuario.email,
+                phone: usuario.phone,
+                location: usuario.location,
+                profileTags: usuario.profileTags,
+                profileBio: usuario.profileBio,
                 avatar: resolveAvatarUrl(usuario.avatar),
             }));
 

@@ -107,6 +107,32 @@
                     >
                 </div>
 
+                <div class="space-y-2">
+                    <label for="perfil_tags" class="block text-sm font-medium text-slate-700">Tags do card</label>
+                    <input
+                        id="perfil_tags"
+                        name="perfil_tags"
+                        type="text"
+                        maxlength="255"
+                        value="{{ old('perfil_tags', $user['perfil_tags'] ?? '') }}"
+                        placeholder="Ex: Time Produto, UX, Coordenação"
+                        class="block w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700"
+                    >
+                    <p class="text-xs text-slate-500">Separe as tags por vírgula.</p>
+                </div>
+
+                <div class="space-y-2">
+                    <label for="perfil_sobre" class="block text-sm font-medium text-slate-700">Sobre</label>
+                    <textarea
+                        id="perfil_sobre"
+                        name="perfil_sobre"
+                        maxlength="600"
+                        rows="4"
+                        placeholder="Escreva uma breve descrição para aparecer no card do seu perfil."
+                        class="block w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700"
+                    >{{ old('perfil_sobre', $user['perfil_sobre'] ?? '') }}</textarea>
+                </div>
+
                 <button type="submit" class="rounded-2xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-indigo-500">
                     Salvar informações
                 </button>
