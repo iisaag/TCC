@@ -331,7 +331,7 @@ export default function ActiveUsers({ users }: ActiveUsersProps) {
                         aria-expanded={isExpanded}
                         aria-label={isExpanded ? "Recolher usuários ativos" : "Expandir usuários ativos"}
                     >
-                        {isExpanded ? "<" : ">"}
+                        {isExpanded ? ">" : "<"}
                     </button>
                     <Users size={16} />
                     {isExpanded && <span>Usuários Ativos</span>}
