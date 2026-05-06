@@ -257,7 +257,7 @@ export default function Sidebar({ currentPage }: SidebarProps) {
                     </button>
 
                     {/* Link para configurações */}
-                    <Link
+                    <a
                         href={frontRoutes.settings}
                         className={`
                             flex items-center gap-3 h-11 px-2 rounded-lg
@@ -290,7 +290,7 @@ export default function Sidebar({ currentPage }: SidebarProps) {
                         >
                             Configurações
                         </span>
-                    </Link>
+                    </a>
                 </div>
             </aside>
 

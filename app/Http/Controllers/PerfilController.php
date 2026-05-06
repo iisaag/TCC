@@ -28,12 +28,46 @@ class PerfilController extends Controller
                 'id' => $usuario->id_usuario,
                 'name' => $usuario->nome,
                 'email' => $usuario->email,
+                'telefone' => $usuario->telefone,
+                'localizacao' => $usuario->localizacao,
                 'role' => $authUser['role'] ?? null,
                 'avatar' => $usuario->foto_perfil,
             ],
             'success' => $request->session()->get('success'),
             'error' => $request->session()->get('error'),
         ]);
+    }
+
+    public function updateContact(Request $request): RedirectResponse
+    {
+        $authUser = $request->session()->get('auth.user');
+
+        if (! is_array($authUser) || ! isset($authUser['id'])) {
+            return redirect()->route('login');
+        }
+
+        $validated = $request->validate([
+            'telefone' => ['nullable', 'string', 'max:30'],
+            'localizacao' => ['nullable', 'string', 'max:120'],
+        ]);
+
+        $usuario = Usuario::find($authUser['id']);
+
+        if (! $usuario) {
+            return redirect()->route('login');
+        }
+
+        $usuario->telefone = isset($validated['telefone']) && trim($validated['telefone']) !== ''
+            ? trim($validated['telefone'])
+            : null;
+
+        $usuario->localizacao = isset($validated['localizacao']) && trim($validated['localizacao']) !== ''
+            ? trim($validated['localizacao'])
+            : null;
+
+        $usuario->save();
+
+        return back()->with('success', 'Informações de contato atualizadas com sucesso.');
     }
 
     public function updatePhoto(Request $request): RedirectResponse

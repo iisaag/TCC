@@ -62,6 +62,56 @@
                 </button>
             </form>
 
+            <hr class="my-6 border-slate-200">
+
+            <form class="space-y-5" method="POST" action="/settings/contato">
+                @csrf
+
+                <div class="grid gap-4 md:grid-cols-2">
+                    <div class="space-y-2">
+                        <label for="email" class="block text-sm font-medium text-slate-700">Email</label>
+                        <input
+                            id="email"
+                            type="email"
+                            value="{{ $user['email'] }}"
+                            disabled
+                            class="block w-full cursor-not-allowed rounded-2xl border border-slate-200 bg-slate-100 px-4 py-3 text-sm text-slate-500"
+                        >
+                        <p class="text-xs text-slate-500">Email de login (somente leitura).</p>
+                    </div>
+
+                    <div class="space-y-2">
+                        <label for="telefone" class="block text-sm font-medium text-slate-700">Telefone</label>
+                        <input
+                            id="telefone"
+                            name="telefone"
+                            type="text"
+                            maxlength="30"
+                            value="{{ old('telefone', $user['telefone'] ?? '') }}"
+                            placeholder="Ex: +55 11 98888-8888"
+                            class="block w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700"
+                        >
+                    </div>
+                </div>
+
+                <div class="space-y-2">
+                    <label for="localizacao" class="block text-sm font-medium text-slate-700">Localização</label>
+                    <input
+                        id="localizacao"
+                        name="localizacao"
+                        type="text"
+                        maxlength="120"
+                        value="{{ old('localizacao', $user['localizacao'] ?? '') }}"
+                        placeholder="Ex: São Paulo, SP"
+                        class="block w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700"
+                    >
+                </div>
+
+                <button type="submit" class="rounded-2xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-indigo-500">
+                    Salvar informações
+                </button>
+            </form>
+
             <script>
                 const fileInput = document.getElementById('foto_arquivo');
                 const hiddenInput = document.getElementById('foto_perfil');

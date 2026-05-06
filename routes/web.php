@@ -15,6 +15,7 @@ Route::middleware('session.auth')->group(function () {
 	Route::post('/logout', [SenhaController::class, 'logout'])->name('logout');
 	Route::get('/settings', [PerfilController::class, 'edit'])->name('settings');
 	Route::post('/settings/foto', [PerfilController::class, 'updatePhoto'])->name('settings.photo');
+	Route::post('/settings/contato', [PerfilController::class, 'updateContact'])->name('settings.contact');
 	Route::post('/presence/heartbeat', [PresenceController::class, 'heartbeat'])->name('presence.heartbeat');
 	Route::post('/presence/status', [PresenceController::class, 'updateStatus'])->name('presence.status');
 	Route::get('/presence/users', [PresenceController::class, 'users'])->name('presence.users');

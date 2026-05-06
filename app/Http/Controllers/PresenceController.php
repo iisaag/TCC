@@ -76,6 +76,9 @@ class PresenceController extends Controller
                 'id' => (int) $usuario->id_usuario,
                 'name' => $usuario->nome,
                 'role' => is_string($cargoTexto) && $cargoTexto !== '' ? $cargoTexto : 'Sem cargo',
+                'email' => $usuario->email,
+                'phone' => $usuario->telefone,
+                'location' => $usuario->localizacao,
                 'avatar' => $usuario->foto_perfil ?: null,
                 'status' => $isOnline ? $customStatus : 'offline',
             ];
