@@ -717,18 +717,28 @@ export default function Dashboard() {
 
                             {/* ── ALERTAS INTELIGENTES ── */}
                             {data.alertas.length > 0 && (
-                                <div>
-                                    <h2 className="mb-3 text-2xl font-bold" style={{ color: "var(--cor-logo)" }}>
+                                <div
+                                    className="dashboard-print-card rounded-3xl p-6 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg"
+                                    style={{
+                                        background: "rgba(255, 255, 255, 0.9)",
+                                        border: "1px solid var(--cor-borda)",
+                                    }}
+                                >
+                                    <h2 className="mb-4 text-2xl font-bold" style={{ color: "var(--cor-logo)" }}>
                                         Alertas Inteligentes
                                     </h2>
-                                    <div className="flex flex-col gap-2">
+                                    <div className="flex flex-col gap-3">
                                         {data.alertas.map((a, i) => {
                                             const s = alertStyle(a.nivel);
                                             return (
                                                 <div
                                                     key={i}
                                                     className="dashboard-print-alert flex items-start gap-3 rounded-xl border px-5 py-3.5 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md"
-                                                    style={{ background: s.bg, borderColor: s.border }}
+                                                    style={{
+                                                        background: s.bg,
+                                                        borderColor: s.border,
+                                                        boxShadow: "0 6px 18px rgba(23, 62, 91, 0.06)",
+                                                    }}
                                                 >
                                                     {alertIcon(a.nivel)}
                                                     <div>
