@@ -328,3 +328,71 @@
         animation: iconFade 0.3s ease-in-out;
     }
 }
+
+    @media print {
+        @page {
+            size: A4 portrait;
+            margin: 10mm;
+        }
+
+        html,
+        body {
+            zoom: 100% !important;
+            background: #ffffff !important;
+        }
+
+        .dashboard-layout-sidebar,
+        .dashboard-layout-header,
+        .dashboard-layout-rightbar,
+        .dashboard-print-actions {
+            display: none !important;
+        }
+
+        .dashboard-layout-shell,
+        .dashboard-layout-content,
+        .dashboard-layout-main {
+            display: block !important;
+            height: auto !important;
+            overflow: visible !important;
+            width: 100% !important;
+            min-width: 0 !important;
+        }
+
+        .dashboard-layout-main {
+            padding: 0 !important;
+        }
+
+        .dashboard-print-root {
+            background: #ffffff !important;
+        }
+
+        .dashboard-print-kpis {
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        }
+
+        .dashboard-print-chart-grid {
+            display: grid !important;
+            grid-template-columns: 1fr !important;
+            gap: 12px !important;
+        }
+
+        .dashboard-print-card,
+        .dashboard-print-alert,
+        .dashboard-print-summary-card {
+            break-inside: avoid;
+            page-break-inside: avoid;
+            box-shadow: none !important;
+            transform: none !important;
+            width: 100% !important;
+            min-width: 0 !important;
+        }
+
+        .dashboard-print-chart-grid .recharts-responsive-container {
+            width: 100% !important;
+            height: 240px !important;
+        }
+
+        .dashboard-print-chart-grid .recharts-surface {
+            overflow: visible !important;
+        }
+    }

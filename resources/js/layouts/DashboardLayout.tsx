@@ -269,18 +269,22 @@ export default function DashboardLayout({ children, currentPage }: DashboardLayo
     }, [sessionUser, projectUsers]);
 
     return (
-        <div className="flex h-screen overflow-hidden" style={{ backgroundColor: 'var(--cor-fundo)' }}>
-            <Sidebar currentPage={currentPage} />
+        <div className="dashboard-layout-shell flex h-screen overflow-hidden" style={{ backgroundColor: 'var(--cor-fundo)' }}>
+            <div className="dashboard-layout-sidebar">
+                <Sidebar currentPage={currentPage} />
+            </div>
 
-            <div className="flex flex-col flex-1 min-w-0">
-                <Header user={headerUser} />
+            <div className="dashboard-layout-content flex flex-col flex-1 min-w-0">
+                <div className="dashboard-layout-header">
+                    <Header user={headerUser} />
+                </div>
 
                 <div className="flex flex-1 overflow-hidden">
-                    <main className="flex-1 overflow-y-auto p-6">
+                    <main className="dashboard-layout-main flex-1 overflow-y-auto p-6">
                         {children}
                     </main>
 
-                    <div className="overflow-y-auto p-4" style={{ backgroundColor: 'var(--cor-secundaria)' }}>
+                    <div className="dashboard-layout-rightbar overflow-y-auto p-4" style={{ backgroundColor: 'var(--cor-secundaria)' }}>
                         <ActiveUsers users={activeUsers} />
                     </div>
                 </div>

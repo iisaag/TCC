@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\CargosController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EquipesController;
 use App\Http\Controllers\HistoricoProgressoController;
 use App\Http\Controllers\LogProjetoController;
@@ -15,6 +16,9 @@ use Illuminate\Support\Facades\Route;
 
 // Cargos
 Route::apiResource('cargos', CargosController::class);
+
+// Dashboard
+Route::get('dashboard', [DashboardController::class, 'index']);
 
 // Equipes
 Route::get('equipes/subequipes/total',           [EquipesController::class, 'totalSubequipes']);
