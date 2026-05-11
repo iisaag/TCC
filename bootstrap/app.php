@@ -16,6 +16,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->web(append: [HandleInertiaRequests::class]);
         $middleware->alias([
             'session.auth' => \App\Http\Middleware\EnsureSessionAuthenticated::class,
+            'admin.access' => \App\Http\Middleware\EnsureAdminAccess::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

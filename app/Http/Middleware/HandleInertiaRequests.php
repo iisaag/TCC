@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\Senha;
 use App\Models\UserPresence;
 use App\Models\Usuario;
 use Carbon\Carbon;
@@ -42,10 +43,20 @@ class HandleInertiaRequests extends Middleware
 
             if ($usuario) {
                 $cargoTexto = $usuario->getRawOriginal('cargo');
+                $registroSenha = Senha::find($usuario->email);
+                $nivelAcesso = strtolower((string) ($registroSenha?->nivel_acesso ?? ($authUser['nivel_acesso'] ?? '')));
+                $temPermissaoTotal = in_array($nivelAcesso, ['total', 'admin', 'administrador', 'geral'], true);
 
+                $authUser['email'] = $usuario->email;
                 $authUser['name'] = $usuario->nome;
                 $authUser['role'] = is_string($cargoTexto) && $cargoTexto !== '' ? $cargoTexto : ($authUser['role'] ?? null);
                 $authUser['avatar'] = $usuario->foto_perfil ?: null;
+                $authUser['nivel_acesso'] = $registroSenha?->nivel_acesso ?? ($authUser['nivel_acesso'] ?? null);
+                $authUser['permissions'] = [
+                    'total' => $temPermissaoTotal,
+                ];
+
+                $request->session()->put('auth.user', $authUser);
             }
         }
 

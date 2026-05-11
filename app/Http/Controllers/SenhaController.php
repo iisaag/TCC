@@ -177,6 +177,7 @@ class SenhaController extends Controller
         $request->session()->regenerate();
         $request->session()->put('auth.user', [
             'id' => $usuario->id_usuario,
+            'email' => $usuario->email,
             'name' => $usuario->nome,
             'role' => is_string($cargoTexto) && $cargoTexto !== '' ? $cargoTexto : $nivelAcesso,
             'avatar' => $usuario->foto_perfil ?: null,

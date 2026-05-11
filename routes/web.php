@@ -24,4 +24,8 @@ Route::middleware('session.auth')->group(function () {
 	Route::inertia('/desempenho', 'desempenho/desempenho')->name('desempenho');
 	Route::inertia('/equipe',     'equipe/equipe')->name('equipe');
 	Route::inertia('/projetos',   'projetos/projetos')->name('projetos');
+
+	Route::middleware('admin.access')->group(function () {
+		Route::inertia('/usuarios', 'usuarios/usuarios')->name('usuarios.admin');
+	});
 });

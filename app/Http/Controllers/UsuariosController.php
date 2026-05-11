@@ -2,12 +2,20 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Senha;
 use App\Models\Usuario;
+use App\Models\UserPresence;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class UsuariosController extends Controller
 {
+    private function isAdmin(Request $request): bool
+    {
+        return (bool) data_get($request->session()->get('auth.user'), 'permissions.total', false);
+    }
+
     private function cargoTexto(Usuario $usuario): ?string
     {
         $cargo = $usuario->getRawOriginal('cargo');
@@ -15,30 +23,40 @@ class UsuariosController extends Controller
         return is_string($cargo) && $cargo !== '' ? $cargo : null;
     }
 
-    private function respostaUsuario(Usuario $usuario): array
+    private function respostaUsuario(Usuario $usuario, bool $includeSensitiveData = true): array
     {
         $usuario->loadMissing('cargoRelation');
 
         $cargoRelation = $usuario->cargoRelation;
 
-        return [
-            'id_usuario' => $usuario->id_usuario,
-            'nome' => $usuario->nome,
-            'email' => $usuario->email,
-            'foto_perfil' => $usuario->foto_perfil,
-            'cargo' => $this->cargoTexto($usuario),
+        $ultimoAcesso = UserPresence::where('user_id', $usuario->id_usuario)->max('last_seen');
+
+        $response = [
+            'id_usuario'    => $usuario->id_usuario,
+            'nome'          => $usuario->nome,
+            'foto_perfil'   => $usuario->foto_perfil,
+            'cargo'         => $this->cargoTexto($usuario),
             'cargo_relation' => $cargoRelation ? [
-                'id_cargo' => $cargoRelation->id_cargo,
+                'id_cargo'   => $cargoRelation->id_cargo,
                 'nome_cargo' => $cargoRelation->nome_cargo,
             ] : null,
-            'nivel' => $usuario->nivel,
-            'data_criacao' => $usuario->data_criacao,
+            'nivel'         => $usuario->nivel,
+            'status_atual'  => $usuario->status_atual,
+            'data_criacao'  => $usuario->data_criacao,
+            'ultimo_acesso' => $ultimoAcesso,
         ];
+
+        if ($includeSensitiveData) {
+            $response['email'] = $usuario->email;
+        }
+
+        return $response;
     }
 
     public function index(Request $request): JsonResponse
     {
         try {
+            $isAdmin = $this->isAdmin($request);
             $query = Usuario::with('cargoRelation')->orderBy('nome', 'asc');
 
             if ($request->filled('nome')) {
@@ -52,7 +70,7 @@ class UsuariosController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Usuários listados com sucesso',
-                'data'    => ['usuarios' => $query->get()->map(fn (Usuario $usuario) => $this->respostaUsuario($usuario))->values()],
+                'data'    => ['usuarios' => $query->get()->map(fn (Usuario $usuario) => $this->respostaUsuario($usuario, $isAdmin))->values()],
             ]);
         } catch (\Exception $e) {
             return response()->json([
@@ -64,6 +82,7 @@ class UsuariosController extends Controller
 
     public function show(int $id): JsonResponse
     {
+        $isAdmin = $this->isAdmin(request());
         $usuario = Usuario::with('cargoRelation')->find($id);
 
         if (!$usuario) {
@@ -76,7 +95,7 @@ class UsuariosController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Usuário encontrado com sucesso',
-            'data'    => ['usuario' => $this->respostaUsuario($usuario)],
+            'data'    => ['usuario' => $this->respostaUsuario($usuario, $isAdmin)],
         ]);
     }
 
@@ -93,9 +112,30 @@ class UsuariosController extends Controller
             ],
             'cargo'       => 'nullable|string|exists:cargos,nome_cargo',
             'nivel'       => 'nullable|string',
+            'status_atual' => 'nullable|string|max:40',
+            'senha'       => 'required|string|min:6',
+            'nivel_acesso' => 'required|string',
         ]);
 
-        $usuario = Usuario::create($validated);
+        $usuario = DB::transaction(function () use ($validated): Usuario {
+            $usuario = Usuario::create([
+                'nome'         => $validated['nome'],
+                'email'        => $validated['email'],
+                'foto_perfil'   => $validated['foto_perfil'] ?? null,
+                'cargo'        => $validated['cargo'] ?? null,
+                'nivel'        => $validated['nivel'] ?? null,
+                'status_atual' => $validated['status_atual'] ?? 'Ativo',
+            ]);
+
+            Senha::create([
+                'email'        => $validated['email'],
+                'senha'        => $validated['senha'],
+                'nivel_acesso' => $validated['nivel_acesso'],
+            ]);
+
+            return $usuario;
+        });
+
         $usuario->load('cargoRelation');
 
         return response()->json([

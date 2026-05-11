@@ -1,5 +1,5 @@
 import { usePage } from "@inertiajs/react";
-import { ArrowLeft, CalendarDays, ChevronDown, GripVertical, Plus, Search } from "lucide-react";
+import { ArrowLeft, CalendarDays, ChevronDown, GripVertical, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import type { FormEvent} from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import DashboardLayout from "@/layouts/DashboardLayout";
@@ -19,6 +19,9 @@ interface SessionUser {
 	id: number;
 	name: string;
 	avatar?: string | null;
+	permissions?: {
+		total?: boolean;
+	};
 }
 
 interface PageProps {
@@ -31,6 +34,9 @@ interface PageProps {
 interface Projeto {
 	id_projeto: number;
 	nome_projeto: string;
+	descricao?: string | null;
+	prioridade_proj?: "BAIXA" | "MEDIA" | "ALTA" | null;
+	status_projeto?: string | null;
 	id_responsavel?: number | null;
 	responsavel?: Usuario | null;
 }
@@ -429,6 +435,7 @@ function AvatarPill({ usuario, size = 30 }: { usuario: Usuario; size?: number })
 export default function Projetos() {
 	const page = usePage<PageProps>();
 	const me = page.props.auth?.user;
+	const isAdmin = Boolean(me?.permissions?.total);
 	const [tarefas, setTarefas] = useState<TarefaApi[]>([]);
 	const [usuarios, setUsuarios] = useState<Usuario[]>([]);
 	const [projetos, setProjetos] = useState<Projeto[]>([]);
@@ -438,6 +445,7 @@ export default function Projetos() {
 	const [isLoading, setIsLoading] = useState(true);
 	const [isSaving, setIsSaving] = useState(false);
 	const [isSavingProject, setIsSavingProject] = useState(false);
+	const [isDeletingProject, setIsDeletingProject] = useState<number | null>(null);
 	const [isUpdating, setIsUpdating] = useState(false);
 	const [isDeleting, setIsDeleting] = useState(false);
 	const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
@@ -450,6 +458,8 @@ export default function Projetos() {
 	const [isEditingDetails, setIsEditingDetails] = useState(false);
 	const [detailsForm, setDetailsForm] = useState<FormState>(EMPTY_FORM);
 	const [projectForm, setProjectForm] = useState<ProjectFormState>(EMPTY_PROJECT_FORM);
+	const [editingProjectId, setEditingProjectId] = useState<number | null>(null);
+	const [projectToDelete, setProjectToDelete] = useState<Projeto | null>(null);
 	const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
 	const csrfToken = useMemo(
@@ -675,8 +685,80 @@ export default function Projetos() {
 		}
 	};
 
-	const onCreateProject = async (event: FormEvent<HTMLFormElement>) => {
+	const closeProjectModal = () => {
+		setIsProjectModalOpen(false);
+		setEditingProjectId(null);
+		setProjectForm(EMPTY_PROJECT_FORM);
+	};
+
+	const onEditProject = (projeto: Projeto) => {
+		if (!isAdmin) {
+			setError("Apenas administradores podem editar projetos.");
+			return;
+		}
+
+		setEditingProjectId(projeto.id_projeto);
+		setProjectForm({
+			nome_projeto: projeto.nome_projeto ?? "",
+			descricao: projeto.descricao ?? "",
+			prioridade_proj: projeto.prioridade_proj ?? "",
+			status_projeto: projeto.status_projeto ?? "",
+			id_responsavel: projeto.id_responsavel ? String(projeto.id_responsavel) : "",
+		});
+		setIsProjectModalOpen(true);
+	};
+
+	const onDeleteProject = async () => {
+		if (!isAdmin) {
+			setError("Apenas administradores podem excluir projetos.");
+			return;
+		}
+
+		if (!projectToDelete) {
+			return;
+		}
+
+		const projeto = projectToDelete;
+
+		setIsDeletingProject(projeto.id_projeto);
+		setError(null);
+
+		try {
+			const response = await fetch(`${apiRoutes.projetos}/${projeto.id_projeto}`, {
+				method: "DELETE",
+				headers: {
+					Accept: "application/json",
+					"X-Requested-With": "XMLHttpRequest",
+					"X-CSRF-TOKEN": csrfToken,
+				},
+			});
+
+			if (!response.ok) {
+				throw new Error("Erro ao excluir projeto");
+			}
+
+			if (selectedProjectId === projeto.id_projeto) {
+				setSelectedProjectId(null);
+			}
+
+			setProjectToDelete(null);
+			await fetchBoard();
+			setSuccessMessage("Projeto excluido com sucesso");
+		} catch {
+			setError("Nao foi possivel excluir o projeto.");
+		} finally {
+			setIsDeletingProject(null);
+		}
+	};
+
+	const onSaveProject = async (event: FormEvent<HTMLFormElement>) => {
 		event.preventDefault();
+
+		if (!isAdmin) {
+			setError("Apenas administradores podem criar ou editar projetos.");
+			return;
+		}
+
 		setIsSavingProject(true);
 		setError(null);
 
@@ -689,8 +771,11 @@ export default function Projetos() {
 				id_responsavel: projectForm.id_responsavel ? Number(projectForm.id_responsavel) : null,
 			};
 
-			const response = await fetch(apiRoutes.projetos, {
-				method: "POST",
+			const isEditingProject = editingProjectId !== null;
+			const response = await fetch(
+				isEditingProject ? `${apiRoutes.projetos}/${editingProjectId}` : apiRoutes.projetos,
+				{
+					method: isEditingProject ? "PUT" : "POST",
 				headers: {
 					"Content-Type": "application/json",
 					Accept: "application/json",
@@ -698,18 +783,18 @@ export default function Projetos() {
 					"X-CSRF-TOKEN": csrfToken,
 				},
 				body: JSON.stringify(payload),
-			});
+				},
+			);
 
 			if (!response.ok) {
 				throw new Error("Erro ao criar projeto");
 			}
 
-			setProjectForm(EMPTY_PROJECT_FORM);
-			setIsProjectModalOpen(false);
+			closeProjectModal();
 			await fetchBoard();
-			setSuccessMessage("Projeto criado com sucesso");
+			setSuccessMessage(isEditingProject ? "Projeto editado com sucesso" : "Projeto criado com sucesso");
 		} catch {
-			setError("Nao foi possivel criar o projeto.");
+			setError(editingProjectId !== null ? "Nao foi possivel editar o projeto." : "Nao foi possivel criar o projeto.");
 		} finally {
 			setIsSavingProject(false);
 		}
@@ -945,59 +1030,106 @@ export default function Projetos() {
 								</div>
 
 								<div className="flex items-center gap-2">
-									<button
-										type="button"
-										onClick={() => setIsProjectModalOpen(true)}
-										className="inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-base"
-										style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-botao)", color: "var(--cor-logo)" }}
-									>
-										<Plus size={18} />
-										Novo projeto
-									</button>
+									{isAdmin ? (
+										<button
+											type="button"
+											onClick={() => {
+												setEditingProjectId(null);
+												setProjectForm(EMPTY_PROJECT_FORM);
+												setIsProjectModalOpen(true);
+											}}
+											className="inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-base"
+											style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-botao)", color: "var(--cor-logo)" }}
+										>
+											<Plus size={18} />
+											Novo projeto
+										</button>
+									) : null}
 								</div>
 							</div>
+
+							{!isAdmin ? (
+								<div
+									className="mt-3 rounded-xl border px-4 py-3 text-sm"
+									style={{
+										borderColor: "#f3d594",
+										backgroundColor: "#fff8e8",
+										color: "#8a5a00",
+									}}
+								>
+									Modo usuario: criacao, edicao e exclusao de projetos disponiveis apenas para administradores.
+								</div>
+							) : null}
 						</div>
 
 						<div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
 							{projectCards.map((projeto) => (
-								<button
+								<div
 									key={projeto.id_projeto}
-									type="button"
-									onClick={() => {
-										setSelectedProjectId(projeto.id_projeto);
-										setQuery("");
-									}}
 									className="rounded-2xl border p-4 text-left shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg"
 									style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-widgets)" }}
 								>
-									<p className="text-2xl" style={{ color: "var(--cor-logo)" }}>
-										{displayWithoutAccents(projeto.nome_projeto)}
-									</p>
-									<p className="mt-1 text-base" style={{ color: "var(--cor-logo2)" }}>
-										{projeto.total} card(s) no total
-									</p>
+									<button
+										type="button"
+										onClick={() => {
+											setSelectedProjectId(projeto.id_projeto);
+											setQuery("");
+										}}
+										className="w-full text-left"
+									>
+										<p className="text-2xl" style={{ color: "var(--cor-logo)" }}>
+											{displayWithoutAccents(projeto.nome_projeto)}
+										</p>
+										<p className="mt-1 text-base" style={{ color: "var(--cor-logo2)" }}>
+											{projeto.total} card(s) no total
+										</p>
 
-									<p className="mt-1 text-base" style={{ color: "var(--cor-logo2)" }}>
-										Resp.: {projeto.responsavel?.nome ?? "Nao definido"}
-									</p>
+										<p className="mt-1 text-base" style={{ color: "var(--cor-logo2)" }}>
+											Resp.: {projeto.responsavel?.nome ?? "Nao definido"}
+										</p>
 
-									<div className="mt-3 grid grid-cols-2 gap-2 text-base" style={{ color: "var(--cor-logo2)" }}>
-										<span>To Do: {projeto.toDo}</span>
-										<span>Doing: {projeto.doing}</span>
-										<span>Teste: {projeto.teste}</span>
-										<span>Aprovado: {projeto.aprovado}</span>
-									</div>
-
-									<div className="mt-3">
-										<div className="mb-1 flex items-center justify-between text-base" style={{ color: "var(--cor-logo2)" }}>
-											<span>Progresso medio</span>
-											<span>{projeto.avgProgress}%</span>
+										<div className="mt-3 grid grid-cols-2 gap-2 text-base" style={{ color: "var(--cor-logo2)" }}>
+											<span>To Do: {projeto.toDo}</span>
+											<span>Doing: {projeto.doing}</span>
+											<span>Teste: {projeto.teste}</span>
+											<span>Aprovado: {projeto.aprovado}</span>
 										</div>
-										<div className="h-2 rounded bg-slate-200">
-											<div className="h-2 rounded" style={{ width: `${projeto.avgProgress}%`, backgroundColor: "#4e7ad8" }} />
+
+										<div className="mt-3">
+											<div className="mb-1 flex items-center justify-between text-base" style={{ color: "var(--cor-logo2)" }}>
+												<span>Progresso medio</span>
+												<span>{projeto.avgProgress}%</span>
+											</div>
+											<div className="h-2 rounded bg-slate-200">
+												<div className="h-2 rounded" style={{ width: `${projeto.avgProgress}%`, backgroundColor: "#4e7ad8" }} />
+											</div>
 										</div>
-									</div>
-								</button>
+									</button>
+
+									{isAdmin ? (
+										<div className="mt-4 flex items-center justify-end gap-2 border-t pt-3" style={{ borderColor: "var(--cor-borda)" }}>
+											<button
+												type="button"
+												onClick={() => onEditProject(projeto)}
+												className="inline-flex items-center gap-1 rounded-lg border px-3 py-1.5 text-sm"
+												style={{ borderColor: "var(--cor-borda)", color: "var(--cor-logo)" }}
+											>
+												<Pencil size={15} />
+												Editar
+											</button>
+											<button
+												type="button"
+												onClick={() => setProjectToDelete(projeto)}
+												disabled={isDeletingProject === projeto.id_projeto}
+												className="inline-flex items-center gap-1 rounded-lg border px-3 py-1.5 text-sm"
+												style={{ borderColor: "#d88", color: "#b02a2a" }}
+											>
+												<Trash2 size={15} />
+												{isDeletingProject === projeto.id_projeto ? "Excluindo..." : "Excluir"}
+											</button>
+										</div>
+									) : null}
+								</div>
 							))}
 						</div>
 					</section>
@@ -1196,18 +1328,18 @@ export default function Projetos() {
 					</>
 				)}
 
-				{isProjectModalOpen ? (
+				{isProjectModalOpen && isAdmin ? (
 					<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 p-4 backdrop-blur-[2px] animate-fade-in">
 						<form
-							onSubmit={onCreateProject}
+							onSubmit={onSaveProject}
 							className="w-full max-w-2xl rounded-3xl border p-6 shadow-2xl animate-pop-in"
 							style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-widgets)" }}
 						>
 							<div className="mb-4 flex items-center justify-between">
 								<h2 className="text-2xl" style={{ color: "var(--cor-logo)" }}>
-									Novo projeto
+									{editingProjectId ? "Editar projeto" : "Novo projeto"}
 								</h2>
-								<button type="button" onClick={() => setIsProjectModalOpen(false)} className="rounded-lg border px-3 py-1.5 text-sm">
+								<button type="button" onClick={closeProjectModal} className="rounded-lg border px-3 py-1.5 text-sm">
 									Fechar
 								</button>
 							</div>
@@ -1265,7 +1397,7 @@ export default function Projetos() {
 							</div>
 
 							<div className="mt-5 flex justify-end gap-3">
-								<button type="button" onClick={() => setIsProjectModalOpen(false)} className="rounded-xl border px-4 py-2.5 text-base">
+								<button type="button" onClick={closeProjectModal} className="rounded-xl border px-4 py-2.5 text-base">
 									Cancelar
 								</button>
 								<button
@@ -1274,10 +1406,48 @@ export default function Projetos() {
 									className="rounded-xl border px-4 py-2.5 text-base"
 									style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-botao)", color: "var(--cor-logo)" }}
 								>
-									{isSavingProject ? "Salvando..." : "Criar projeto"}
+									{isSavingProject ? "Salvando..." : (editingProjectId ? "Salvar alteracoes" : "Criar projeto")}
 								</button>
 							</div>
 						</form>
+					</div>
+				) : null}
+
+				{projectToDelete && isAdmin ? (
+					<div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/45 p-4 backdrop-blur-[3px] animate-fade-in">
+						<div
+							className="w-full max-w-md overflow-hidden rounded-2xl shadow-2xl animate-pop-in"
+							style={{ backgroundColor: "var(--cor-widgets)", border: "1px solid var(--cor-borda)" }}
+						>
+							<div className="px-6 py-4" style={{ backgroundColor: "var(--cor-primaria)" }}>
+								<h3 className="text-xl font-bold text-white">Confirmar exclusao</h3>
+							</div>
+							<div className="p-6">
+								<p className="text-sm" style={{ color: "var(--cor-logo2)" }}>
+									Tem certeza que deseja excluir o projeto {displayWithoutAccents(projectToDelete.nome_projeto)}? Essa acao nao pode ser desfeita.
+								</p>
+								<div className="mt-6 flex justify-end gap-3">
+									<button
+										type="button"
+										onClick={() => setProjectToDelete(null)}
+										disabled={isDeletingProject === projectToDelete.id_projeto}
+										className="rounded-xl border px-5 py-2 text-sm"
+										style={{ borderColor: "var(--cor-borda)", color: "var(--cor-logo)" }}
+									>
+										Cancelar
+									</button>
+									<button
+										type="button"
+										onClick={() => void onDeleteProject()}
+										disabled={isDeletingProject === projectToDelete.id_projeto}
+										className="rounded-xl px-5 py-2 text-sm text-white transition hover:opacity-90"
+										style={{ backgroundColor: "#c0392b" }}
+									>
+										{isDeletingProject === projectToDelete.id_projeto ? "Excluindo..." : "Excluir projeto"}
+									</button>
+								</div>
+							</div>
+						</div>
 					</div>
 				) : null}
 

@@ -5,7 +5,7 @@ import ActiveUsers from "@/components/ActiveUsers";
 import Header from "@/components/Header";
 import Sidebar from "@/components/Sidebar";
 
-type PageName = "dashboard" | "performance" | "tasks" | "team" | "settings";
+type PageName = "dashboard" | "performance" | "tasks" | "team" | "users-admin" | "settings";
 
 interface DashboardLayoutProps {
     children: ReactNode;
@@ -15,6 +15,7 @@ interface DashboardLayoutProps {
 interface SessionUser {
     id: number;
     name: string;
+    email?: string;
     role: string;
     status?: string;
     avatar?: string | null;
@@ -101,6 +102,7 @@ export default function DashboardLayout({ children, currentPage }: DashboardLayo
     const [activeUsers, setActiveUsers] = useState<ActiveUser[]>(DEFAULT_ACTIVE_USERS);
 
     const sessionUser = page.props.auth?.user;
+    const isAdmin = Boolean(sessionUser?.permissions?.total);
     const projectUsers = page.props.projectUsers ?? [];
 
     useEffect(() => {
@@ -271,7 +273,7 @@ export default function DashboardLayout({ children, currentPage }: DashboardLayo
     return (
         <div className="dashboard-layout-shell flex h-screen overflow-hidden" style={{ backgroundColor: 'var(--cor-fundo)' }}>
             <div className="dashboard-layout-sidebar">
-                <Sidebar currentPage={currentPage} />
+                <Sidebar currentPage={currentPage} isAdmin={isAdmin} />
             </div>
 
             <div className="dashboard-layout-content flex flex-col flex-1 min-w-0">

@@ -21,6 +21,7 @@ import {
     BarChart2,
     ClipboardList,
     Users,
+    UserCog,
     Settings,
     Moon,
     Sun,
@@ -32,11 +33,12 @@ import { frontRoutes } from "@/lib/routes";
 
 // TIPOS
 
-type PageName = "dashboard" | "performance" | "tasks" | "team" | "settings";
+type PageName = "dashboard" | "performance" | "tasks" | "team" | "users-admin" | "settings";
 
 interface SidebarProps {
 
     currentPage: PageName;
+    isAdmin?: boolean;
 }
 
 // ------------------------------------------------------------------
@@ -51,10 +53,14 @@ const navItems = [
     { name: "team"        as PageName, label: "Equipe",     href: frontRoutes.equipe,     icon: <Users size={20} /> },
 ];
 
+const adminNavItems = [
+    { name: "users-admin" as PageName, label: "Usuários", href: frontRoutes.usuariosAdmin, icon: <UserCog size={20} /> },
+];
+
 // ------------------------------------------------------------------
 // COMPONENTE PRINCIPAL
 // ------------------------------------------------------------------
-export default function Sidebar({ currentPage }: SidebarProps) {
+export default function Sidebar({ currentPage, isAdmin = false }: SidebarProps) {
     // `isOpen` controla se a sidebar está expandida (mostrando texto) ou colapsada (só ícones).
     // Começa fechada (false). Troque para `true` se quiser que inicie aberta.
     const [isOpen, setIsOpen] = useState(false);
@@ -152,7 +158,20 @@ export default function Sidebar({ currentPage }: SidebarProps) {
                  * empurrando os itens do rodapé para baixo.
                  */}
                 <nav className="flex-1 flex flex-col gap-1 py-4 px-2">
-                    {navItems.map((item) => {
+                    <div className={`px-2 pb-2 transition-all duration-300 ${isOpen ? "opacity-100" : "opacity-0"}`}>
+                        <span
+                            className="inline-flex rounded-full border px-2 py-1 text-[10px] font-semibold uppercase tracking-wide"
+                            style={{
+                                borderColor: isAdmin ? "#86efac" : "#fcd34d",
+                                backgroundColor: isAdmin ? "#f0fdf4" : "#fffbeb",
+                                color: isAdmin ? "#166534" : "#92400e",
+                            }}
+                        >
+                            {isAdmin ? "Administrador" : "Usuario"}
+                        </span>
+                    </div>
+
+                    {[...navItems, ...(isAdmin ? adminNavItems : [])].map((item) => {
                         // Verifica se este item é a página atual
                         const isActive = currentPage === item.name;
 
