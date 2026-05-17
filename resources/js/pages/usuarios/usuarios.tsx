@@ -139,6 +139,31 @@ function formatDateTime(raw?: string | null): string {
     );
 }
 
+const ACTIVE_PRESENCE_WINDOW_MS = 45 * 1000;
+
+function hasRecentAccess(ultimoAcesso?: string | null): boolean {
+    if (!ultimoAcesso) {
+        return false;
+    }
+
+    const timestamp = new Date(ultimoAcesso).getTime();
+
+    if (Number.isNaN(timestamp)) {
+        return false;
+    }
+
+    return Date.now() - timestamp <= ACTIVE_PRESENCE_WINDOW_MS;
+}
+
+function isUsuarioAtivo(usuario: Usuario): boolean {
+    if (hasRecentAccess(usuario.ultimo_acesso)) {
+        return true;
+    }
+
+    const status = usuario.status_atual?.trim().toLowerCase();
+    return !status || status === "ativo";
+}
+
 // ─────────────────────────── Sub-components ───────────────────────────
 
 function Avatar({ nome, foto }: { nome: string; foto?: string | null }) {
@@ -177,8 +202,8 @@ function PermissionBadge({ access }: { access: AccessLevel }) {
     );
 }
 
-function StatusBadge({ status }: { status?: string | null }) {
-    const isAtivo = !status || status.toLowerCase() === "ativo";
+function StatusBadge({ user }: { user: Usuario }) {
+    const isAtivo = isUsuarioAtivo(user);
     return (
         <span
             className="inline-flex rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-all duration-200 hover:shadow-md"
@@ -368,7 +393,7 @@ export default function UsuariosAdminPage() {
     const stats = useMemo(() => {
         const total = usuarios.length;
         const admins = Object.values(permissoes).filter((v) => v === "admin").length;
-        const ativos = usuarios.filter((u) => !u.status_atual || u.status_atual.toLowerCase() === "ativo").length;
+        const ativos = usuarios.filter((u) => isUsuarioAtivo(u)).length;
         return { total, admins, ativos, inativos: total - ativos };
     }, [usuarios, permissoes]);
 
@@ -384,7 +409,7 @@ export default function UsuariosAdminPage() {
             if (filterCargo && u.cargo !== filterCargo) return false;
             if (filterNivel && u.nivel !== filterNivel) return false;
             if (filterStatus) {
-                const isAtivo = !u.status_atual || u.status_atual.toLowerCase() === "ativo";
+                const isAtivo = isUsuarioAtivo(u);
                 if (filterStatus === "ativo" && !isAtivo) return false;
                 if (filterStatus === "inativo" && isAtivo) return false;
             }
@@ -646,7 +671,7 @@ export default function UsuariosAdminPage() {
                                                 <td className="px-4 py-3 whitespace-nowrap" style={{ color: "var(--cor-logo)" }}>{user.cargo ?? "—"}</td>
                                                 <td className="px-4 py-3 whitespace-nowrap" style={{ color: "var(--cor-logo)" }}>{user.nivel ?? "—"}</td>
                                                 <td className="px-4 py-3"><PermissionBadge access={access} /></td>
-                                                <td className="px-4 py-3"><StatusBadge status={user.status_atual} /></td>
+                                                <td className="px-4 py-3"><StatusBadge user={user} /></td>
                                                 <td className="px-4 py-3 whitespace-nowrap text-xs" style={{ color: "var(--cor-logo2)" }}>{formatDateTime(user.ultimo_acesso)}</td>
                                                 <td className="px-4 py-3 whitespace-nowrap text-xs" style={{ color: "var(--cor-logo2)" }}>{formatDateTime(user.data_criacao)}</td>
                                                 <td className="px-4 py-3">
