@@ -1048,18 +1048,6 @@ export default function Projetos() {
 								</div>
 							</div>
 
-							{!isAdmin ? (
-								<div
-									className="mt-3 rounded-xl border px-4 py-3 text-sm"
-									style={{
-										borderColor: "#f3d594",
-										backgroundColor: "#fff8e8",
-										color: "#8a5a00",
-									}}
-								>
-									Modo usuario: criacao, edicao e exclusao de projetos disponiveis apenas para administradores.
-								</div>
-							) : null}
 						</div>
 
 						<div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
