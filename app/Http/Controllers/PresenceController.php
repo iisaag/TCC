@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Senha;
 use App\Models\UserPresence;
 use App\Models\Usuario;
 use Carbon\Carbon;
@@ -64,13 +65,18 @@ class PresenceController extends Controller
         }
 
         $onlineIds = $this->onlineUserIds();
+        $nivelAcessoPorEmail = Senha::query()
+            ->pluck('nivel_acesso', 'email')
+            ->mapWithKeys(fn ($nivelAcesso, $email) => [strtolower((string) $email) => strtolower((string) $nivelAcesso)]);
 
-        $users = Usuario::orderBy('nome', 'asc')->get()->map(function (Usuario $usuario) use ($onlineIds) {
+        $users = Usuario::orderBy('nome', 'asc')->get()->map(function (Usuario $usuario) use ($onlineIds, $nivelAcessoPorEmail) {
             $cargoTexto = $usuario->getRawOriginal('cargo');
             $isOnline = in_array((int) $usuario->id_usuario, $onlineIds, true);
             $customStatus = is_string($usuario->status_atual) && in_array($usuario->status_atual, self::ALLOWED_STATUS, true)
                 ? $usuario->status_atual
                 : 'online';
+            $nivelAcesso = $nivelAcessoPorEmail[strtolower((string) $usuario->email)] ?? '';
+            $isAdmin = in_array($nivelAcesso, ['total', 'admin', 'administrador', 'geral'], true);
 
             return [
                 'id' => (int) $usuario->id_usuario,
@@ -83,6 +89,7 @@ class PresenceController extends Controller
                 'profileBio' => $usuario->perfil_sobre,
                 'avatar' => $usuario->foto_perfil ?: null,
                 'status' => $isOnline ? $customStatus : 'offline',
+                'is_admin' => $isAdmin,
             ];
         })->values();
 

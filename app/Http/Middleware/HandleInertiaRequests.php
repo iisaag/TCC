@@ -37,6 +37,9 @@ class HandleInertiaRequests extends Middleware
     {
         $authUser = $request->session()->get('auth.user');
         $authUserId = is_array($authUser) && isset($authUser['id']) ? (int) $authUser['id'] : null;
+        $nivelAcessoPorEmail = Senha::query()
+            ->pluck('nivel_acesso', 'email')
+            ->mapWithKeys(fn ($nivelAcesso, $email) => [strtolower((string) $email) => strtolower((string) $nivelAcesso)]);
 
         if (is_array($authUser) && isset($authUser['id'])) {
             $usuario = Usuario::find($authUser['id']);
@@ -88,12 +91,14 @@ class HandleInertiaRequests extends Middleware
             }
         }
 
-        $projectUsers = Usuario::orderBy('nome', 'asc')->get()->map(function (Usuario $usuario) use ($onlineIds) {
+        $projectUsers = Usuario::orderBy('nome', 'asc')->get()->map(function (Usuario $usuario) use ($onlineIds, $nivelAcessoPorEmail) {
             $cargoTexto = $usuario->getRawOriginal('cargo');
             $isOnline = in_array((int) $usuario->id_usuario, $onlineIds, true);
             $customStatus = is_string($usuario->status_atual) && in_array($usuario->status_atual, self::ALLOWED_STATUS, true)
                 ? $usuario->status_atual
                 : 'online';
+            $nivelAcesso = $nivelAcessoPorEmail[strtolower((string) $usuario->email)] ?? '';
+            $isAdmin = in_array($nivelAcesso, ['total', 'admin', 'administrador', 'geral'], true);
 
             return [
                 'id' => (int) $usuario->id_usuario,
@@ -106,6 +111,7 @@ class HandleInertiaRequests extends Middleware
                 'profileBio' => $usuario->perfil_sobre,
                 'avatar' => $usuario->foto_perfil ?: null,
                 'status' => $isOnline ? $customStatus : 'offline',
+                'is_admin' => $isAdmin,
             ];
         })->values();
 

@@ -9,6 +9,7 @@ type TeamUser = {
     name: string;
     role: string;
     status: string;
+    is_admin?: boolean;
     email?: string | null;
     phone?: string | null;
     location?: string | null;
@@ -29,6 +30,14 @@ type TeamMember = {
 
 type TeamPageProps = {
     projectUsers?: TeamUser[];
+    auth?: {
+        user?: {
+            id?: number;
+            permissions?: {
+                total?: boolean;
+            };
+        } | null;
+    };
 };
 
 type PresenceUsersResponse = {
@@ -97,6 +106,7 @@ function buildHierarchy(users: TeamUser[]): { ceo: TeamMember; managers: TeamMem
         location: user.location?.trim() || "Não informado",
         avatar: user.avatar,
         status: toPresenceStatus(user.status),
+        isAdmin: Boolean(user.is_admin),
     }));
 
     if (baseMembers.length === 0) {
@@ -198,6 +208,16 @@ function buildHierarchy(users: TeamUser[]): { ceo: TeamMember; managers: TeamMem
         };
     }
 
+    const admins = baseMembers.filter((member) => member.isAdmin);
+
+    if (admins.length > 0) {
+        const [ceo, ...managers] = admins;
+        const managerIds = new Set(managers.map((manager) => manager.id));
+        const members = baseMembers.filter((member) => !member.isAdmin && member.id !== ceo.id && !managerIds.has(member.id));
+
+        return { ceo, managers, members };
+    }
+
     let ceo = baseMembers.find((member) => classifyLeader(member.role) === "ceo") ?? baseMembers[0];
     const remaining = baseMembers.filter((member) => member.id !== ceo.id);
     let managers = remaining.filter((member) => classifyLeader(member.role) === "manager");
@@ -235,7 +255,7 @@ function MemberCard({ member, compact = false }: { member: TeamMember; compact?:
             </div>
 
             <div className="mt-3 text-center">
-                <h3 className="text-[30px] font-semibold tracking-tight text-[#0f2746]" style={{ fontFamily: "'Belanosima', sans-serif" }}>
+                <h3 className="text-[26px] font-semibold tracking-tight text-[#0f2746]" style={{ fontFamily: "'Belanosima', sans-serif" }}>
                     {member.name}
                 </h3>
                 <p className="text-lg font-medium text-[#2563eb]">{member.role}</p>
