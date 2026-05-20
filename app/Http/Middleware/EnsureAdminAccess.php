@@ -31,7 +31,7 @@ class EnsureAdminAccess
         }
 
         $nivelAcesso = strtolower((string) $registroSenha->nivel_acesso);
-        $hasTotalPermission = in_array($nivelAcesso, ['total', 'admin', 'administrador', 'geral'], true);
+        $hasTotalPermission = in_array($nivelAcesso, ['adm'], true);
 
         if (is_array($authUser)) {
             $authUser['email'] = $email;

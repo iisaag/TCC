@@ -184,14 +184,16 @@ export default function Desempenho() {
     const [searchOpen, setSearchOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState("");
 
+    const BACKEND_ORIGIN = (window as any).__BACKEND_ORIGIN ?? 'http://localhost:8000';
+
     useEffect(() => {
         const fetchDashboardData = async () => {
             setIsLoading(true);
 
             try {
                 const [tarefasResponse, projetosResponse] = await Promise.all([
-                    fetch(apiRoutes.tarefas, { headers: { Accept: "application/json" } }),
-                    fetch(apiRoutes.projetos, { headers: { Accept: "application/json" } }),
+                    fetch(`${BACKEND_ORIGIN}${apiRoutes.tarefas}`, { headers: { Accept: "application/json" }, credentials: 'include' }),
+                    fetch(`${BACKEND_ORIGIN}${apiRoutes.projetos}`, { headers: { Accept: "application/json" }, credentials: 'include' }),
                 ]);
 
                 const tarefasPayload = (await tarefasResponse.json()) as ApiEnvelope<{ tarefas?: TarefaApi[] }>;

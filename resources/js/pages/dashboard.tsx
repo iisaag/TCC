@@ -377,7 +377,7 @@ export default function Dashboard() {
     useEffect(() => {
         setLoading(true);
         setError(null);
-        fetch(`/api/dashboard?dias=${dias}`)
+        fetch(`/api/dashboard?dias=${dias}`, { credentials: 'same-origin' })
             .then((r) => r.json())
             .then((json) => {
                 if (json.success) setData(json.data as DashboardData);

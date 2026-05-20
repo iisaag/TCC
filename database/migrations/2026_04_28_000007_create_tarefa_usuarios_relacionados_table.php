@@ -7,6 +7,10 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
     public function up(): void
     {
+        if (! Schema::hasTable('tarefas') || ! Schema::hasTable('usuarios')) {
+            return;
+        }
+
         Schema::create('tarefa_usuarios_relacionados', function (Blueprint $table): void {
             $table->integer('id_tarefa');
             $table->integer('id_usuario');

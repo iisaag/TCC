@@ -72,7 +72,6 @@ interface FormState {
 	tipo_task: "FRONT" | "BACK" | "FULLSTACK";
 	data_inicio: string;
 	data_prevista_termino: string;
-	progresso: string;
 	bloqueada: boolean;
 	status_task: BoardStatus;
 	relacionados: number[];
@@ -96,7 +95,7 @@ const STATUS_COLUMNS: Array<{ key: BoardStatus; label: string }> = [
 const STATUS_PROGRESS: Record<BoardStatus, number> = {
 	TO_DO: 0,
 	DOING: 50,
-	TESTE: 80,
+	TESTE: 75,
 	APROVADO: 100,
 };
 
@@ -109,7 +108,6 @@ const EMPTY_FORM: FormState = {
 	tipo_task: "FRONT",
 	data_inicio: "",
 	data_prevista_termino: "",
-	progresso: "0",
 	bloqueada: false,
 	status_task: "TO_DO",
 	relacionados: [],
@@ -155,6 +153,10 @@ function denormalizeStatus(status: BoardStatus): string {
 	}
 
 	return "To Do";
+}
+
+function getProgressFromStatus(status?: string | null): number {
+	return STATUS_PROGRESS[normalizeStatus(status)];
 }
 
 function formatDate(value?: string | null): string {
@@ -319,6 +321,24 @@ function displayWithoutAccents(value?: string | null): string {
 	return sanitized;
 }
 
+function readCookie(name: string): string {
+	if (typeof document === "undefined") {
+		return "";
+	}
+
+	const prefix = `${name}=`;
+	const cookie = document.cookie
+		.split(";")
+		.map((item) => item.trim())
+		.find((item) => item.startsWith(prefix));
+
+	if (!cookie) {
+		return "";
+	}
+
+	return decodeURIComponent(cookie.slice(prefix.length));
+}
+
 interface SelectOption { value: string; label: string }
 
 function CustomSelect({
@@ -462,10 +482,29 @@ export default function Projetos() {
 	const [projectToDelete, setProjectToDelete] = useState<Projeto | null>(null);
 	const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-	const csrfToken = useMemo(
-		() => document.querySelector('meta[name="csrf-token"]')?.getAttribute("content") ?? "",
-		[],
-	);
+	const csrfToken = useMemo(() => {
+		const tokenFromMeta = document.querySelector('meta[name="csrf-token"]')?.getAttribute("content") ?? "";
+
+		if (tokenFromMeta) {
+			return tokenFromMeta;
+		}
+
+		return readCookie("XSRF-TOKEN");
+	}, []);
+
+	const mutationHeaders = useMemo(() => {
+		const headers: Record<string, string> = {
+			Accept: "application/json",
+			"X-Requested-With": "XMLHttpRequest",
+		};
+
+		if (csrfToken) {
+			headers["X-CSRF-TOKEN"] = csrfToken;
+			headers["X-XSRF-TOKEN"] = csrfToken;
+		}
+
+		return headers;
+	}, [csrfToken]);
 
 	const fetchBoard = async () => {
 		setIsLoading(true);
@@ -473,9 +512,9 @@ export default function Projetos() {
 
 		try {
 			const [tarefasResponse, usuariosResponse, projetosResponse] = await Promise.all([
-				fetch(apiRoutes.tarefas, { headers: { Accept: "application/json" } }),
-				fetch(apiRoutes.usuarios, { headers: { Accept: "application/json" } }),
-				fetch(apiRoutes.projetos, { headers: { Accept: "application/json" } }),
+				fetch(apiRoutes.tarefas, { credentials: 'same-origin', headers: { Accept: "application/json" } }),
+				fetch(apiRoutes.usuarios, { credentials: 'same-origin', headers: { Accept: "application/json" } }),
+				fetch(apiRoutes.projetos, { credentials: 'same-origin', headers: { Accept: "application/json" } }),
 			]);
 
 			const tarefasPayload = (await tarefasResponse.json()) as ApiEnvelope<{ tarefas?: TarefaApi[] }>;
@@ -529,7 +568,7 @@ export default function Projetos() {
 			const teste = projectTasks.filter((tarefa) => normalizeStatus(tarefa.status_task) === "TESTE").length;
 			const aprovado = projectTasks.filter((tarefa) => normalizeStatus(tarefa.status_task) === "APROVADO").length;
 			const avgProgress = projectTasks.length > 0
-				? Math.round(projectTasks.reduce((acc, tarefa) => acc + Number(tarefa.progresso ?? STATUS_PROGRESS[normalizeStatus(tarefa.status_task)]), 0) / projectTasks.length)
+				? Math.round(projectTasks.reduce((acc, tarefa) => acc + getProgressFromStatus(tarefa.status_task), 0) / projectTasks.length)
 				: 0;
 
 			return {
@@ -654,32 +693,36 @@ export default function Projetos() {
 				tipo_task: form.tipo_task,
 				data_inicio: form.data_inicio || null,
 				data_prevista_termino: form.data_prevista_termino || null,
-				progresso: Number(form.progresso || 0),
+				progresso: STATUS_PROGRESS[form.status_task],
 				bloqueada: form.bloqueada,
 				status_task: denormalizeStatus(form.status_task),
 				relacionados: form.relacionados,
 			};
 
 			const response = await fetch(apiRoutes.tarefas, {
+				credentials: 'same-origin',
 				method: "POST",
 				headers: {
 					"Content-Type": "application/json",
-					Accept: "application/json",
-					"X-Requested-With": "XMLHttpRequest",
-					"X-CSRF-TOKEN": csrfToken,
+					...mutationHeaders,
 				},
 				body: JSON.stringify(payload),
 			});
 
 			if (!response.ok) {
-				throw new Error("Erro ao salvar tarefa");
+				const payloadError = (await response.json().catch(() => null)) as { message?: string } | null;
+				throw new Error(payloadError?.message ?? "Erro ao salvar tarefa");
 			}
 
 			setForm(EMPTY_FORM);
 			setIsModalOpen(false);
 			await fetchBoard();
-		} catch {
-			setError("Nao foi possivel salvar o card. Verifique os campos obrigatorios.");
+		} catch (error) {
+			const message = error instanceof Error && error.message
+				? error.message
+				: "Nao foi possivel salvar o card. Verifique os campos obrigatorios.";
+
+			setError(message);
 		} finally {
 			setIsSaving(false);
 		}
@@ -726,11 +769,7 @@ export default function Projetos() {
 		try {
 			const response = await fetch(`${apiRoutes.projetos}/${projeto.id_projeto}`, {
 				method: "DELETE",
-				headers: {
-					Accept: "application/json",
-					"X-Requested-With": "XMLHttpRequest",
-					"X-CSRF-TOKEN": csrfToken,
-				},
+				headers: mutationHeaders,
 			});
 
 			if (!response.ok) {
@@ -778,9 +817,7 @@ export default function Projetos() {
 					method: isEditingProject ? "PUT" : "POST",
 				headers: {
 					"Content-Type": "application/json",
-					Accept: "application/json",
-					"X-Requested-With": "XMLHttpRequest",
-					"X-CSRF-TOKEN": csrfToken,
+						...mutationHeaders,
 				},
 				body: JSON.stringify(payload),
 				},
@@ -815,7 +852,6 @@ export default function Projetos() {
 			tipo_task: normalizeTipoValue(task.tipo_task),
 			data_inicio: task.data_inicio ? String(task.data_inicio).slice(0, 10) : "",
 			data_prevista_termino: (task.data_prevista_termino ?? task.prazo) ? String(task.data_prevista_termino ?? task.prazo).slice(0, 10) : "",
-			progresso: String(task.progresso ?? STATUS_PROGRESS[normalizeStatus(task.status_task)]),
 			bloqueada: Boolean(task.bloqueada),
 			status_task: normalizeStatus(task.status_task),
 			relacionados: relatedIds,
@@ -874,7 +910,7 @@ export default function Projetos() {
 				tipo_task: detailsForm.tipo_task,
 				data_inicio: detailsForm.data_inicio || null,
 				data_prevista_termino: detailsForm.data_prevista_termino || null,
-				progresso: Number(detailsForm.progresso || 0),
+				progresso: STATUS_PROGRESS[detailsForm.status_task],
 				bloqueada: detailsForm.bloqueada,
 				status_task: denormalizeStatus(detailsForm.status_task),
 				relacionados: normalizedRelatedIds,
@@ -884,9 +920,7 @@ export default function Projetos() {
 				method: "PATCH",
 				headers: {
 					"Content-Type": "application/json",
-					Accept: "application/json",
-					"X-Requested-With": "XMLHttpRequest",
-					"X-CSRF-TOKEN": csrfToken,
+					...mutationHeaders,
 				},
 				body: JSON.stringify(payload),
 			});
@@ -918,11 +952,7 @@ export default function Projetos() {
 		try {
 			const response = await fetch(`${apiRoutes.tarefas}/${selectedTask.id_tarefa}`, {
 				method: "DELETE",
-				headers: {
-					Accept: "application/json",
-					"X-Requested-With": "XMLHttpRequest",
-					"X-CSRF-TOKEN": csrfToken,
-				},
+				headers: mutationHeaders,
 			});
 
 			if (!response.ok) {
@@ -974,13 +1004,11 @@ export default function Projetos() {
 				method: "PATCH",
 				headers: {
 					"Content-Type": "application/json",
-					Accept: "application/json",
-					"X-Requested-With": "XMLHttpRequest",
-					"X-CSRF-TOKEN": csrfToken,
+					...mutationHeaders,
 				},
 				body: JSON.stringify({
 					status_task: denormalizeStatus(nextStatus),
-					progresso: STATUS_PROGRESS[nextStatus],
+					progresso: getProgressFromStatus(nextStatus),
 				}),
 			});
 
@@ -1276,13 +1304,13 @@ export default function Projetos() {
 											<div className="mt-2">
 												<div className="mb-1 flex items-center justify-between text-sm" style={{ color: "var(--cor-logo2)" }}>
 													<span>Progresso</span>
-													<span>{tarefa.progresso ?? STATUS_PROGRESS[normalizeStatus(tarefa.status_task)]}%</span>
+													<span>{getProgressFromStatus(tarefa.status_task)}%</span>
 												</div>
 												<div className="h-2 rounded bg-slate-200">
 													<div
 														className="h-2 rounded"
 														style={{
-															width: `${tarefa.progresso ?? STATUS_PROGRESS[normalizeStatus(tarefa.status_task)]}%`,
+															width: `${getProgressFromStatus(tarefa.status_task)}%`,
 															backgroundColor: "#4e7ad8",
 														}}
 													/>
@@ -1569,17 +1597,6 @@ export default function Projetos() {
 									</select>
 								</label>
 
-								<label className="flex flex-col gap-1 text-base" style={{ color: "var(--cor-logo)" }}>
-									Progresso (%)
-									<input
-										type="number"
-										min={0}
-										max={100}
-										value={form.progresso}
-										onChange={(e) => setForm((c) => ({ ...c, progresso: e.target.value }))}
-										className="rounded-xl border bg-white px-4 py-3 text-base shadow-sm"
-									/>
-								</label>
 							</div>
 
 							<label className="mt-4 flex items-center gap-2 text-base" style={{ color: "var(--cor-logo)" }}>

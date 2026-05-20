@@ -11,6 +11,8 @@ import {
 } from "lucide-react";
 import type { FormEvent } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
+
+// HMR trigger comment - no functional change
 import DashboardLayout from "@/layouts/DashboardLayout";
 import { apiRoutes } from "@/lib/routes";
 import {
@@ -40,6 +42,8 @@ interface Usuario {
     id_usuario: number;
     nome: string;
     email?: string;
+    telefone?: string | null;
+    localizacao?: string | null;
     foto_perfil?: string | null;
     cargo?: string | null;
     nivel?: string | null;
@@ -56,6 +60,21 @@ interface SenhaRegistro {
 interface CargoItem {
     id_cargo: number;
     nome_cargo: string;
+}
+
+interface ProjetoItem {
+    id_projeto: number;
+    nome_projeto: string;
+    status_projeto?: string | null;
+    id_responsavel?: number | null;
+}
+
+interface EquipeItem {
+    id_equipe: number;
+    nome: string;
+    tipo?: string | null;
+    criado_por?: number | null;
+    equipe_pai?: number | null;
 }
 
 interface ApiEnvelope<T> {
@@ -75,6 +94,8 @@ interface UserForm {
     nivel: string;
     senha: string;
     nivel_acesso: AccessLevel;
+    telefone?: string;
+    localizacao?: string;
     status_atual: string;
 }
 
@@ -85,6 +106,8 @@ const EMPTY_FORM: UserForm = {
     nivel: "",
     senha: "",
     nivel_acesso: "usuario",
+    telefone: "",
+    localizacao: "",
     status_atual: "Ativo",
 };
 
@@ -312,6 +335,8 @@ export default function UsuariosAdminPage() {
     const [usuarios, setUsuarios] = useState<Usuario[]>([]);
     const [cargos, setCargos] = useState<CargoItem[]>([]);
     const [permissoes, setPermissoes] = useState<Record<string, AccessLevel>>({});
+    const [projetos, setProjetos] = useState<ProjetoItem[]>([]);
+    const [equipes, setEquipes] = useState<EquipeItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [deletingId, setDeletingId] = useState<number | null>(null);
@@ -346,23 +371,65 @@ export default function UsuariosAdminPage() {
         setLoading(true);
         setError(null);
         try {
-            const [usuariosRes, senhasRes, cargosRes] = await Promise.all([
-                fetch(apiRoutes.usuarios, { headers: { Accept: "application/json" } }),
-                fetch(apiRoutes.senhas, { headers: { Accept: "application/json" } }),
-                fetch(apiRoutes.cargos, { headers: { Accept: "application/json" } }),
-            ]);
-            if (!usuariosRes.ok || !senhasRes.ok || !cargosRes.ok) throw new Error();
+            const usuariosRes = await fetch(apiRoutes.usuarios, { headers: { Accept: "application/json" } });
+
+            if (!usuariosRes.ok) throw new Error("usuarios");
+
             const uPayload = (await usuariosRes.json()) as ApiEnvelope<{ usuarios?: Usuario[] }>;
-            const sPayload = (await senhasRes.json()) as ApiEnvelope<{ senhas?: SenhaRegistro[] }>;
-            const cPayload = (await cargosRes.json()) as ApiEnvelope<{ cargos?: CargoItem[] }>;
             const users = uPayload.data?.usuarios ?? [];
-            const regs = sPayload.data?.senhas ?? [];
-            const cargoList = cPayload.data?.cargos ?? [];
+
+            let regs: SenhaRegistro[] = [];
+            let cargoList: CargoItem[] = [];
+            let projectList: ProjetoItem[] = [];
+            let teamList: EquipeItem[] = [];
+
+            try {
+                const [senhasRes, cargosRes] = await Promise.all([
+                    fetch(apiRoutes.senhas, { headers: { Accept: "application/json" } }),
+                    fetch(apiRoutes.cargos, { headers: { Accept: "application/json" } }),
+                ]);
+
+                if (senhasRes.ok) {
+                    const sPayload = (await senhasRes.json()) as ApiEnvelope<{ senhas?: SenhaRegistro[] }>;
+                    regs = sPayload.data?.senhas ?? [];
+                }
+
+                if (cargosRes.ok) {
+                    const cPayload = (await cargosRes.json()) as ApiEnvelope<{ cargos?: CargoItem[] }>;
+                    cargoList = cPayload.data?.cargos ?? [];
+                }
+            } catch {
+                regs = [];
+                cargoList = [];
+            }
+
+            try {
+                const [projetosRes, equipesRes] = await Promise.all([
+                    fetch(apiRoutes.projetos, { headers: { Accept: "application/json" } }),
+                    fetch(apiRoutes.equipes, { headers: { Accept: "application/json" } }),
+                ]);
+
+                if (projetosRes.ok) {
+                    const pPayload = (await projetosRes.json()) as ApiEnvelope<{ projetos?: ProjetoItem[] }>;
+                    projectList = pPayload.data?.projetos ?? [];
+                }
+
+                if (equipesRes.ok) {
+                    const ePayload = (await equipesRes.json()) as ApiEnvelope<{ equipes?: EquipeItem[] }>;
+                    teamList = ePayload.data?.equipes ?? [];
+                }
+            } catch {
+                projectList = [];
+                teamList = [];
+            }
+
             const map: Record<string, AccessLevel> = {};
             regs.forEach((r) => { map[r.email.toLowerCase()] = toAccessLevel(r.nivel_acesso); });
             setUsuarios(users);
             setCargos(cargoList);
             setPermissoes(map);
+            setProjetos(projectList);
+            setEquipes(teamList);
         } catch {
             setError("Não foi possível carregar a lista de usuários.");
         } finally {
@@ -436,11 +503,27 @@ export default function UsuariosAdminPage() {
             email: user.email ?? "",
             cargo: user.cargo ?? "",
             nivel: user.nivel ?? "",
+            telefone: (user as any).telefone ?? "",
+            localizacao: (user as any).localizacao ?? "",
             senha: "",
             nivel_acesso: permissoes[(user.email ?? "").toLowerCase()] ?? "usuario",
             status_atual: user.status_atual ?? "Ativo",
         });
         setIsEditOpen(true);
+    };
+
+    const getImpactoExclusao = (user: Usuario) => {
+        const projetosAssociados = projetos.filter((projeto) => projeto.id_responsavel === user.id_usuario);
+        const equipesAssociadas = equipes.filter((equipe) => equipe.criado_por === user.id_usuario);
+        const projetosAtivos = projetosAssociados.filter((projeto) => {
+            const status = (projeto.status_projeto ?? "").trim().toLowerCase();
+            return !["concluído", "concluida", "cancelado", "cancelada"].includes(status);
+        });
+
+        const score = projetosAtivos.length * 5 + equipesAssociadas.length * 2;
+        const nivel = score >= 10 ? "Alto" : score >= 4 ? "Médio" : "Baixo";
+
+        return { projetosAssociados, equipesAssociadas, projetosAtivos, score, nivel };
     };
 
     const closeModal = () => {
@@ -471,6 +554,8 @@ export default function UsuariosAdminPage() {
                     cargo: form.cargo || null,
                     nivel: form.nivel || null,
                     status_atual: form.status_atual,
+                    telefone: form.telefone || null,
+                    localizacao: form.localizacao || null,
                     senha: form.senha,
                     nivel_acesso: form.nivel_acesso,
                 }),
@@ -498,7 +583,15 @@ export default function UsuariosAdminPage() {
             const uRes = await fetch(`${apiRoutes.usuarios}/${editingUser.id_usuario}`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json", Accept: "application/json", "X-Requested-With": "XMLHttpRequest", "X-CSRF-TOKEN": csrfToken },
-                body: JSON.stringify({ nome: form.nome, email: form.email, cargo: form.cargo || null, nivel: form.nivel || null, status_atual: form.status_atual }),
+                body: JSON.stringify({
+                    nome: form.nome,
+                    email: form.email,
+                    cargo: form.cargo || null,
+                    nivel: form.nivel || null,
+                    status_atual: form.status_atual,
+                    telefone: form.telefone || null,
+                    localizacao: form.localizacao || null,
+                }),
             });
             if (!uRes.ok) throw new Error();
             await fetch(`${apiRoutes.senhas}/${encodeURIComponent(form.email)}/nivel-acesso`, {
@@ -649,7 +742,7 @@ export default function UsuariosAdminPage() {
                             <table className="w-full text-sm">
                                 <thead>
                                     <tr className="border-b" style={{ borderColor: "var(--cor-borda)" }}>
-                                        {["Nome", "Email", "Cargo", "Nível", "Permissão", "Status", "Último Acesso", "Data de Criação", "Ações"].map((h) => (
+                                        {["Nome", "Email", "Telefone", "Localização", "Cargo", "Nível", "Permissão", "Status", "Último Acesso", "Data de Criação", "Ações"].map((h) => (
                                             <th key={h} className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--cor-logo2)" }}>
                                                 {h}
                                             </th>
@@ -668,6 +761,8 @@ export default function UsuariosAdminPage() {
                                                     </div>
                                                 </td>
                                                 <td className="px-4 py-3 text-xs" style={{ color: "var(--cor-logo2)" }}>{user.email ?? "—"}</td>
+                                                <td className="px-4 py-3 text-xs" style={{ color: "var(--cor-logo2)" }}>{(user as any).telefone ?? '—'}</td>
+                                                <td className="px-4 py-3 text-xs" style={{ color: "var(--cor-logo2)" }}>{(user as any).localizacao ?? '—'}</td>
                                                 <td className="px-4 py-3 whitespace-nowrap" style={{ color: "var(--cor-logo)" }}>{user.cargo ?? "—"}</td>
                                                 <td className="px-4 py-3 whitespace-nowrap" style={{ color: "var(--cor-logo)" }}>{user.nivel ?? "—"}</td>
                                                 <td className="px-4 py-3"><PermissionBadge access={access} /></td>
@@ -758,6 +853,30 @@ export default function UsuariosAdminPage() {
                                         />
                                     </label>
                                 ))}
+
+                                <label className="flex flex-col gap-1.5 text-sm font-medium" style={{ color: "var(--cor-logo)" }}>
+                                    Telefone
+                                    <input
+                                        type="text"
+                                        value={form.telefone ?? ""}
+                                        placeholder="Ex: +55 11 98888-8888"
+                                        onChange={(e) => setForm((f) => ({ ...f, telefone: e.target.value }))}
+                                        className="rounded-xl border px-3 py-2 text-sm outline-none"
+                                        style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-fundo)", color: "var(--cor-logo)" }}
+                                    />
+                                </label>
+
+                                <label className="flex flex-col gap-1.5 text-sm font-medium" style={{ color: "var(--cor-logo)" }}>
+                                    Localização
+                                    <input
+                                        type="text"
+                                        value={form.localizacao ?? ""}
+                                        placeholder="Ex: São Paulo, SP"
+                                        onChange={(e) => setForm((f) => ({ ...f, localizacao: e.target.value }))}
+                                        className="rounded-xl border px-3 py-2 text-sm outline-none"
+                                        style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-fundo)", color: "var(--cor-logo)" }}
+                                    />
+                                </label>
 
                                 <label className="flex flex-col gap-1.5 text-sm font-medium" style={{ color: "var(--cor-logo)" }}>
                                     Cargo
@@ -860,6 +979,10 @@ export default function UsuariosAdminPage() {
                 {/* Delete Modal */}
                 {isDeleteOpen && deletingUser && (
                     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-[2px]">
+                        {(() => {
+                            const impacto = getImpactoExclusao(deletingUser);
+
+                            return (
                         <div
                             className="w-full max-w-md rounded-2xl border p-6 shadow-2xl"
                             style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-widgets)" }}
@@ -875,6 +998,49 @@ export default function UsuariosAdminPage() {
                                 <strong style={{ color: "var(--cor-logo)" }}>{deletingUser.nome}</strong>?
                                 {" "}Esta ação remove o funcionário e suas credenciais de login permanentemente.
                             </p>
+                            <div className="mt-4 rounded-xl border p-3 text-sm" style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-fundo)", color: "var(--cor-logo)" }}>
+                                <div className="flex items-center justify-between gap-3">
+                                    <span className="font-semibold">Impacto estimado</span>
+                                    <span className="rounded-full px-2.5 py-0.5 text-xs font-semibold" style={{ backgroundColor: impacto.nivel === "Alto" ? "#fde8e8" : impacto.nivel === "Médio" ? "#fff3cd" : "#edf7ed", color: impacto.nivel === "Alto" ? "#9a2b2b" : impacto.nivel === "Médio" ? "#8a5a00" : "#1d6a45" }}>
+                                        {impacto.nivel}
+                                    </span>
+                                </div>
+                                <p className="mt-2 text-xs" style={{ color: "var(--cor-logo2)" }}>
+                                    Pontuação calculada: {impacto.score}. Baseada em projetos ativos e equipes criadas por este funcionário.
+                                </p>
+                                <div className="mt-3 space-y-3">
+                                    <div>
+                                        <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--cor-logo2)" }}>Projetos associados</p>
+                                        {impacto.projetosAssociados.length > 0 ? (
+                                            <ul className="mt-1 space-y-1 text-xs" style={{ color: "var(--cor-logo)" }}>
+                                                {impacto.projetosAssociados.map((projeto) => (
+                                                    <li key={projeto.id_projeto} className="flex items-center justify-between gap-2">
+                                                        <span className="truncate">{projeto.nome_projeto}</span>
+                                                        <span style={{ color: "var(--cor-logo2)" }}>{projeto.status_projeto ?? "Sem status"}</span>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        ) : (
+                                            <p className="mt-1 text-xs" style={{ color: "var(--cor-logo2)" }}>Nenhum projeto associado.</p>
+                                        )}
+                                    </div>
+                                    <div>
+                                        <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--cor-logo2)" }}>Equipes relacionadas</p>
+                                        {impacto.equipesAssociadas.length > 0 ? (
+                                            <ul className="mt-1 space-y-1 text-xs" style={{ color: "var(--cor-logo)" }}>
+                                                {impacto.equipesAssociadas.map((equipe) => (
+                                                    <li key={equipe.id_equipe} className="flex items-center justify-between gap-2">
+                                                        <span className="truncate">{equipe.nome}</span>
+                                                        <span style={{ color: "var(--cor-logo2)" }}>{equipe.tipo ?? "Equipe"}</span>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        ) : (
+                                            <p className="mt-1 text-xs" style={{ color: "var(--cor-logo2)" }}>Nenhuma equipe vinculada.</p>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
                             <div className="mt-6 flex justify-end gap-2">
                                 <button
                                     type="button"
@@ -895,6 +1061,8 @@ export default function UsuariosAdminPage() {
                                 </button>
                             </div>
                         </div>
+                            );
+                        })()}
                     </div>
                 )}
 

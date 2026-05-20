@@ -7,6 +7,10 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
     public function up(): void
     {
+        if (! Schema::hasTable('tarefas')) {
+            return;
+        }
+
         Schema::table('tarefas', function (Blueprint $table): void {
             if (!Schema::hasColumn('tarefas', 'tipo_task')) {
                 $table->string('tipo_task', 20)->nullable()->after('prioridade_task');
@@ -32,6 +36,10 @@ return new class extends Migration {
 
     public function down(): void
     {
+        if (! Schema::hasTable('tarefas')) {
+            return;
+        }
+
         Schema::table('tarefas', function (Blueprint $table): void {
             $columns = [
                 'tipo_task',

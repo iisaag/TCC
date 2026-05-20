@@ -7,6 +7,7 @@ use App\Models\UserPresence;
 use App\Models\Usuario;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
@@ -37,18 +38,24 @@ class HandleInertiaRequests extends Middleware
     {
         $authUser = $request->session()->get('auth.user');
         $authUserId = is_array($authUser) && isset($authUser['id']) ? (int) $authUser['id'] : null;
-        $nivelAcessoPorEmail = Senha::query()
-            ->pluck('nivel_acesso', 'email')
-            ->mapWithKeys(fn ($nivelAcesso, $email) => [strtolower((string) $email) => strtolower((string) $nivelAcesso)]);
+        $hasSenhaTable = Schema::hasTable('senha');
+        $hasUsuariosTable = Schema::hasTable('usuarios');
+        $hasUserPresencesTable = Schema::hasTable('user_presences');
 
-        if (is_array($authUser) && isset($authUser['id'])) {
+        $nivelAcessoPorEmail = $hasSenhaTable
+            ? Senha::query()
+                ->pluck('nivel_acesso', 'email')
+                ->mapWithKeys(fn ($nivelAcesso, $email) => [strtolower((string) $email) => strtolower((string) $nivelAcesso)])
+            : collect();
+
+        if ($hasUsuariosTable && is_array($authUser) && isset($authUser['id'])) {
             $usuario = Usuario::find($authUser['id']);
 
             if ($usuario) {
                 $cargoTexto = $usuario->getRawOriginal('cargo');
-                $registroSenha = Senha::find($usuario->email);
+                $registroSenha = $hasSenhaTable ? Senha::find($usuario->email) : null;
                 $nivelAcesso = strtolower((string) ($registroSenha?->nivel_acesso ?? ($authUser['nivel_acesso'] ?? '')));
-                $temPermissaoTotal = in_array($nivelAcesso, ['total', 'admin', 'administrador', 'geral'], true);
+                $temPermissaoTotal = in_array($nivelAcesso, ['adm'], true);
 
                 $authUser['email'] = $usuario->email;
                 $authUser['name'] = $usuario->nome;
@@ -67,53 +74,59 @@ class HandleInertiaRequests extends Middleware
             $authUser['role'] = $authUser['role']->nome_cargo;
         }
 
-        UserPresence::query()->where('last_seen', '<', Carbon::now()->subMinutes(10))->delete();
+        $onlineIds = [];
 
-        $onlineIds = UserPresence::query()
-            ->where('last_seen', '>=', Carbon::now()->subSeconds(45))
-            ->pluck('user_id')
-            ->map(fn ($id) => (int) $id)
-            ->unique()
-            ->values()
-            ->all();
+        if ($hasUserPresencesTable) {
+            UserPresence::query()->where('last_seen', '<', Carbon::now()->subMinutes(10))->delete();
 
-        if ($authUserId !== null) {
-            UserPresence::updateOrCreate(
-                ['session_id' => $request->session()->getId()],
-                [
-                    'user_id' => $authUserId,
-                    'last_seen' => Carbon::now(),
-                ]
-            );
+            $onlineIds = UserPresence::query()
+                ->where('last_seen', '>=', Carbon::now()->subSeconds(45))
+                ->pluck('user_id')
+                ->map(fn ($id) => (int) $id)
+                ->unique()
+                ->values()
+                ->all();
 
-            if (! in_array($authUserId, $onlineIds, true)) {
-                $onlineIds[] = $authUserId;
+            if ($authUserId !== null) {
+                UserPresence::updateOrCreate(
+                    ['session_id' => $request->session()->getId()],
+                    [
+                        'user_id' => $authUserId,
+                        'last_seen' => Carbon::now(),
+                    ]
+                );
+
+                if (! in_array($authUserId, $onlineIds, true)) {
+                    $onlineIds[] = $authUserId;
+                }
             }
         }
 
-        $projectUsers = Usuario::orderBy('nome', 'asc')->get()->map(function (Usuario $usuario) use ($onlineIds, $nivelAcessoPorEmail) {
-            $cargoTexto = $usuario->getRawOriginal('cargo');
-            $isOnline = in_array((int) $usuario->id_usuario, $onlineIds, true);
-            $customStatus = is_string($usuario->status_atual) && in_array($usuario->status_atual, self::ALLOWED_STATUS, true)
-                ? $usuario->status_atual
-                : 'online';
-            $nivelAcesso = $nivelAcessoPorEmail[strtolower((string) $usuario->email)] ?? '';
-            $isAdmin = in_array($nivelAcesso, ['total', 'admin', 'administrador', 'geral'], true);
+        $projectUsers = $hasUsuariosTable
+            ? Usuario::orderBy('nome', 'asc')->get()->map(function (Usuario $usuario) use ($onlineIds, $nivelAcessoPorEmail) {
+                $cargoTexto = $usuario->getRawOriginal('cargo');
+                $isOnline = in_array((int) $usuario->id_usuario, $onlineIds, true);
+                $customStatus = is_string($usuario->status_atual) && in_array($usuario->status_atual, self::ALLOWED_STATUS, true)
+                    ? $usuario->status_atual
+                    : 'online';
+                $nivelAcesso = $nivelAcessoPorEmail[strtolower((string) $usuario->email)] ?? '';
+                $isAdmin = in_array($nivelAcesso, ['adm'], true);
 
-            return [
-                'id' => (int) $usuario->id_usuario,
-                'name' => $usuario->nome,
-                'role' => is_string($cargoTexto) && $cargoTexto !== '' ? $cargoTexto : 'Sem cargo',
-                'email' => $usuario->email,
-                'phone' => $usuario->telefone,
-                'location' => $usuario->localizacao,
-                'profileTags' => $usuario->perfil_tags,
-                'profileBio' => $usuario->perfil_sobre,
-                'avatar' => $usuario->foto_perfil ?: null,
-                'status' => $isOnline ? $customStatus : 'offline',
-                'is_admin' => $isAdmin,
-            ];
-        })->values();
+                return [
+                    'id' => (int) $usuario->id_usuario,
+                    'name' => $usuario->nome,
+                    'role' => is_string($cargoTexto) && $cargoTexto !== '' ? $cargoTexto : 'Sem cargo',
+                    'email' => $usuario->email,
+                    'phone' => $usuario->telefone,
+                    'location' => $usuario->localizacao,
+                    'profileTags' => $usuario->perfil_tags,
+                    'profileBio' => $usuario->perfil_sobre,
+                    'avatar' => $usuario->foto_perfil ?: null,
+                    'status' => $isOnline ? $customStatus : 'offline',
+                    'is_admin' => $isAdmin,
+                ];
+            })->values()
+            : collect();
 
         return array_merge(parent::share($request), [
             'auth' => [

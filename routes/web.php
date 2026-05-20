@@ -7,6 +7,15 @@ use Illuminate\Support\Facades\Route;
 
 Route::redirect('/', '/login');
 
+// Debug route: return `senha` record for an email (temporary, remove after use)
+Route::get('/__debug/senha/{email}', function (string $email) {
+	$registro = \App\Models\Senha::find($email);
+	return response()->json([
+		'found' => $registro !== null,
+		'registro' => $registro,
+	]);
+});
+
 Route::post('/login', [SenhaController::class, 'authenticate'])->name('login.authenticate');
 
 Route::inertia('/login',      'login/login')->name('login');

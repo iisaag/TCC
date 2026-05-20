@@ -9,6 +9,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class DashboardController extends Controller
 {
@@ -17,6 +18,43 @@ class DashboardController extends Controller
 
     /** Status de projeto considerados ativos (não encerrados) */
     private const PROJ_EXCLUIDOS = ['Concluído', 'Concluida', 'Cancelado', 'Cancelada'];
+
+    private function calcularProgressoMedio(): float
+    {
+        if (Schema::hasTable('tarefas') && Schema::hasColumn('tarefas', 'progresso')) {
+            return (float) (Tarefa::avg('progresso') ?? 0);
+        }
+
+        if (Schema::hasTable('historico_progresso')) {
+            return (float) (DB::table('historico_progresso')->avg('progresso') ?? 0);
+        }
+
+        $statusConcluidos = implode("','", self::CONCLUIDOS);
+
+        return (float) (Tarefa::selectRaw(
+            "AVG(CASE WHEN UPPER(status_task) IN ('{$statusConcluidos}') THEN 100 ELSE 0 END) as progresso"
+        )->value('progresso') ?? 0);
+    }
+
+    private function calcularProgressoProjeto(int $idProjeto): float
+    {
+        if (Schema::hasTable('tarefas') && Schema::hasColumn('tarefas', 'progresso')) {
+            return (float) (Tarefa::where('id_projeto', $idProjeto)->avg('progresso') ?? 0);
+        }
+
+        if (Schema::hasTable('historico_progresso')) {
+            return (float) (DB::table('historico_progresso as hp')
+                ->join('tarefas as t', 't.id_tarefa', '=', 'hp.id_tarefa')
+                ->where('t.id_projeto', $idProjeto)
+                ->avg('hp.progresso') ?? 0);
+        }
+
+        $statusConcluidos = implode("','", self::CONCLUIDOS);
+
+        return (float) (Tarefa::where('id_projeto', $idProjeto)
+            ->selectRaw("AVG(CASE WHEN UPPER(status_task) IN ('{$statusConcluidos}') THEN 100 ELSE 0 END) as progresso")
+            ->value('progresso') ?? 0);
+    }
 
     public function index(Request $request): JsonResponse
     {
@@ -65,7 +103,7 @@ class DashboardController extends Controller
             })
             ->count();
 
-            $progressoMedio = (float) (Tarefa::avg('progresso') ?? 0);
+            $progressoMedio = $this->calcularProgressoMedio();
 
             // ----------------------------------------------------------------
             // Saúde dos Projetos
@@ -77,7 +115,7 @@ class DashboardController extends Controller
                 )
                 ->get()
                 ->map(function ($projeto) use ($hoje) {
-                    $progresso  = (float) (Tarefa::where('id_projeto', $projeto->id_projeto)->avg('progresso') ?? 0);
+                    $progresso  = $this->calcularProgressoProjeto((int) $projeto->id_projeto);
                     $prazoFinal = $projeto->prazo_final ? Carbon::parse($projeto->prazo_final) : null;
 
                     if ($prazoFinal) {
@@ -113,6 +151,10 @@ class DashboardController extends Controller
             // Evolução de tarefas por semana (últimas 6 semanas)
             // ----------------------------------------------------------------
             $evolucao = [];
+            $campoCriacaoTarefa = Schema::hasColumn('tarefas', 'data_inicio')
+                ? 'data_inicio'
+                : (Schema::hasColumn('tarefas', 'created_at') ? 'created_at' : null);
+
             for ($i = 5; $i >= 0; $i--) {
                 $inicio = Carbon::now()->startOfWeek()->subWeeks($i);
                 $fim    = (clone $inicio)->endOfWeek();
@@ -122,7 +164,9 @@ class DashboardController extends Controller
                     'concluidas' => Tarefa::whereIn(DB::raw('UPPER(status_task)'), self::CONCLUIDOS)
                         ->whereBetween('prazo', [$inicio, $fim])
                         ->count(),
-                    'criadas'    => Tarefa::whereBetween('data_inicio', [$inicio, $fim])->count(),
+                    'criadas'    => $campoCriacaoTarefa
+                        ? Tarefa::whereBetween($campoCriacaoTarefa, [$inicio, $fim])->count()
+                        : 0,
                 ];
             }
 

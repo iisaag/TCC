@@ -8,11 +8,21 @@ use App\Models\UserPresence;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class UsuariosController extends Controller
 {
+    private function usuariosTemStatusAtual(): bool
+    {
+        return Schema::hasTable('usuarios') && Schema::hasColumn('usuarios', 'status_atual');
+    }
+
     private function isAdmin(Request $request): bool
     {
+        if (! $request->hasSession()) {
+            return false;
+        }
+
         return (bool) data_get($request->session()->get('auth.user'), 'permissions.total', false);
     }
 
@@ -29,7 +39,9 @@ class UsuariosController extends Controller
 
         $cargoRelation = $usuario->cargoRelation;
 
-        $ultimoAcesso = UserPresence::where('user_id', $usuario->id_usuario)->max('last_seen');
+        $ultimoAcesso = Schema::hasTable('user_presences')
+            ? UserPresence::where('user_id', $usuario->id_usuario)->max('last_seen')
+            : null;
 
         $response = [
             'id_usuario'    => $usuario->id_usuario,
@@ -48,6 +60,8 @@ class UsuariosController extends Controller
 
         if ($includeSensitiveData) {
             $response['email'] = $usuario->email;
+            $response['telefone'] = $usuario->telefone ?? null;
+            $response['localizacao'] = $usuario->localizacao ?? null;
         }
 
         return $response;
@@ -113,19 +127,28 @@ class UsuariosController extends Controller
             'cargo'       => 'nullable|string|exists:cargos,nome_cargo',
             'nivel'       => 'nullable|string',
             'status_atual' => 'nullable|string|max:40',
+            'telefone'    => 'nullable|string|max:30',
+            'localizacao' => 'nullable|string|max:120',
             'senha'       => 'required|string|min:6',
             'nivel_acesso' => 'required|string',
         ]);
 
         $usuario = DB::transaction(function () use ($validated): Usuario {
-            $usuario = Usuario::create([
+            $dadosUsuario = [
                 'nome'         => $validated['nome'],
                 'email'        => $validated['email'],
                 'foto_perfil'   => $validated['foto_perfil'] ?? null,
                 'cargo'        => $validated['cargo'] ?? null,
                 'nivel'        => $validated['nivel'] ?? null,
-                'status_atual' => $validated['status_atual'] ?? 'Ativo',
-            ]);
+                'telefone'     => $validated['telefone'] ?? null,
+                'localizacao'  => $validated['localizacao'] ?? null,
+            ];
+
+            if ($this->usuariosTemStatusAtual()) {
+                $dadosUsuario['status_atual'] = $validated['status_atual'] ?? 'Ativo';
+            }
+
+            $usuario = Usuario::create($dadosUsuario);
 
             Senha::create([
                 'email'        => $validated['email'],
@@ -167,9 +190,22 @@ class UsuariosController extends Controller
             ],
             'cargo'       => 'nullable|string|exists:cargos,nome_cargo',
             'nivel'       => 'nullable|string',
+            'telefone'    => 'nullable|string|max:30',
+            'localizacao' => 'nullable|string|max:120',
         ]);
 
-        $usuario->update($validated);
+        // Only update allowed fields explicitly to avoid unexpected mass-assignment
+        $updateData = [
+            'nome' => $validated['nome'],
+            'email' => $validated['email'],
+            'foto_perfil' => $validated['foto_perfil'] ?? null,
+            'cargo' => $validated['cargo'] ?? null,
+            'nivel' => $validated['nivel'] ?? null,
+            'telefone' => $validated['telefone'] ?? null,
+            'localizacao' => $validated['localizacao'] ?? null,
+        ];
+
+        $usuario->update($updateData);
         $usuario->load('cargoRelation');
 
         return response()->json([

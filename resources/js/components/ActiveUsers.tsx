@@ -303,8 +303,8 @@ export default function ActiveUsers({ users }: ActiveUsersProps) {
          * `w-64` → largura fixa de 256px, igual à sidebar expandida.
          * Ajuste conforme necessário para o seu layout.
          */
-        <div className="relative" ref={panelRef}>
-            <aside className={`shrink-0 flex flex-col gap-2 transition-all duration-300 ${isExpanded ? "w-64" : "w-20"}`}>
+        <div className="relative h-full min-h-0" ref={panelRef}>
+            <aside className={`shrink-0 flex h-full min-h-0 flex-col gap-2 transition-all duration-300 ${isExpanded ? "w-64" : "w-20"}`}>
 
             {/*
              * ─── CABEÇALHO ────────────────────────────────────────────
@@ -356,12 +356,13 @@ export default function ActiveUsers({ users }: ActiveUsersProps) {
              * `key={user.id}` é obrigatório no React para listas — ajuda na performance.
              */}
             <div className={`
-                flex flex-col
+                flex min-h-0 flex-1 flex-col
                 bg-(--cor-widgets) border border-(--cor-borda) 200 rounded-2xl
                 p-2 gap-1
                 overflow-hidden transition-all duration-300
-                ${isExpanded ? "max-h-125 opacity-100" : "max-h-0 opacity-0 p-0 border-transparent pointer-events-none"}
+                ${isExpanded ? "opacity-100" : "max-h-0 opacity-0 p-0 border-transparent pointer-events-none"}
             `}>
+                <div className="min-h-0 flex-1 overflow-y-auto pr-1">
                 {groupedUsers.length === 0 ? (
                     // Estado vazio — nenhum usuário online
                     <p className="text-sm text-gray-400 text-center py-4">
@@ -410,6 +411,7 @@ export default function ActiveUsers({ users }: ActiveUsersProps) {
                         </div>
                     ))
                 )}
+                </div>
             </div>
 
             </aside>

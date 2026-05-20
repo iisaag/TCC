@@ -76,7 +76,7 @@ class PresenceController extends Controller
                 ? $usuario->status_atual
                 : 'online';
             $nivelAcesso = $nivelAcessoPorEmail[strtolower((string) $usuario->email)] ?? '';
-            $isAdmin = in_array($nivelAcesso, ['total', 'admin', 'administrador', 'geral'], true);
+            $isAdmin = in_array($nivelAcesso, ['adm'], true);
 
             return [
                 'id' => (int) $usuario->id_usuario,
