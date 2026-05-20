@@ -420,8 +420,7 @@ export default function Dashboard() {
 
     return (
         <DashboardLayout currentPage="dashboard">
-            {/* fundo levemente azulado como nas imagens */}
-            <div className="dashboard-print-root min-h-full" style={{ background: "linear-gradient(180deg, #eef4fb 0%, #f7fafe 35%, #f1f5fb 100%)" }}>
+            <div className="dashboard-print-root min-h-full">
                 <div className="flex flex-col gap-6 pb-12">
 
                     {/* ── HEADER ── */}
