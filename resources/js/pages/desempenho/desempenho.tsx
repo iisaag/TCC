@@ -180,21 +180,25 @@ export default function Desempenho() {
     const [tarefas, setTarefas] = useState<TarefaApi[]>([]);
     const [projetos, setProjetos] = useState<ProjetoApi[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
     const [selectedProjetoId, setSelectedProjetoId] = useState<number | null>(null);
     const [searchOpen, setSearchOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState("");
 
-    const BACKEND_ORIGIN = (window as any).__BACKEND_ORIGIN ?? 'http://localhost:8000';
-
     useEffect(() => {
         const fetchDashboardData = async () => {
             setIsLoading(true);
+            setError(null);
 
             try {
                 const [tarefasResponse, projetosResponse] = await Promise.all([
-                    fetch(`${BACKEND_ORIGIN}${apiRoutes.tarefas}`, { headers: { Accept: "application/json" }, credentials: 'include' }),
-                    fetch(`${BACKEND_ORIGIN}${apiRoutes.projetos}`, { headers: { Accept: "application/json" }, credentials: 'include' }),
+                    fetch(apiRoutes.tarefas, { headers: { Accept: "application/json" }, credentials: "same-origin" }),
+                    fetch(apiRoutes.projetos, { headers: { Accept: "application/json" }, credentials: "same-origin" }),
                 ]);
+
+                if (!tarefasResponse.ok || !projetosResponse.ok) {
+                    throw new Error("Nao foi possivel carregar os dados de desempenho.");
+                }
 
                 const tarefasPayload = (await tarefasResponse.json()) as ApiEnvelope<{ tarefas?: TarefaApi[] }>;
                 const projetosPayload = (await projetosResponse.json()) as ApiEnvelope<{ projetos?: ProjetoApi[] }>;
@@ -204,6 +208,7 @@ export default function Desempenho() {
             } catch {
                 setTarefas([]);
                 setProjetos([]);
+                setError("Nao foi possivel carregar os dados de desempenho.");
             } finally {
                 setIsLoading(false);
             }
@@ -512,6 +517,12 @@ export default function Desempenho() {
                 {isLoading ? (
                     <div className="rounded-2xl border px-4 py-3 text-sm" style={{ borderColor: "var(--cor-borda)", color: "var(--cor-logo2)" }}>
                         Carregando graficos com dados reais...
+                    </div>
+                ) : null}
+
+                {error ? (
+                    <div className="rounded-2xl border px-4 py-3 text-sm" style={{ borderColor: "#f1a9a9", color: "#9b2c2c", backgroundColor: "#fff5f5" }}>
+                        {error}
                     </div>
                 ) : null}
 
