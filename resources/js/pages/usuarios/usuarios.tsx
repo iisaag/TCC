@@ -1,8 +1,10 @@
 ﻿import { usePage } from "@inertiajs/react";
 import {
+    History,
     MoreVertical,
     Search,
     Shield,
+    Undo2,
     UserCheck,
     UserMinus,
     UserPlus,
@@ -75,6 +77,19 @@ interface EquipeItem {
     tipo?: string | null;
     criado_por?: number | null;
     equipe_pai?: number | null;
+}
+
+interface UsuarioExcluido {
+    id: number;
+    nome: string;
+    email: string;
+    cargo?: string | null;
+    nivel?: string | null;
+    nivel_acesso?: string | null;
+    projetos_afetados: number;
+    equipes_afetadas: number;
+    excluido_em: string;
+    expira_em: string;
 }
 
 interface ApiEnvelope<T> {
@@ -160,6 +175,27 @@ function formatDateTime(raw?: string | null): string {
         ", " +
         date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
     );
+}
+
+function getRemainingDaysLabel(expiraEm?: string | null): string {
+    if (!expiraEm) {
+        return "tempo restante indisponível";
+    }
+
+    const expiration = new Date(expiraEm).getTime();
+    if (Number.isNaN(expiration)) {
+        return "tempo restante indisponível";
+    }
+
+    const remainingMs = expiration - Date.now();
+    const dayMs = 24 * 60 * 60 * 1000;
+
+    if (remainingMs <= 0) {
+        return "expira hoje";
+    }
+
+    const days = Math.ceil(remainingMs / dayMs);
+    return `expira em ${days} dia${days === 1 ? "" : "s"}`;
 }
 
 const ACTIVE_PRESENCE_WINDOW_MS = 45 * 1000;
@@ -379,12 +415,16 @@ export default function UsuariosAdminPage() {
     const [isEditOpen, setIsEditOpen] = useState(false);
     const [isDeleteOpen, setIsDeleteOpen] = useState(false);
     const [isStatusConfirmOpen, setIsStatusConfirmOpen] = useState(false);
+    const [isHistoryOpen, setIsHistoryOpen] = useState(false);
 
     const [form, setForm] = useState<UserForm>(EMPTY_FORM);
     const [editingUser, setEditingUser] = useState<Usuario | null>(null);
     const [deletingUser, setDeletingUser] = useState<Usuario | null>(null);
     const [statusUser, setStatusUser] = useState<Usuario | null>(null);
     const [statusUpdatingId, setStatusUpdatingId] = useState<number | null>(null);
+    const [deletedUsersHistory, setDeletedUsersHistory] = useState<UsuarioExcluido[]>([]);
+    const [historyLoading, setHistoryLoading] = useState(false);
+    const [restoringDeletedId, setRestoringDeletedId] = useState<number | null>(null);
 
     const csrfToken = useMemo(
         () => document.querySelector('meta[name="csrf-token"]')?.getAttribute("content") ?? "",
@@ -704,6 +744,60 @@ export default function UsuariosAdminPage() {
         }
     };
 
+    const loadDeletedHistory = async () => {
+        setHistoryLoading(true);
+        setError(null);
+
+        try {
+            const response = await fetch(apiRoutes.usuariosExcluidosHistorico, {
+                headers: { Accept: "application/json" },
+            });
+
+            if (!response.ok) {
+                throw new Error(await readApiMessage(response, "Não foi possível carregar o histórico de excluídos."));
+            }
+
+            const payload = (await response.json()) as ApiEnvelope<{ usuarios_excluidos?: UsuarioExcluido[] }>;
+            setDeletedUsersHistory(payload.data?.usuarios_excluidos ?? []);
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Não foi possível carregar o histórico de excluídos.");
+        } finally {
+            setHistoryLoading(false);
+        }
+    };
+
+    const openDeletedHistory = async () => {
+        setIsHistoryOpen(true);
+        await loadDeletedHistory();
+    };
+
+    const restoreDeletedUser = async (registro: UsuarioExcluido) => {
+        setRestoringDeletedId(registro.id);
+        setError(null);
+
+        try {
+            const response = await fetch(apiRoutes.usuariosExcluidosRestaurar(registro.id), {
+                method: "POST",
+                headers: {
+                    Accept: "application/json",
+                    "X-Requested-With": "XMLHttpRequest",
+                    "X-CSRF-TOKEN": csrfToken,
+                },
+            });
+
+            if (!response.ok) {
+                throw new Error(await readApiMessage(response, "Não foi possível restaurar o usuário."));
+            }
+
+            setSuccess(`Usuário ${registro.nome} restaurado com sucesso.`);
+            await Promise.all([fetchData(), loadDeletedHistory()]);
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Não foi possível restaurar o usuário.");
+        } finally {
+            setRestoringDeletedId(null);
+        }
+    };
+
     if (!isAdmin) {
         return (
             <DashboardLayout currentPage="users-admin">
@@ -738,15 +832,26 @@ export default function UsuariosAdminPage() {
                             Área administrativa para cadastro, permissão e exclusão de funcionários.
                         </p>
                     </div>
-                    <button
-                        type="button"
-                        onClick={openCreate}
-                        className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition-all duration-200 hover:shadow-lg active:scale-95"
-                        style={{ backgroundColor: "#1a1a2e", color: "#fff" }}
-                    >
-                        <UserPlus size={15} />
-                        Adicionar funcionário
-                    </button>
+                    <div className="flex flex-wrap items-center gap-2">
+                        <button
+                            type="button"
+                            onClick={() => void openDeletedHistory()}
+                            className="inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-medium transition-all duration-200 hover:shadow-md"
+                            style={{ borderColor: "var(--cor-borda)", color: "var(--cor-logo)" }}
+                        >
+                            <History size={15} />
+                            Histórico de excluídos
+                        </button>
+                        <button
+                            type="button"
+                            onClick={openCreate}
+                            className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition-all duration-200 hover:shadow-lg active:scale-95"
+                            style={{ backgroundColor: "#1a1a2e", color: "#fff" }}
+                        >
+                            <UserPlus size={15} />
+                            Adicionar funcionário
+                        </button>
+                    </div>
                 </div>
 
                 {/* Stat cards */}
@@ -1185,6 +1290,92 @@ export default function UsuariosAdminPage() {
                                         : isUsuarioAtivo(statusUser)
                                             ? "Confirmar inativação"
                                             : "Confirmar ativação"}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Deleted Users History Modal */}
+                {isHistoryOpen && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-[2px]">
+                        <div
+                            className="w-full max-w-3xl rounded-2xl border p-6 shadow-2xl"
+                            style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-widgets)" }}
+                        >
+                            <div className="mb-4 flex items-center justify-between gap-3">
+                                <div>
+                                    <h3 className="text-base font-semibold" style={{ color: "var(--cor-logo)" }}>
+                                        Histórico de usuários excluídos
+                                    </h3>
+                                    <p className="text-xs" style={{ color: "var(--cor-logo2)" }}>
+                                        Registros somem automaticamente após 7 dias da exclusão.
+                                    </p>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setIsHistoryOpen(false)}
+                                    className="rounded-lg border p-1.5"
+                                    style={{ borderColor: "var(--cor-borda)", color: "var(--cor-logo2)" }}
+                                >
+                                    <X size={14} />
+                                </button>
+                            </div>
+
+                            {historyLoading ? (
+                                <div className="rounded-xl border p-5 text-sm text-center" style={{ borderColor: "var(--cor-borda)", color: "var(--cor-logo2)" }}>
+                                    Carregando histórico...
+                                </div>
+                            ) : deletedUsersHistory.length === 0 ? (
+                                <div className="rounded-xl border p-5 text-sm text-center" style={{ borderColor: "var(--cor-borda)", color: "var(--cor-logo2)" }}>
+                                    Nenhum usuário excluído nos últimos 7 dias.
+                                </div>
+                            ) : (
+                                <div className="max-h-[420px] space-y-2 overflow-y-auto pr-1">
+                                    {deletedUsersHistory.map((registro) => (
+                                        <div
+                                            key={registro.id}
+                                            className="rounded-xl border p-3"
+                                            style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-fundo)" }}
+                                        >
+                                            <div className="flex flex-wrap items-start justify-between gap-3">
+                                                <div>
+                                                    <p className="text-sm font-semibold" style={{ color: "var(--cor-logo)" }}>{registro.nome}</p>
+                                                    <p className="text-xs" style={{ color: "var(--cor-logo2)" }}>{registro.email}</p>
+                                                    <p className="mt-1 text-xs" style={{ color: "var(--cor-logo2)" }}>
+                                                        Cargo: {registro.cargo ?? "—"} | Nível: {registro.nivel ?? "—"}
+                                                    </p>
+                                                    <p className="text-xs" style={{ color: "var(--cor-logo2)" }}>
+                                                        Projetos afetados: {registro.projetos_afetados} | Equipes afetadas: {registro.equipes_afetadas}
+                                                    </p>
+                                                    <p className="text-xs" style={{ color: "#8a5a00" }}>
+                                                        Excluído em {formatDateTime(registro.excluido_em)}. {getRemainingDaysLabel(registro.expira_em)} ({formatDateTime(registro.expira_em)}).
+                                                    </p>
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => void restoreDeletedUser(registro)}
+                                                    disabled={restoringDeletedId === registro.id}
+                                                    className="inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-medium text-white disabled:opacity-60"
+                                                    style={{ backgroundColor: "#1d6a45" }}
+                                                >
+                                                    <Undo2 size={13} />
+                                                    {restoringDeletedId === registro.id ? "Restaurando..." : "Restaurar usuário"}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+
+                            <div className="mt-5 flex justify-end">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsHistoryOpen(false)}
+                                    className="rounded-xl border px-4 py-2 text-sm"
+                                    style={{ borderColor: "var(--cor-borda)", color: "var(--cor-logo)" }}
+                                >
+                                    Fechar
                                 </button>
                             </div>
                         </div>

@@ -23,5 +23,7 @@ export const apiRoutes = {
     senhas: '/api/senhas',
     tarefas: '/api/tarefas',
     usuarios: '/api/usuarios',
+    usuariosExcluidosHistorico: '/api/usuarios/excluidos/historico',
+    usuariosExcluidosRestaurar: (id: number | string) => `/api/usuarios/excluidos/${id}/restaurar`,
     databaseBackup: '/api/database/backup',
 } as const;

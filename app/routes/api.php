@@ -74,6 +74,8 @@ Route::middleware(['web', 'session.auth'])->group(function (): void {
 		// Usuarios (gestao completa)
 		Route::get('usuarios/total/por-cargo',       [UsuariosController::class, 'totalPorCargo']);
 		Route::get('usuarios/total/por-nivel',       [UsuariosController::class, 'totalPorNivel']);
+		Route::get('usuarios/excluidos/historico',   [UsuariosController::class, 'deletedHistory']);
+		Route::post('usuarios/excluidos/{registro}/restaurar', [UsuariosController::class, 'restoreDeleted']);
 		Route::post('usuarios',                       [UsuariosController::class, 'store']);
 		Route::put('usuarios/{usuario}',              [UsuariosController::class, 'update']);
 		Route::patch('usuarios/{usuario}',            [UsuariosController::class, 'update']);
