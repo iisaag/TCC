@@ -21,6 +21,7 @@ import { router } from "@inertiajs/react";
 import { Bell, Search } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import UserDropdownMenu from "@/components/UserDropdownMenu";
+import { apiRoutes } from "@/lib/routes";
 
 interface NotificationItem {
     id: number;
@@ -61,6 +62,14 @@ interface HeaderProps {
     user: User;
 }
 
+interface SearchResultItem {
+    id: string;
+    type: "projeto" | "tarefa" | "meta" | "usuario" | "equipe";
+    title: string;
+    subtitle: string;
+    url: string;
+}
+
 function resolveAvatarUrl(avatar?: string | null): string | undefined {
     if (!avatar) {
         return undefined;
@@ -98,6 +107,11 @@ export default function Header({ user }: HeaderProps) {
     const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
     const notificationsRef = useRef<HTMLDivElement | null>(null);
     const userMenuRef = useRef<HTMLDivElement | null>(null);
+    const searchRef = useRef<HTMLDivElement | null>(null);
+    const [searchQuery, setSearchQuery] = useState("");
+    const [searchResults, setSearchResults] = useState<SearchResultItem[]>([]);
+    const [isSearchOpen, setIsSearchOpen] = useState(false);
+    const [isSearching, setIsSearching] = useState(false);
 
     const unreadCount = MOCK_NOTIFICATIONS.filter((item) => !item.read).length;
     const avatar = resolveAvatarUrl(user.avatar);
@@ -128,16 +142,77 @@ export default function Header({ user }: HeaderProps) {
             ) {
                 setIsUserMenuOpen(false);
             }
+
+            if (
+                searchRef.current &&
+                !searchRef.current.contains(event.target as Node)
+            ) {
+                setIsSearchOpen(false);
+            }
         }
 
-        if (isNotificationsOpen || isUserMenuOpen) {
+        if (isNotificationsOpen || isUserMenuOpen || isSearchOpen) {
             document.addEventListener("mousedown", handleClickOutside);
         }
 
         return () => {
             document.removeEventListener("mousedown", handleClickOutside);
         };
-    }, [isNotificationsOpen, isUserMenuOpen]);
+    }, [isNotificationsOpen, isUserMenuOpen, isSearchOpen]);
+
+    useEffect(() => {
+        const query = searchQuery.trim();
+
+        if (query.length < 2) {
+            setSearchResults([]);
+            setIsSearching(false);
+            return;
+        }
+
+        const controller = new AbortController();
+        const timer = window.setTimeout(async () => {
+            setIsSearching(true);
+
+            try {
+                const response = await fetch(`${apiRoutes.buscaGlobal}?q=${encodeURIComponent(query)}`, {
+                    credentials: "same-origin",
+                    headers: { Accept: "application/json" },
+                    signal: controller.signal,
+                });
+
+                if (!response.ok) {
+                    throw new Error("Falha ao carregar resultados da busca");
+                }
+
+                const payload = (await response.json()) as { data?: { results?: SearchResultItem[] } };
+                setSearchResults(payload.data?.results ?? []);
+                setIsSearchOpen(true);
+            } catch {
+                setSearchResults([]);
+            } finally {
+                setIsSearching(false);
+            }
+        }, 250);
+
+        return () => {
+            controller.abort();
+            window.clearTimeout(timer);
+        };
+    }, [searchQuery]);
+
+    const goToResult = (item: SearchResultItem) => {
+        setIsSearchOpen(false);
+        setSearchQuery("");
+        router.get(item.url);
+    };
+
+    const typeLabel: Record<SearchResultItem["type"], string> = {
+        projeto: "Projeto",
+        tarefa: "Card",
+        meta: "Meta",
+        usuario: "Pessoa",
+        equipe: "Equipe",
+    };
 
     return (
         /*
@@ -173,7 +248,7 @@ export default function Header({ user }: HeaderProps) {
              * `max-w-xl` limita o tamanho máximo para não ficar enorme em telas grandes.
              */}
             <div className="flex-1 flex justify-center">
-                <div className="relative w-full max-w-xl">
+                <div className="relative w-full max-w-xl" ref={searchRef}>
                     {/*
                      * Ícone de lupa posicionado absolutamente dentro do campo.
                      * `pointer-events-none` garante que o ícone não intercepte cliques.
@@ -185,6 +260,25 @@ export default function Header({ user }: HeaderProps) {
                     <input
                         type="text"
                         placeholder="Pesquisar projetos, metas, pessoas..."
+                        value={searchQuery}
+                        onChange={(event) => {
+                            setSearchQuery(event.target.value);
+                        }}
+                        onFocus={() => {
+                            if (searchQuery.trim().length >= 2) {
+                                setIsSearchOpen(true);
+                            }
+                        }}
+                        onKeyDown={(event) => {
+                            if (event.key === "Escape") {
+                                setIsSearchOpen(false);
+                            }
+
+                            if (event.key === "Enter" && searchResults.length > 0) {
+                                event.preventDefault();
+                                goToResult(searchResults[0]);
+                            }
+                        }}
                         className="
                             w-full
                             pl-9 pr-4 py-2
@@ -196,6 +290,42 @@ export default function Header({ user }: HeaderProps) {
                             placeholder:text-(--cor-textoII)/50
                         "
                     />
+
+                    {isSearchOpen && (
+                        <div
+                            className="absolute left-0 right-0 top-[calc(100%+8px)] z-50 overflow-hidden rounded-2xl border bg-white shadow-2xl"
+                            style={{ borderColor: "var(--cor-borda)" }}
+                        >
+                            <div className="max-h-80 overflow-y-auto p-2">
+                                {isSearching ? (
+                                    <p className="px-3 py-2 text-sm" style={{ color: "var(--cor-textoII)" }}>
+                                        Pesquisando...
+                                    </p>
+                                ) : searchResults.length === 0 ? (
+                                    <p className="px-3 py-2 text-sm" style={{ color: "var(--cor-textoII)" }}>
+                                        Nenhum resultado encontrado.
+                                    </p>
+                                ) : (
+                                    searchResults.map((item) => (
+                                        <button
+                                            key={item.id}
+                                            type="button"
+                                            onClick={() => goToResult(item)}
+                                            className="flex w-full items-start justify-between gap-3 rounded-xl px-3 py-2 text-left transition-colors hover:bg-[#eef5fb]"
+                                        >
+                                            <div className="min-w-0">
+                                                <p className="truncate text-sm font-semibold text-slate-800">{item.title}</p>
+                                                <p className="truncate text-xs text-slate-500">{item.subtitle}</p>
+                                            </div>
+                                            <span className="shrink-0 rounded-lg bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-600">
+                                                {typeLabel[item.type]}
+                                            </span>
+                                        </button>
+                                    ))
+                                )}
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
 

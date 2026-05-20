@@ -20,6 +20,7 @@ Route::post('auth/verificar',                    [SenhaController::class, 'verif
 Route::middleware(['web', 'session.auth'])->group(function (): void {
 	// Dashboard
 	Route::get('dashboard', [DashboardController::class, 'index']);
+	Route::get('busca/global', [DashboardController::class, 'globalSearch']);
 
 	// Equipes
 	Route::get('equipes/subequipes/total',           [EquipesController::class, 'totalSubequipes']);

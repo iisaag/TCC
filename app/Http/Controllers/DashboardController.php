@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Equipe;
+use App\Models\Meta;
 use App\Models\Projeto;
 use App\Models\Tarefa;
 use App\Models\Usuario;
@@ -18,6 +20,173 @@ class DashboardController extends Controller
 
     /** Status de projeto considerados ativos (não encerrados) */
     private const PROJ_EXCLUIDOS = ['Concluído', 'Concluida', 'Cancelado', 'Cancelada'];
+    private const TEMP_DELETED_STATUS = '__EXCLUIDO_TEMP__';
+
+    public function globalSearch(Request $request): JsonResponse
+    {
+        $query = trim((string) $request->query('q', ''));
+
+        if (mb_strlen($query) < 2) {
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'results' => [],
+                    'query' => $query,
+                ],
+            ]);
+        }
+
+        $like = '%' . str_replace(['%', '_'], ['\\%', '\\_'], $query) . '%';
+        $results = [];
+
+        if (Schema::hasTable('projetos')) {
+            $projetos = Projeto::query()
+                ->where(function ($builder): void {
+                    $builder
+                        ->whereNull('status_projeto')
+                        ->orWhereRaw('UPPER(TRIM(status_projeto)) <> ?', [self::TEMP_DELETED_STATUS]);
+                })
+                ->where(function ($builder) use ($like): void {
+                    $builder
+                        ->where('nome_projeto', 'like', $like)
+                        ->orWhere('descricao', 'like', $like);
+                })
+                ->orderBy('nome_projeto')
+                ->limit(6)
+                ->get(['id_projeto', 'nome_projeto', 'descricao']);
+
+            foreach ($projetos as $projeto) {
+                $results[] = [
+                    'id' => 'projeto:' . $projeto->id_projeto,
+                    'type' => 'projeto',
+                    'title' => $projeto->nome_projeto,
+                    'subtitle' => $projeto->descricao ?: 'Projeto',
+                    'url' => '/projetos',
+                ];
+            }
+        }
+
+        if (Schema::hasTable('tarefas')) {
+            $tarefas = Tarefa::query()
+                ->leftJoin('projetos', 'projetos.id_projeto', '=', 'tarefas.id_projeto')
+                ->where(function ($builder): void {
+                    $builder
+                        ->whereNull('projetos.status_projeto')
+                        ->orWhereRaw('UPPER(TRIM(projetos.status_projeto)) <> ?', [self::TEMP_DELETED_STATUS]);
+                })
+                ->where(function ($builder) use ($like): void {
+                    $builder
+                        ->where('tarefas.titulo', 'like', $like)
+                        ->orWhere('tarefas.descricao', 'like', $like)
+                        ->orWhere('projetos.nome_projeto', 'like', $like);
+                })
+                ->orderBy('tarefas.id_tarefa', 'desc')
+                ->limit(8)
+                ->get([
+                    'tarefas.id_tarefa',
+                    'tarefas.titulo',
+                    'projetos.nome_projeto as projeto_nome',
+                ]);
+
+            foreach ($tarefas as $tarefa) {
+                $results[] = [
+                    'id' => 'tarefa:' . $tarefa->id_tarefa,
+                    'type' => 'tarefa',
+                    'title' => $tarefa->titulo,
+                    'subtitle' => $tarefa->projeto_nome ? ('Projeto: ' . $tarefa->projeto_nome) : 'Card de tarefa',
+                    'url' => '/projetos',
+                ];
+            }
+        }
+
+        if (Schema::hasTable('metas')) {
+            $metas = Meta::query()
+                ->leftJoin('projetos', 'projetos.id_projeto', '=', 'metas.id_projeto')
+                ->where(function ($builder): void {
+                    $builder
+                        ->whereNull('projetos.status_projeto')
+                        ->orWhereRaw('UPPER(TRIM(projetos.status_projeto)) <> ?', [self::TEMP_DELETED_STATUS]);
+                })
+                ->where(function ($builder) use ($like): void {
+                    $builder
+                        ->where('metas.titulo_meta', 'like', $like)
+                        ->orWhere('projetos.nome_projeto', 'like', $like)
+                        ->orWhere('metas.status_meta', 'like', $like);
+                })
+                ->orderBy('metas.id_meta', 'desc')
+                ->limit(6)
+                ->get([
+                    'metas.id_meta',
+                    'metas.titulo_meta',
+                    'projetos.nome_projeto as projeto_nome',
+                ]);
+
+            foreach ($metas as $meta) {
+                $results[] = [
+                    'id' => 'meta:' . $meta->id_meta,
+                    'type' => 'meta',
+                    'title' => $meta->titulo_meta,
+                    'subtitle' => $meta->projeto_nome ? ('Projeto: ' . $meta->projeto_nome) : 'Meta',
+                    'url' => '/desempenho',
+                ];
+            }
+        }
+
+        if (Schema::hasTable('usuarios')) {
+            $usuarios = Usuario::query()
+                ->where(function ($builder) use ($like): void {
+                    $builder
+                        ->where('nome', 'like', $like)
+                        ->orWhere('email', 'like', $like)
+                        ->orWhere('cargo', 'like', $like);
+                })
+                ->orderBy('nome')
+                ->limit(8)
+                ->get(['id_usuario', 'nome', 'email', 'cargo']);
+
+            foreach ($usuarios as $usuario) {
+                $results[] = [
+                    'id' => 'usuario:' . $usuario->id_usuario,
+                    'type' => 'usuario',
+                    'title' => $usuario->nome,
+                    'subtitle' => $usuario->email ?: ($usuario->cargo ?: 'Pessoa'),
+                    'url' => '/equipe',
+                ];
+            }
+        }
+
+        if (Schema::hasTable('equipes')) {
+            $equipes = Equipe::query()
+                ->where(function ($builder) use ($like): void {
+                    $builder
+                        ->where('nome', 'like', $like)
+                        ->orWhere('tipo', 'like', $like);
+                })
+                ->orderBy('nome')
+                ->limit(6)
+                ->get(['id_equipe', 'nome', 'tipo']);
+
+            foreach ($equipes as $equipe) {
+                $results[] = [
+                    'id' => 'equipe:' . $equipe->id_equipe,
+                    'type' => 'equipe',
+                    'title' => $equipe->nome,
+                    'subtitle' => $equipe->tipo ?: 'Equipe',
+                    'url' => '/equipe',
+                ];
+            }
+        }
+
+        usort($results, static fn(array $a, array $b): int => strcmp((string) $a['title'], (string) $b['title']));
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'results' => array_slice($results, 0, 25),
+                'query' => $query,
+            ],
+        ]);
+    }
 
     private function calcularProgressoMedio(): float
     {
