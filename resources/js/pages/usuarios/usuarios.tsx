@@ -179,11 +179,16 @@ function hasRecentAccess(ultimoAcesso?: string | null): boolean {
 }
 
 function isUsuarioAtivo(usuario: Usuario): boolean {
+    const status = usuario.status_atual?.trim().toLowerCase();
+
+    if (status === "inativo") {
+        return false;
+    }
+
     if (hasRecentAccess(usuario.ultimo_acesso)) {
         return true;
     }
 
-    const status = usuario.status_atual?.trim().toLowerCase();
     return !status || status === "ativo";
 }
 
@@ -225,12 +230,28 @@ function PermissionBadge({ access }: { access: AccessLevel }) {
     );
 }
 
-function StatusBadge({ user }: { user: Usuario }) {
+function StatusBadge({ user, onClick, disabled }: { user: Usuario; onClick?: () => void; disabled?: boolean }) {
     const isAtivo = isUsuarioAtivo(user);
+    const baseStyle = isAtivo ? { borderColor: "#4caf85", color: "#1d6a45" } : { borderColor: "#e07070", color: "#a02020" };
+
+    if (onClick) {
+        return (
+            <button
+                type="button"
+                onClick={onClick}
+                disabled={disabled}
+                className="inline-flex rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-all duration-200 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60"
+                style={baseStyle}
+            >
+                {isAtivo ? "Ativo" : "Inativo"}
+            </button>
+        );
+    }
+
     return (
         <span
             className="inline-flex rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-all duration-200 hover:shadow-md"
-            style={isAtivo ? { borderColor: "#4caf85", color: "#1d6a45" } : { borderColor: "#e07070", color: "#a02020" }}
+            style={baseStyle}
         >
             {isAtivo ? "Ativo" : "Inativo"}
         </span>
@@ -357,10 +378,13 @@ export default function UsuariosAdminPage() {
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const [isEditOpen, setIsEditOpen] = useState(false);
     const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+    const [isStatusConfirmOpen, setIsStatusConfirmOpen] = useState(false);
 
     const [form, setForm] = useState<UserForm>(EMPTY_FORM);
     const [editingUser, setEditingUser] = useState<Usuario | null>(null);
     const [deletingUser, setDeletingUser] = useState<Usuario | null>(null);
+    const [statusUser, setStatusUser] = useState<Usuario | null>(null);
+    const [statusUpdatingId, setStatusUpdatingId] = useState<number | null>(null);
 
     const csrfToken = useMemo(
         () => document.querySelector('meta[name="csrf-token"]')?.getAttribute("content") ?? "",
@@ -625,7 +649,9 @@ export default function UsuariosAdminPage() {
                 method: "DELETE",
                 headers: { Accept: "application/json", "X-Requested-With": "XMLHttpRequest", "X-CSRF-TOKEN": csrfToken },
             });
-            if (!uRes.ok) throw new Error();
+            if (!uRes.ok) {
+                throw new Error(await readApiMessage(uRes, "Não foi possível excluir o funcionário."));
+            }
             if (deletingUser.email) {
                 await fetch(`${apiRoutes.senhas}/${encodeURIComponent(deletingUser.email)}`, {
                     method: "DELETE",
@@ -636,10 +662,45 @@ export default function UsuariosAdminPage() {
             setDeletingUser(null);
             setSuccess("Funcionário excluído com sucesso.");
             await fetchData();
-        } catch {
-            setError("Não foi possível excluir o funcionário.");
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Não foi possível excluir o funcionário.");
         } finally {
             setDeletingId(null);
+        }
+    };
+
+    const onToggleStatus = async () => {
+        if (!statusUser) return;
+
+        const nextStatus = isUsuarioAtivo(statusUser) ? "Inativo" : "Ativo";
+
+        setStatusUpdatingId(statusUser.id_usuario);
+        setError(null);
+
+        try {
+            const response = await fetch(`${apiRoutes.usuarios}/${statusUser.id_usuario}/status`, {
+                method: "PATCH",
+                headers: {
+                    "Content-Type": "application/json",
+                    Accept: "application/json",
+                    "X-Requested-With": "XMLHttpRequest",
+                    "X-CSRF-TOKEN": csrfToken,
+                },
+                body: JSON.stringify({ status_atual: nextStatus }),
+            });
+
+            if (!response.ok) {
+                throw new Error(await readApiMessage(response, "Não foi possível alterar o status do funcionário."));
+            }
+
+            setSuccess(`Funcionário marcado como ${nextStatus.toLowerCase()} com sucesso.`);
+            setIsStatusConfirmOpen(false);
+            setStatusUser(null);
+            await fetchData();
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Não foi possível alterar o status do funcionário.");
+        } finally {
+            setStatusUpdatingId(null);
         }
     };
 
@@ -766,14 +827,33 @@ export default function UsuariosAdminPage() {
                                                 <td className="px-4 py-3 whitespace-nowrap" style={{ color: "var(--cor-logo)" }}>{user.cargo ?? "—"}</td>
                                                 <td className="px-4 py-3 whitespace-nowrap" style={{ color: "var(--cor-logo)" }}>{user.nivel ?? "—"}</td>
                                                 <td className="px-4 py-3"><PermissionBadge access={access} /></td>
-                                                <td className="px-4 py-3"><StatusBadge user={user} /></td>
+                                                <td className="px-4 py-3">
+                                                    <StatusBadge
+                                                        user={user}
+                                                        disabled={statusUpdatingId === user.id_usuario}
+                                                        onClick={() => {
+                                                            setStatusUser(user);
+                                                            setIsStatusConfirmOpen(true);
+                                                        }}
+                                                    />
+                                                </td>
                                                 <td className="px-4 py-3 whitespace-nowrap text-xs" style={{ color: "var(--cor-logo2)" }}>{formatDateTime(user.ultimo_acesso)}</td>
                                                 <td className="px-4 py-3 whitespace-nowrap text-xs" style={{ color: "var(--cor-logo2)" }}>{formatDateTime(user.data_criacao)}</td>
                                                 <td className="px-4 py-3">
-                                                    <ActionMenu
-                                                        onEdit={() => openEdit(user)}
-                                                        onDelete={() => { setDeletingUser(user); setIsDeleteOpen(true); }}
-                                                    />
+                                                    <div className="flex items-center gap-2">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => { setDeletingUser(user); setIsDeleteOpen(true); }}
+                                                            className="rounded-lg border px-2.5 py-1 text-xs font-medium transition-all duration-200 hover:shadow-md"
+                                                            style={{ borderColor: "#e2a0a0", color: "#a02020" }}
+                                                        >
+                                                            Excluir
+                                                        </button>
+                                                        <ActionMenu
+                                                            onEdit={() => openEdit(user)}
+                                                            onDelete={() => { setDeletingUser(user); setIsDeleteOpen(true); }}
+                                                        />
+                                                    </div>
                                                 </td>
                                             </tr>
                                         );
@@ -1000,7 +1080,7 @@ export default function UsuariosAdminPage() {
                             </p>
                             <div className="mt-4 rounded-xl border p-3 text-sm" style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-fundo)", color: "var(--cor-logo)" }}>
                                 <div className="flex items-center justify-between gap-3">
-                                    <span className="font-semibold">Impacto estimado</span>
+                                    <span className="font-semibold">Prejuízo estimado</span>
                                     <span className="rounded-full px-2.5 py-0.5 text-xs font-semibold" style={{ backgroundColor: impacto.nivel === "Alto" ? "#fde8e8" : impacto.nivel === "Médio" ? "#fff3cd" : "#edf7ed", color: impacto.nivel === "Alto" ? "#9a2b2b" : impacto.nivel === "Médio" ? "#8a5a00" : "#1d6a45" }}>
                                         {impacto.nivel}
                                     </span>
@@ -1063,6 +1143,51 @@ export default function UsuariosAdminPage() {
                         </div>
                             );
                         })()}
+                    </div>
+                )}
+
+                {/* Status Confirm Modal */}
+                {isStatusConfirmOpen && statusUser && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-[2px]">
+                        <div
+                            className="w-full max-w-md rounded-2xl border p-6 shadow-2xl"
+                            style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-widgets)" }}
+                        >
+                            <div className="mb-4 flex items-center gap-3">
+                                <Avatar nome={statusUser.nome} foto={statusUser.foto_perfil} />
+                                <h3 className="text-base font-semibold" style={{ color: "var(--cor-logo)" }}>
+                                    Confirmar alteração de status
+                                </h3>
+                            </div>
+                            <p className="text-sm" style={{ color: "var(--cor-logo2)" }}>
+                                Tem certeza que deseja marcar <strong style={{ color: "var(--cor-logo)" }}>{statusUser.nome}</strong> como{" "}
+                                <strong style={{ color: "var(--cor-logo)" }}>{isUsuarioAtivo(statusUser) ? "inativo" : "ativo"}</strong>?
+                            </p>
+
+                            <div className="mt-6 flex justify-end gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => { setIsStatusConfirmOpen(false); setStatusUser(null); }}
+                                    className="rounded-xl border px-4 py-2 text-sm"
+                                    style={{ borderColor: "var(--cor-borda)", color: "var(--cor-logo)" }}
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => void onToggleStatus()}
+                                    disabled={statusUpdatingId === statusUser.id_usuario}
+                                    className="rounded-xl px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
+                                    style={{ backgroundColor: isUsuarioAtivo(statusUser) ? "#c0392b" : "#1d6a45" }}
+                                >
+                                    {statusUpdatingId === statusUser.id_usuario
+                                        ? "Salvando..."
+                                        : isUsuarioAtivo(statusUser)
+                                            ? "Confirmar inativação"
+                                            : "Confirmar ativação"}
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 )}
 

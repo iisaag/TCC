@@ -77,6 +77,7 @@ Route::middleware(['web', 'session.auth'])->group(function (): void {
 		Route::post('usuarios',                       [UsuariosController::class, 'store']);
 		Route::put('usuarios/{usuario}',              [UsuariosController::class, 'update']);
 		Route::patch('usuarios/{usuario}',            [UsuariosController::class, 'update']);
+		Route::patch('usuarios/{usuario}/status',     [UsuariosController::class, 'updateStatus']);
 		Route::delete('usuarios/{usuario}',           [UsuariosController::class, 'destroy']);
 
 		// Database

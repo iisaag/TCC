@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Senha;
 use App\Models\Usuario;
 use App\Models\UserPresence;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -12,6 +13,11 @@ use Illuminate\Support\Facades\Schema;
 
 class UsuariosController extends Controller
 {
+    private function normalizarStatusAtual(?string $status): string
+    {
+        return mb_strtolower(trim((string) $status)) === 'inativo' ? 'Inativo' : 'Ativo';
+    }
+
     private function usuariosTemStatusAtual(): bool
     {
         return Schema::hasTable('usuarios') && Schema::hasColumn('usuarios', 'status_atual');
@@ -226,11 +232,84 @@ class UsuariosController extends Controller
             ], 404);
         }
 
-        $usuario->delete();
+        try {
+            DB::transaction(function () use ($usuario): void {
+                $userId = (int) $usuario->id_usuario;
+                $userEmail = (string) $usuario->email;
+
+                if (Schema::hasTable('senha')) {
+                    Senha::where('email', $userEmail)->delete();
+                }
+
+                if (Schema::hasTable('projetos') && Schema::hasColumn('projetos', 'id_responsavel')) {
+                    DB::table('projetos')->where('id_responsavel', $userId)->update(['id_responsavel' => null]);
+                }
+
+                if (Schema::hasTable('tarefas') && Schema::hasColumn('tarefas', 'id_responsavel')) {
+                    DB::table('tarefas')->where('id_responsavel', $userId)->update(['id_responsavel' => null]);
+                }
+
+                if (Schema::hasTable('historico_progresso') && Schema::hasColumn('historico_progresso', 'id_usuario')) {
+                    DB::table('historico_progresso')->where('id_usuario', $userId)->delete();
+                }
+
+                if (Schema::hasTable('log_projeto') && Schema::hasColumn('log_projeto', 'id_usuario')) {
+                    DB::table('log_projeto')->where('id_usuario', $userId)->delete();
+                }
+
+                if (Schema::hasTable('log_sistema') && Schema::hasColumn('log_sistema', 'id_usuario')) {
+                    DB::table('log_sistema')->where('id_usuario', $userId)->delete();
+                }
+
+                if (Schema::hasTable('user_presences') && Schema::hasColumn('user_presences', 'user_id')) {
+                    UserPresence::where('user_id', $userId)->delete();
+                }
+
+                $usuario->delete();
+            });
+        } catch (QueryException $exception) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Não foi possível excluir este funcionário porque ainda existem vínculos obrigatórios (projetos, tarefas, equipes ou registros históricos). Reatribua os vínculos e tente novamente.',
+            ], 422);
+        }
 
         return response()->json([
             'success' => true,
             'message' => 'Usuário excluído com sucesso',
+        ]);
+    }
+
+    public function updateStatus(Request $request, int $id): JsonResponse
+    {
+        if (! $this->usuariosTemStatusAtual()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'A coluna de status não está disponível para atualização.',
+            ], 422);
+        }
+
+        $usuario = Usuario::find($id);
+
+        if (! $usuario) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Usuário não encontrado',
+            ], 404);
+        }
+
+        $validated = $request->validate([
+            'status_atual' => 'required|string|in:Ativo,Inativo',
+        ]);
+
+        $usuario->update([
+            'status_atual' => $this->normalizarStatusAtual($validated['status_atual']),
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Status do usuário atualizado com sucesso.',
+            'data' => ['usuario' => $this->respostaUsuario($usuario->fresh())],
         ]);
     }
 
