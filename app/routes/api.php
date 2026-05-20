@@ -39,6 +39,8 @@ Route::middleware(['web', 'session.auth'])->group(function (): void {
 
 	// Projetos
 	Route::get('projetos/total/por-status',          [ProjetosController::class, 'totalPorStatus']);
+	Route::get('projetos/excluidos/historico',       [ProjetosController::class, 'deletedHistory']);
+	Route::post('projetos/excluidos/{registro}/restaurar', [ProjetosController::class, 'restoreDeleted']);
 	Route::apiResource('projetos', ProjetosController::class);
 
 	// Tarefas

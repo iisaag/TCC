@@ -1,5 +1,5 @@
 import { usePage } from "@inertiajs/react";
-import { ArrowLeft, CalendarDays, ChevronDown, GripVertical, Pencil, Plus, Search, Trash2 } from "lucide-react";
+import { ArrowLeft, CalendarDays, ChevronDown, GripVertical, History, Pencil, Plus, RotateCcw, Search, Trash2 } from "lucide-react";
 import type { FormEvent} from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import DashboardLayout from "@/layouts/DashboardLayout";
@@ -39,6 +39,22 @@ interface Projeto {
 	status_projeto?: string | null;
 	id_responsavel?: number | null;
 	responsavel?: Usuario | null;
+}
+
+interface ProjetoExcluido {
+	id: number;
+	id_projeto_original?: number | null;
+	nome_projeto: string;
+	descricao?: string | null;
+	data_inicio?: string | null;
+	prazo_final?: string | null;
+	status_projeto?: string | null;
+	prioridade_proj?: string | null;
+	id_responsavel?: number | null;
+	tarefas_afetadas: number;
+	metas_afetadas: number;
+	excluido_em?: string | null;
+	expira_em?: string | null;
 }
 
 interface TarefaApi {
@@ -121,6 +137,28 @@ const EMPTY_PROJECT_FORM: ProjectFormState = {
 	id_responsavel: "",
 };
 
+function normalizeProjectPriorityValue(priority?: string | null): ProjectFormState["prioridade_proj"] {
+	const raw = (priority ?? "")
+		.normalize("NFD")
+		.replace(/[\u0300-\u036f]/g, "")
+		.toUpperCase()
+		.trim();
+
+	if (raw.includes("ALTA")) {
+		return "ALTA";
+	}
+
+	if (raw.includes("BAIXA")) {
+		return "BAIXA";
+	}
+
+	if (raw.includes("MEDIA") || raw.includes("MEDI")) {
+		return "MEDIA";
+	}
+
+	return "";
+}
+
 function normalizeStatus(status?: string | null): BoardStatus {
 	const value = (status ?? "").toUpperCase().trim();
 
@@ -171,6 +209,40 @@ function formatDate(value?: string | null): string {
 	}
 
 	return date.toLocaleDateString("pt-BR");
+}
+
+function formatDateTime(raw?: string | null): string {
+	if (!raw) {
+		return "-";
+	}
+
+	const date = new Date(raw);
+	if (Number.isNaN(date.getTime())) {
+		return "-";
+	}
+
+	return date.toLocaleDateString("pt-BR") + ", " + date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+}
+
+function getRemainingDaysLabel(expiraEm?: string | null): string {
+	if (!expiraEm) {
+		return "tempo restante indisponivel";
+	}
+
+	const expiration = new Date(expiraEm).getTime();
+	if (Number.isNaN(expiration)) {
+		return "tempo restante indisponivel";
+	}
+
+	const remainingMs = expiration - Date.now();
+	const dayMs = 24 * 60 * 60 * 1000;
+
+	if (remainingMs <= 0) {
+		return "expira hoje";
+	}
+
+	const days = Math.ceil(remainingMs / dayMs);
+	return `expira em ${days} dia${days === 1 ? "" : "s"}`;
 }
 
 function priorityColor(priority?: string | null): string {
@@ -469,6 +541,8 @@ export default function Projetos() {
 	const [isUpdating, setIsUpdating] = useState(false);
 	const [isDeleting, setIsDeleting] = useState(false);
 	const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+	const [isProjectHistoryOpen, setIsProjectHistoryOpen] = useState(false);
+	const [isLoadingProjectHistory, setIsLoadingProjectHistory] = useState(false);
 	const [movingTaskId, setMovingTaskId] = useState<number | null>(null);
 	const [error, setError] = useState<string | null>(null);
 	const [query, setQuery] = useState("");
@@ -480,6 +554,8 @@ export default function Projetos() {
 	const [projectForm, setProjectForm] = useState<ProjectFormState>(EMPTY_PROJECT_FORM);
 	const [editingProjectId, setEditingProjectId] = useState<number | null>(null);
 	const [projectToDelete, setProjectToDelete] = useState<Projeto | null>(null);
+	const [deletedProjectsHistory, setDeletedProjectsHistory] = useState<ProjetoExcluido[]>([]);
+	const [restoringProjectHistoryId, setRestoringProjectHistoryId] = useState<number | null>(null);
 	const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
 	const csrfToken = useMemo(() => {
@@ -744,7 +820,7 @@ export default function Projetos() {
 		setProjectForm({
 			nome_projeto: projeto.nome_projeto ?? "",
 			descricao: projeto.descricao ?? "",
-			prioridade_proj: projeto.prioridade_proj ?? "",
+			prioridade_proj: normalizeProjectPriorityValue(projeto.prioridade_proj),
 			status_projeto: projeto.status_projeto ?? "",
 			id_responsavel: projeto.id_responsavel ? String(projeto.id_responsavel) : "",
 		});
@@ -769,11 +845,13 @@ export default function Projetos() {
 		try {
 			const response = await fetch(`${apiRoutes.projetos}/${projeto.id_projeto}`, {
 				method: "DELETE",
+				credentials: 'same-origin',
 				headers: mutationHeaders,
 			});
 
 			if (!response.ok) {
-				throw new Error("Erro ao excluir projeto");
+				const payloadError = (await response.json().catch(() => null)) as { message?: string } | null;
+				throw new Error(payloadError?.message ?? "Erro ao excluir projeto");
 			}
 
 			if (selectedProjectId === projeto.id_projeto) {
@@ -783,10 +861,77 @@ export default function Projetos() {
 			setProjectToDelete(null);
 			await fetchBoard();
 			setSuccessMessage("Projeto excluido com sucesso");
-		} catch {
-			setError("Nao foi possivel excluir o projeto.");
+		} catch (error) {
+			const message = error instanceof Error && error.message
+				? error.message
+				: "Nao foi possivel excluir o projeto.";
+
+			setError(message);
 		} finally {
 			setIsDeletingProject(null);
+		}
+	};
+
+	const loadDeletedProjectsHistory = async () => {
+		setIsLoadingProjectHistory(true);
+		setError(null);
+
+		try {
+			const response = await fetch(apiRoutes.projetosExcluidosHistorico, {
+				credentials: 'same-origin',
+				headers: { Accept: "application/json" },
+			});
+
+			if (!response.ok) {
+				const payloadError = (await response.json().catch(() => null)) as { message?: string } | null;
+				throw new Error(payloadError?.message ?? "Erro ao carregar historico de projetos excluidos");
+			}
+
+			const payload = (await response.json()) as ApiEnvelope<{ projetos_excluidos?: ProjetoExcluido[] }>;
+			setDeletedProjectsHistory(payload.data?.projetos_excluidos ?? []);
+		} catch (error) {
+			const message = error instanceof Error && error.message
+				? error.message
+				: "Nao foi possivel carregar o historico de projetos excluidos.";
+
+			setError(message);
+		} finally {
+			setIsLoadingProjectHistory(false);
+		}
+	};
+
+	const restoreDeletedProject = async (registro: ProjetoExcluido) => {
+		if (!isAdmin) {
+			setError("Apenas administradores podem restaurar projetos.");
+			return;
+		}
+
+		setRestoringProjectHistoryId(registro.id);
+		setError(null);
+
+		try {
+			const response = await fetch(apiRoutes.projetosExcluidosRestaurar(registro.id), {
+				method: "POST",
+				credentials: 'same-origin',
+				headers: mutationHeaders,
+			});
+
+			if (!response.ok) {
+				const payloadError = (await response.json().catch(() => null)) as { message?: string } | null;
+				throw new Error(payloadError?.message ?? "Erro ao restaurar projeto");
+			}
+
+			setDeletedProjectsHistory((current) => current.filter((item) => item.id !== registro.id));
+			await fetchBoard();
+			setSuccessMessage("Projeto restaurado com sucesso");
+		} catch (error) {
+			const message = error instanceof Error && error.message
+				? error.message
+				: "Nao foi possivel restaurar o projeto.";
+
+			setError(message);
+		} finally {
+			setRestoringProjectHistoryId(null);
 		}
 	};
 
@@ -802,10 +947,12 @@ export default function Projetos() {
 		setError(null);
 
 		try {
+			const normalizedPriority = normalizeProjectPriorityValue(projectForm.prioridade_proj);
+
 			const payload = {
 				nome_projeto: projectForm.nome_projeto,
 				descricao: projectForm.descricao || null,
-				prioridade_proj: projectForm.prioridade_proj || null,
+				prioridade_proj: normalizedPriority || null,
 				status_projeto: projectForm.status_projeto || null,
 				id_responsavel: projectForm.id_responsavel ? Number(projectForm.id_responsavel) : null,
 			};
@@ -815,23 +962,29 @@ export default function Projetos() {
 				isEditingProject ? `${apiRoutes.projetos}/${editingProjectId}` : apiRoutes.projetos,
 				{
 					method: isEditingProject ? "PUT" : "POST",
+					credentials: 'same-origin',
 				headers: {
 					"Content-Type": "application/json",
 						...mutationHeaders,
-				},
-				body: JSON.stringify(payload),
+					},
+					body: JSON.stringify(payload),
 				},
 			);
 
 			if (!response.ok) {
-				throw new Error("Erro ao criar projeto");
+				const payloadError = (await response.json().catch(() => null)) as { message?: string } | null;
+				throw new Error(payloadError?.message ?? "Erro ao salvar projeto");
 			}
 
 			closeProjectModal();
 			await fetchBoard();
 			setSuccessMessage(isEditingProject ? "Projeto editado com sucesso" : "Projeto criado com sucesso");
-		} catch {
-			setError(editingProjectId !== null ? "Nao foi possivel editar o projeto." : "Nao foi possivel criar o projeto.");
+		} catch (error) {
+			const message = error instanceof Error && error.message
+				? error.message
+				: (editingProjectId !== null ? "Nao foi possivel editar o projeto." : "Nao foi possivel criar o projeto.");
+
+			setError(message);
 		} finally {
 			setIsSavingProject(false);
 		}
@@ -1059,24 +1212,44 @@ export default function Projetos() {
 
 								<div className="flex items-center gap-2">
 									{isAdmin ? (
-										<button
-											type="button"
-											onClick={() => {
-												setEditingProjectId(null);
-												setProjectForm(EMPTY_PROJECT_FORM);
-												setIsProjectModalOpen(true);
-											}}
-											className="inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-base"
-											style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-botao)", color: "var(--cor-logo)" }}
-										>
-											<Plus size={18} />
-											Novo projeto
-										</button>
+										<>
+											<button
+												type="button"
+												onClick={() => {
+													setIsProjectHistoryOpen(true);
+													void loadDeletedProjectsHistory();
+												}}
+												className="inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-base"
+												style={{ borderColor: "var(--cor-borda)", backgroundColor: "#eef5fb", color: "var(--cor-logo)" }}
+											>
+												<History size={18} />
+												Historico excluidos
+											</button>
+											<button
+												type="button"
+												onClick={() => {
+													setEditingProjectId(null);
+													setProjectForm(EMPTY_PROJECT_FORM);
+													setIsProjectModalOpen(true);
+												}}
+												className="inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-base"
+												style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-botao)", color: "var(--cor-logo)" }}
+											>
+												<Plus size={18} />
+												Novo projeto
+											</button>
+										</>
 									) : null}
 								</div>
 							</div>
 
 						</div>
+
+						{error ? (
+							<div className="rounded-xl border px-4 py-2.5 text-base" style={{ borderColor: "#d66", color: "#b02323" }}>
+								{error}
+							</div>
+						) : null}
 
 						<div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
 							{projectCards.map((projeto) => (
@@ -1126,7 +1299,10 @@ export default function Projetos() {
 										<div className="mt-4 flex items-center justify-end gap-2 border-t pt-3" style={{ borderColor: "var(--cor-borda)" }}>
 											<button
 												type="button"
-												onClick={() => onEditProject(projeto)}
+												onClick={(event) => {
+													event.stopPropagation();
+													onEditProject(projeto);
+												}}
 												className="inline-flex items-center gap-1 rounded-lg border px-3 py-1.5 text-sm"
 												style={{ borderColor: "var(--cor-borda)", color: "var(--cor-logo)" }}
 											>
@@ -1135,7 +1311,10 @@ export default function Projetos() {
 											</button>
 											<button
 												type="button"
-												onClick={() => setProjectToDelete(projeto)}
+												onClick={(event) => {
+													event.stopPropagation();
+													setProjectToDelete(projeto);
+												}}
 												disabled={isDeletingProject === projeto.id_projeto}
 												className="inline-flex items-center gap-1 rounded-lg border px-3 py-1.5 text-sm"
 												style={{ borderColor: "#d88", color: "#b02a2a" }}
@@ -1462,6 +1641,79 @@ export default function Projetos() {
 										{isDeletingProject === projectToDelete.id_projeto ? "Excluindo..." : "Excluir projeto"}
 									</button>
 								</div>
+							</div>
+						</div>
+					</div>
+				) : null}
+
+				{isProjectHistoryOpen && isAdmin ? (
+					<div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/45 p-4 backdrop-blur-[3px] animate-fade-in">
+						<div
+							className="w-full max-w-4xl overflow-hidden rounded-2xl shadow-2xl animate-pop-in"
+							style={{ backgroundColor: "var(--cor-widgets)", border: "1px solid var(--cor-borda)" }}
+						>
+							<div className="flex items-center justify-between gap-3 px-6 py-4" style={{ backgroundColor: "var(--cor-primaria)" }}>
+								<h3 className="text-xl font-bold text-white">Historico de projetos excluidos (7 dias)</h3>
+								<div className="flex items-center gap-2">
+									<button
+										type="button"
+										onClick={() => void loadDeletedProjectsHistory()}
+										disabled={isLoadingProjectHistory}
+										className="rounded-xl border border-white/60 bg-white/10 px-4 py-2 text-sm text-white"
+									>
+										{isLoadingProjectHistory ? "Atualizando..." : "Atualizar"}
+									</button>
+									<button
+										type="button"
+										onClick={() => setIsProjectHistoryOpen(false)}
+										className="rounded-xl border border-white/60 bg-white/10 px-4 py-2 text-sm text-white"
+									>
+										Fechar
+									</button>
+								</div>
+							</div>
+
+							<div className="max-h-[70vh] overflow-y-auto p-6">
+								{isLoadingProjectHistory ? (
+									<p className="text-sm" style={{ color: "var(--cor-logo2)" }}>Carregando historico...</p>
+								) : deletedProjectsHistory.length === 0 ? (
+									<p className="text-sm" style={{ color: "var(--cor-logo2)" }}>Nenhum projeto excluido nos ultimos 7 dias.</p>
+								) : (
+									<div className="space-y-3">
+										{deletedProjectsHistory.map((registro) => (
+											<div
+												key={registro.id}
+												className="rounded-xl border p-4"
+												style={{ borderColor: "var(--cor-borda)", backgroundColor: "#f9fbfd" }}
+											>
+												<div className="flex flex-wrap items-start justify-between gap-3">
+													<div>
+														<p className="text-lg" style={{ color: "var(--cor-logo)" }}>
+															{displayWithoutAccents(registro.nome_projeto)}
+														</p>
+														<p className="mt-1 text-sm" style={{ color: "var(--cor-logo2)" }}>
+															Excluido em {formatDateTime(registro.excluido_em)}. {getRemainingDaysLabel(registro.expira_em)} ({formatDateTime(registro.expira_em)}).
+														</p>
+														<p className="mt-1 text-sm" style={{ color: "var(--cor-logo2)" }}>
+															Impacto: {registro.tarefas_afetadas} tarefa(s), {registro.metas_afetadas} meta(s).
+														</p>
+													</div>
+
+													<button
+														type="button"
+														onClick={() => void restoreDeletedProject(registro)}
+														disabled={restoringProjectHistoryId === registro.id}
+														className="inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm"
+														style={{ borderColor: "#83c89d", backgroundColor: "#eaf9ef", color: "#1f7a42" }}
+													>
+														<RotateCcw size={14} />
+														{restoringProjectHistoryId === registro.id ? "Restaurando..." : "Restaurar projeto"}
+													</button>
+												</div>
+											</div>
+										))}
+									</div>
+								)}
 							</div>
 						</div>
 					</div>

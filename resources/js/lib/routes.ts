@@ -19,6 +19,8 @@ export const apiRoutes = {
     logSistema: '/api/log-sistema',
     metas: '/api/metas',
     projetos: '/api/projetos',
+    projetosExcluidosHistorico: '/api/projetos/excluidos/historico',
+    projetosExcluidosRestaurar: (id: number | string) => `/api/projetos/excluidos/${id}/restaurar`,
     authVerificar: '/api/auth/verificar',
     senhas: '/api/senhas',
     tarefas: '/api/tarefas',
