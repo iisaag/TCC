@@ -282,7 +282,7 @@ export default function Header({ user }: HeaderProps) {
                         className="
                             w-full
                             pl-9 pr-4 py-2
-                            text-sm text-gray-700
+                            text-sm text-gray-700 dark:text-white
                             bg-(--cor-widgets) rounded-full
                             border border-(--cor-borda)
                             focus:outline-none focus:border-[--cor-accentII]/40 focus:bg-(--cor-borda)
