@@ -1219,8 +1219,8 @@ export default function Projetos() {
 													setIsProjectHistoryOpen(true);
 													void loadDeletedProjectsHistory();
 												}}
-												className="inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-base"
-												style={{ borderColor: "var(--cor-borda)", backgroundColor: "#eef5fb", color: "var(--cor-logo)" }}
+												className="inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-base transition-all duration-200 hover:shadow-md"
+												style={{ borderColor: "var(--cor-borda)", color: "var(--cor-logo)" }}
 											>
 												<History size={18} />
 												Historico excluidos

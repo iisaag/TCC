@@ -141,7 +141,7 @@ async function readApiMessage(response: Response, fallback: string): Promise<str
 
 function toAccessLevel(raw?: string | null): AccessLevel {
     const n = (raw ?? "").toLowerCase();
-    return ["admin", "administrador", "total", "geral"].includes(n) ? "admin" : "usuario";
+    return ["adm", "admin", "administrador", "total", "geral"].includes(n) ? "admin" : "usuario";
 }
 
 function getInitials(nome: string): string {

@@ -328,14 +328,14 @@ export default function Equipe() {
 
     return (
         <DashboardLayout currentPage="team">
-            <section className="relative isolate overflow-hidden rounded-3xl border border-[#d5e4ff] bg-gradient-to-b from-[#edf5ff] via-[#f5f7ff] to-[#f6f2ff] p-4 sm:p-6 lg:p-10">
-                <div className="pointer-events-none absolute inset-0 opacity-60 [background-image:radial-gradient(circle_at_20%_20%,rgba(120,177,255,0.22),transparent_36%),radial-gradient(circle_at_80%_0%,rgba(118,128,255,0.2),transparent_32%),radial-gradient(circle_at_80%_80%,rgba(162,123,255,0.18),transparent_35%)]" />
+            <section className="relative isolate overflow-hidden rounded-3xl border border-[#d5e4ff] bg-gradient-to-b from-[#edf5ff] via-[#f5f7ff] to-[#f6f2ff] p-4 sm:p-6 lg:p-10 dark:border-[#244f73] dark:bg-[#173E5B]">
+                <div className="pointer-events-none absolute inset-0 opacity-60 [background-image:radial-gradient(circle_at_20%_20%,rgba(120,177,255,0.22),transparent_36%),radial-gradient(circle_at_80%_0%,rgba(118,128,255,0.2),transparent_32%),radial-gradient(circle_at_80%_80%,rgba(162,123,255,0.18),transparent_35%)] dark:opacity-0" />
 
                 <header className="relative z-10 mb-8 text-center">
-                    <h1 className="text-5xl font-semibold tracking-tight text-[#12284a]" style={{ color: "var(--cor-logo)" }}>
+                    <h1 className="text-5xl font-semibold tracking-tight text-[#12284a] dark:text-[#d3e8f8]">
                         Nossa Equipe
                     </h1>
-                    <p className="mt-2 text-base text-[#47658f]">Conheça os profissionais que tornam tudo possível</p>
+                    <p className="mt-2 text-base text-[#47658f] dark:text-[#9fc0d8]">Conheça os profissionais que tornam tudo possível</p>
                 </header>
 
                 <div className="relative z-10 mx-auto max-w-6xl">
