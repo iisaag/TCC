@@ -1301,13 +1301,17 @@ export default function Projetos() {
 							</div>
 
 							<div className="mt-4">
-								<label className="inline-flex w-full items-center gap-3 rounded-xl border bg-white px-4 py-3">
+								<label
+									className="inline-flex w-full items-center gap-3 rounded-xl border px-4 py-3"
+									style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-fundo)" }}
+								>
 									<Search size={20} style={{ color: "var(--cor-logo2)" }} />
 									<input
 										value={projectQuery}
 										onInput={(e) => setProjectQuery((e.target as HTMLInputElement).value)}
 										placeholder="Pesquisar projeto por nome, descricao ou responsavel"
 										className="w-full bg-transparent text-lg outline-none"
+										style={{ color: "var(--cor-logo)" }}
 									/>
 								</label>
 								<p className="mt-2 text-sm" style={{ color: "var(--cor-logo2)" }}>
@@ -1319,7 +1323,7 @@ export default function Projetos() {
 										value={projectSort}
 										onChange={(e) => setProjectSort(e.target.value as "AZ" | "ZA" | "CARDS_DESC" | "CARDS_ASC")}
 										className="rounded-xl border px-3 py-2 text-sm outline-none"
-										style={{ borderColor: "var(--cor-borda)", color: "var(--cor-logo)", backgroundColor: "#fff" }}
+										style={{ borderColor: "var(--cor-borda)", color: "var(--cor-logo)", backgroundColor: "var(--cor-fundo)" }}
 									>
 										<option value="AZ">Ordem: A-Z</option>
 										<option value="ZA">Ordem: Z-A</option>
@@ -1331,7 +1335,7 @@ export default function Projetos() {
 										value={projectStatusFilter}
 										onChange={(e) => setProjectStatusFilter(e.target.value as "TODOS" | "PLANEJAMENTO" | "EM_ANDAMENTO" | "CONCLUIDO")}
 										className="rounded-xl border px-3 py-2 text-sm outline-none"
-										style={{ borderColor: "var(--cor-borda)", color: "var(--cor-logo)", backgroundColor: "#fff" }}
+										style={{ borderColor: "var(--cor-borda)", color: "var(--cor-logo)", backgroundColor: "var(--cor-fundo)" }}
 									>
 										<option value="TODOS">Status: Todos</option>
 										<option value="PLANEJAMENTO">Status: Planejamento</option>
@@ -1343,7 +1347,7 @@ export default function Projetos() {
 										value={projectPriorityFilter}
 										onChange={(e) => setProjectPriorityFilter(e.target.value as "TODAS" | "ALTA" | "MEDIA" | "BAIXA")}
 										className="rounded-xl border px-3 py-2 text-sm outline-none"
-										style={{ borderColor: "var(--cor-borda)", color: "var(--cor-logo)", backgroundColor: "#fff" }}
+										style={{ borderColor: "var(--cor-borda)", color: "var(--cor-logo)", backgroundColor: "var(--cor-fundo)" }}
 									>
 										<option value="TODAS">Prioridade: Todas</option>
 										<option value="ALTA">Prioridade: Alta</option>
