@@ -545,6 +545,10 @@ export default function Projetos() {
 	const [isLoadingProjectHistory, setIsLoadingProjectHistory] = useState(false);
 	const [movingTaskId, setMovingTaskId] = useState<number | null>(null);
 	const [error, setError] = useState<string | null>(null);
+	const [projectQuery, setProjectQuery] = useState("");
+	const [projectSort, setProjectSort] = useState<"AZ" | "ZA" | "CARDS_DESC" | "CARDS_ASC">("AZ");
+	const [projectStatusFilter, setProjectStatusFilter] = useState<"TODOS" | "PLANEJAMENTO" | "EM_ANDAMENTO" | "CONCLUIDO">("TODOS");
+	const [projectPriorityFilter, setProjectPriorityFilter] = useState<"TODAS" | "ALTA" | "MEDIA" | "BAIXA">("TODAS");
 	const [query, setQuery] = useState("");
 	const [selectedTask, setSelectedTask] = useState<TarefaApi | null>(null);
 	const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
@@ -658,6 +662,59 @@ export default function Projetos() {
 			};
 		});
 	}, [projetos, tarefas]);
+
+	const filteredProjectCards = useMemo(() => {
+		const term = normalizeSearchText(projectQuery);
+		const filtered = projectCards.filter((projeto) => {
+			const searchable = [
+				projeto.nome_projeto,
+				projeto.descricao,
+				projeto.responsavel?.nome,
+			];
+
+			if (term && !searchable.some((value) => normalizeSearchText(value).includes(term))) {
+				return false;
+			}
+
+			const normalizedStatus = normalizeSearchText(projeto.status_projeto);
+			if (projectStatusFilter === "PLANEJAMENTO" && !normalizedStatus.includes("planejamento")) {
+				return false;
+			}
+			if (projectStatusFilter === "EM_ANDAMENTO" && !normalizedStatus.includes("andamento")) {
+				return false;
+			}
+			if (projectStatusFilter === "CONCLUIDO" && !normalizedStatus.includes("concluido")) {
+				return false;
+			}
+
+			if (projectPriorityFilter !== "TODAS") {
+				const normalizedPriority = normalizeProjectPriorityValue(projeto.prioridade_proj);
+				if (normalizedPriority !== projectPriorityFilter) {
+					return false;
+				}
+			}
+
+			return true;
+		});
+
+		const sorted = [...filtered].sort((a, b) => {
+			if (projectSort === "AZ") {
+				return displayWithoutAccents(a.nome_projeto).localeCompare(displayWithoutAccents(b.nome_projeto), "pt-BR");
+			}
+
+			if (projectSort === "ZA") {
+				return displayWithoutAccents(b.nome_projeto).localeCompare(displayWithoutAccents(a.nome_projeto), "pt-BR");
+			}
+
+			if (projectSort === "CARDS_ASC") {
+				return a.total - b.total;
+			}
+
+			return b.total - a.total;
+		});
+
+		return sorted;
+	}, [projectCards, projectPriorityFilter, projectQuery, projectSort, projectStatusFilter]);
 
 	const grouped = useMemo(() => {
 		const base: Record<BoardStatus, TarefaApi[]> = {
@@ -1243,6 +1300,59 @@ export default function Projetos() {
 								</div>
 							</div>
 
+							<div className="mt-4">
+								<label className="inline-flex w-full items-center gap-3 rounded-xl border bg-white px-4 py-3">
+									<Search size={20} style={{ color: "var(--cor-logo2)" }} />
+									<input
+										value={projectQuery}
+										onInput={(e) => setProjectQuery((e.target as HTMLInputElement).value)}
+										placeholder="Pesquisar projeto por nome, descricao ou responsavel"
+										className="w-full bg-transparent text-lg outline-none"
+									/>
+								</label>
+								<p className="mt-2 text-sm" style={{ color: "var(--cor-logo2)" }}>
+									{filteredProjectCards.length} projeto(s) encontrado(s)
+								</p>
+
+								<div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-3">
+									<select
+										value={projectSort}
+										onChange={(e) => setProjectSort(e.target.value as "AZ" | "ZA" | "CARDS_DESC" | "CARDS_ASC")}
+										className="rounded-xl border px-3 py-2 text-sm outline-none"
+										style={{ borderColor: "var(--cor-borda)", color: "var(--cor-logo)", backgroundColor: "#fff" }}
+									>
+										<option value="AZ">Ordem: A-Z</option>
+										<option value="ZA">Ordem: Z-A</option>
+										<option value="CARDS_DESC">Mais cards</option>
+										<option value="CARDS_ASC">Menos cards</option>
+									</select>
+
+									<select
+										value={projectStatusFilter}
+										onChange={(e) => setProjectStatusFilter(e.target.value as "TODOS" | "PLANEJAMENTO" | "EM_ANDAMENTO" | "CONCLUIDO")}
+										className="rounded-xl border px-3 py-2 text-sm outline-none"
+										style={{ borderColor: "var(--cor-borda)", color: "var(--cor-logo)", backgroundColor: "#fff" }}
+									>
+										<option value="TODOS">Status: Todos</option>
+										<option value="PLANEJAMENTO">Status: Planejamento</option>
+										<option value="EM_ANDAMENTO">Status: Em andamento</option>
+										<option value="CONCLUIDO">Status: Concluido</option>
+									</select>
+
+									<select
+										value={projectPriorityFilter}
+										onChange={(e) => setProjectPriorityFilter(e.target.value as "TODAS" | "ALTA" | "MEDIA" | "BAIXA")}
+										className="rounded-xl border px-3 py-2 text-sm outline-none"
+										style={{ borderColor: "var(--cor-borda)", color: "var(--cor-logo)", backgroundColor: "#fff" }}
+									>
+										<option value="TODAS">Prioridade: Todas</option>
+										<option value="ALTA">Prioridade: Alta</option>
+										<option value="MEDIA">Prioridade: Media</option>
+										<option value="BAIXA">Prioridade: Baixa</option>
+									</select>
+								</div>
+							</div>
+
 						</div>
 
 						{error ? (
@@ -1252,7 +1362,7 @@ export default function Projetos() {
 						) : null}
 
 						<div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-							{projectCards.map((projeto) => (
+							{filteredProjectCards.map((projeto) => (
 								<div
 									key={projeto.id_projeto}
 									className="rounded-2xl border p-4 text-left shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg"
@@ -1327,6 +1437,12 @@ export default function Projetos() {
 								</div>
 							))}
 						</div>
+
+						{filteredProjectCards.length === 0 ? (
+							<div className="rounded-xl border px-4 py-3 text-base" style={{ borderColor: "var(--cor-borda)", color: "var(--cor-logo2)", backgroundColor: "var(--cor-widgets)" }}>
+								Nenhum projeto encontrado para essa pesquisa.
+							</div>
+						) : null}
 					</section>
 				) : (
 					<>
