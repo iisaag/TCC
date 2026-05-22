@@ -7,6 +7,7 @@ use App\Http\Controllers\HistoricoProgressoController;
 use App\Http\Controllers\LogProjetoController;
 use App\Http\Controllers\LogSistemaController;
 use App\Http\Controllers\MetasController;
+use App\Http\Controllers\NotificacoesController;
 use App\Http\Controllers\ProjetosController;
 use App\Http\Controllers\SenhaController;
 use App\Http\Controllers\TarefasController;
@@ -21,6 +22,7 @@ Route::middleware(['web', 'session.auth'])->group(function (): void {
 	// Dashboard
 	Route::get('dashboard', [DashboardController::class, 'index']);
 	Route::get('busca/global', [DashboardController::class, 'globalSearch']);
+	Route::get('notificacoes', [NotificacoesController::class, 'index']);
 
 	// Equipes
 	Route::get('equipes/subequipes/total',           [EquipesController::class, 'totalSubequipes']);

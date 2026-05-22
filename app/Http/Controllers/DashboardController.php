@@ -240,14 +240,9 @@ class DashboardController extends Controller
                 array_map('strtolower', self::PROJ_EXCLUIDOS)
             )->count();
 
-            $projetosEmRisco = Projeto::where(function ($q) {
-                $q->whereRaw("LOWER(status_projeto) LIKE '%risco%'")
-                  ->orWhere(function ($q2) {
-                      // Projetos sem status definido com prazo em 14 dias e pouco progresso
-                      $q2->whereNotNull('prazo_final')
-                         ->where('prazo_final', '<=', Carbon::today()->addDays(14));
-                  });
-            })->count();
+                        // Mantemos o KPI sincronizado com a mesma regra da "Saúde dos Projetos"
+                        // para evitar divergência entre total do card e itens do popup.
+                        $projetosEmRisco = 0;
 
             $tarefasPendentes = Tarefa::whereNotIn(
                 DB::raw('UPPER(status_task)'),
@@ -315,6 +310,10 @@ class DashboardController extends Controller
                     default    => 0,
                 })
                 ->values();
+
+            $projetosEmRisco = $projetos
+                ->filter(fn($p) => in_array($p['status'], ['EM_RISCO', 'ATRASADO'], true))
+                ->count();
 
             // ----------------------------------------------------------------
             // Evolução de tarefas por semana (últimas 6 semanas)
@@ -469,6 +468,36 @@ class DashboardController extends Controller
                     'projeto' => $t->projeto?->nome_projeto ?? '-',
                 ]);
 
+            $tarefasPendentesLista = Tarefa::with(['projeto', 'responsavel'])
+                ->whereNotIn(DB::raw('UPPER(status_task)'), self::CONCLUIDOS)
+                ->orderByRaw('CASE WHEN prazo IS NULL THEN 1 ELSE 0 END')
+                ->orderBy('prazo')
+                ->orderBy('id_tarefa')
+                ->get()
+                ->map(fn($t) => [
+                    'titulo'      => $t->titulo,
+                    'projeto'     => $t->projeto?->nome_projeto ?? '-',
+                    'responsavel' => $t->responsavel?->nome ?? '-',
+                    'prazo'       => $t->prazo,
+                ]);
+
+            $tarefasConcluidasLista = Tarefa::with(['projeto', 'responsavel'])
+                ->whereIn(DB::raw('UPPER(status_task)'), self::CONCLUIDOS)
+                ->where(function ($q) use ($dataRef) {
+                    $q->where('prazo', '>=', $dataRef)
+                      ->orWhereNull('prazo');
+                })
+                ->orderByRaw('CASE WHEN prazo IS NULL THEN 1 ELSE 0 END')
+                ->orderByDesc('prazo')
+                ->orderByDesc('id_tarefa')
+                ->get()
+                ->map(fn($t) => [
+                    'titulo'      => $t->titulo,
+                    'projeto'     => $t->projeto?->nome_projeto ?? '-',
+                    'responsavel' => $t->responsavel?->nome ?? '-',
+                    'prazo'       => $t->prazo,
+                ]);
+
             return response()->json([
                 'success' => true,
                 'data'    => [
@@ -486,6 +515,8 @@ class DashboardController extends Controller
                     'distribuicao_status'  => $distribuicao,
                     'alertas'              => $alertas,
                     'resumo_operacional'   => [
+                        'pendentes'      => $tarefasPendentesLista,
+                        'concluidas'     => $tarefasConcluidasLista,
                         'atrasadas'       => $tarefasAtrasadasLista,
                         'vencendo_7dias'  => $vencendoEm7Dias,
                         'sem_responsavel' => $semResponsavel,

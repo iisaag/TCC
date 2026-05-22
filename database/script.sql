@@ -206,64 +206,109 @@ ON DUPLICATE KEY UPDATE senha = VALUES(senha);
 
 # EQUIPES
 INSERT INTO equipes (nome, criado_por, tipo)
-VALUES
-('Equipe Design', 1, 'SUBEQUIPE'),
-('Equipe Backend', 4, 'SUBEQUIPE'),
-('Núcleo Produto', 6, 'EMPRESA')
-ON DUPLICATE KEY UPDATE nome = nome;
+SELECT x.nome, x.criado_por, x.tipo
+FROM (
+    SELECT 'Equipe Design' AS nome, 1 AS criado_por, 'SUBEQUIPE' AS tipo
+    UNION ALL
+    SELECT 'Equipe Backend', 4, 'SUBEQUIPE'
+    UNION ALL
+    SELECT 'Núcleo Produto', 6, 'EMPRESA'
+) AS x
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM equipes e
+    WHERE e.nome = x.nome
+);
 
 # PROJETOS
 INSERT INTO projetos (nome_projeto, descricao, data_inicio, prazo_final, status_projeto, prioridade_proj, id_responsavel)
-VALUES
-('Sistema de Gestao', 'Plataforma para gerenciar projetos', '2026-03-10', '2026-06-30', 'Em andamento', 'Alta', 6),
-('Aplicativo Mobile', 'App para controle de tarefas', '2026-04-01', '2026-08-01', 'Planejamento', 'Média', 4),
-('Portal Público', 'Portal para clientes e informações públicas', '2026-02-15', '2026-05-30', 'Concluído', 'Baixa', 2),
-('Portal Administrativo', 'Interface interna para gestão e relatórios', '2026-05-01', '2026-09-30', 'Planejamento', 'Alta', 8),
-('API de Integração', 'Construir API para integração com parceiros', '2026-05-10', '2026-09-30', 'Planejamento', 'Alta', 11),
-('Refatoração Frontend', 'Refatorar código React e melhorar performance', '2026-05-15', '2026-08-15', 'Planejamento', 'Alta', 13),
-('Sistema de Pagamentos', 'Implementar gateway de pagamentos e cobranças', '2026-05-20', '2026-10-01', 'Em andamento', 'Alta', 20),
-('Portal B2B', 'Portal destinado a clientes corporativos', '2026-04-20', '2026-11-30', 'Em andamento', 'Alta', 15),
-('Automação de Testes', 'Criar suíte de testes automatizados', '2026-05-05', '2026-07-31', 'Planejamento', 'Média', 12),
-('Campanha Marketing Q3', 'Planejamento e execução da campanha do terceiro trimestre', '2026-06-01', '2026-09-30', 'Planejamento', 'Média', 25),
-('Migração Legado', 'Migrar sistema legado para nova arquitetura', '2026-05-25', '2026-10-31', 'Planejamento', 'Alta', 6),
-('Onboarding Automation', 'Automatizar fluxo de onboarding de clientes', '2026-06-01', '2026-08-01', 'Planejamento', 'Média', 9),
-('Dashboard Analytics', 'Painel com métricas de uso e vendas', '2026-05-18', '2026-07-30', 'Em andamento', 'Alta', 8),
-('Suporte Bot', 'Chatbot para suporte inicial aos usuários', '2026-06-10', '2026-09-01', 'Planejamento', 'Baixa', 21)
-ON DUPLICATE KEY UPDATE nome_projeto = nome_projeto;
+SELECT
+    x.nome_projeto,
+    x.descricao,
+    x.data_inicio,
+    x.prazo_final,
+    x.status_projeto,
+    x.prioridade_proj,
+    x.id_responsavel
+FROM (
+    SELECT 'Sistema de Gestao' AS nome_projeto, 'Plataforma para gerenciar projetos' AS descricao, '2026-03-10' AS data_inicio, '2026-06-30' AS prazo_final, 'Em andamento' AS status_projeto, 'Alta' AS prioridade_proj, 6 AS id_responsavel
+    UNION ALL SELECT 'Aplicativo Mobile', 'App para controle de tarefas', '2026-04-01', '2026-08-01', 'Planejamento', 'Média', 4
+    UNION ALL SELECT 'Portal Público', 'Portal para clientes e informações públicas', '2026-02-15', '2026-05-30', 'Concluído', 'Baixa', 2
+    UNION ALL SELECT 'Portal Administrativo', 'Interface interna para gestão e relatórios', '2026-05-01', '2026-09-30', 'Planejamento', 'Alta', 8
+    UNION ALL SELECT 'API de Integração', 'Construir API para integração com parceiros', '2026-05-10', '2026-09-30', 'Planejamento', 'Alta', 11
+    UNION ALL SELECT 'Refatoração Frontend', 'Refatorar código React e melhorar performance', '2026-05-15', '2026-08-15', 'Planejamento', 'Alta', 13
+    UNION ALL SELECT 'Sistema de Pagamentos', 'Implementar gateway de pagamentos e cobranças', '2026-05-20', '2026-10-01', 'Em andamento', 'Alta', 20
+    UNION ALL SELECT 'Portal B2B', 'Portal destinado a clientes corporativos', '2026-04-20', '2026-11-30', 'Em andamento', 'Alta', 15
+    UNION ALL SELECT 'Automação de Testes', 'Criar suíte de testes automatizados', '2026-05-05', '2026-07-31', 'Planejamento', 'Média', 12
+    UNION ALL SELECT 'Campanha Marketing Q3', 'Planejamento e execução da campanha do terceiro trimestre', '2026-06-01', '2026-09-30', 'Planejamento', 'Média', 25
+    UNION ALL SELECT 'Migração Legado', 'Migrar sistema legado para nova arquitetura', '2026-05-25', '2026-10-31', 'Planejamento', 'Alta', 6
+    UNION ALL SELECT 'Onboarding Automation', 'Automatizar fluxo de onboarding de clientes', '2026-06-01', '2026-08-01', 'Planejamento', 'Média', 9
+    UNION ALL SELECT 'Dashboard Analytics', 'Painel com métricas de uso e vendas', '2026-05-18', '2026-07-30', 'Em andamento', 'Alta', 8
+    UNION ALL SELECT 'Suporte Bot', 'Chatbot para suporte inicial aos usuários', '2026-06-10', '2026-09-01', 'Planejamento', 'Baixa', 21
+) AS x
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM projetos p
+    WHERE p.nome_projeto = x.nome_projeto
+);
 
 # METAS
 INSERT INTO metas (id_projeto, titulo_meta, prazo_meta, data_conclusao_meta, status_meta)
-VALUES
-(1, 'Finalizar login e permissões', '2026-03-31', '2026-04-03', 'Concluída'),
-(1, 'Entregar dashboard principal', '2026-04-20', NULL, 'Em andamento'),
-(2, 'Aprovar protótipo navegável', '2026-04-18', '2026-04-17', 'Concluída'),
-(3, 'Publicar portal', '2026-05-20', '2026-05-15', 'Concluída')
-ON DUPLICATE KEY UPDATE titulo_meta = titulo_meta;
+SELECT x.id_projeto, x.titulo_meta, x.prazo_meta, x.data_conclusao_meta, x.status_meta
+FROM (
+    SELECT 1 AS id_projeto, 'Finalizar login e permissões' AS titulo_meta, '2026-03-31' AS prazo_meta, '2026-04-03' AS data_conclusao_meta, 'Concluída' AS status_meta
+    UNION ALL
+    SELECT 1, 'Entregar dashboard principal', '2026-04-20', NULL, 'Em andamento'
+    UNION ALL
+    SELECT 2, 'Aprovar protótipo navegável', '2026-04-18', '2026-04-17', 'Concluída'
+    UNION ALL
+    SELECT 3, 'Publicar portal', '2026-05-20', '2026-05-15', 'Concluída'
+) AS x
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM metas m
+    WHERE m.id_projeto = x.id_projeto
+      AND m.titulo_meta = x.titulo_meta
+);
 
 # TAREFAS
 INSERT INTO tarefas (titulo, descricao, id_projeto, id_responsavel, prioridade_task, prazo, status_task)
-VALUES
-('Criar tela de login', 'Desenvolver tela inicial de autenticação', 1, 2, 'Alta', '2026-03-20', 'Em andamento'),
-('Criar layout do dashboard', 'Design da tela principal do sistema', 1, 1, 'Média', '2026-03-25', 'Pendente'),
-('Modelar banco de dados', 'Criar estrutura inicial do banco', 2, 3, 'Alta', '2026-04-10', 'Pendente'),
-('Publicar páginas institucionais', 'Criar as páginas iniciais do portal público', 3, 4, 'Média', '2026-05-22', 'Em andamento'),
-('Ajustar SEO e acessibilidade', 'Melhorar headings, contraste e metadados', 3, 2, 'Baixa', '2026-05-28', 'Pendente'),
-('Criar painel de relatórios', 'Montar tela interna com indicadores do administrativo', 4, 8, 'Alta', '2026-05-25', 'Em andamento'),
-('Configurar permissões internas', 'Liberar acessos por cargo no portal administrativo', 4, 6, 'Alta', '2026-05-30', 'Pendente'),
-('Implementar API de projetos', 'Endpoints REST para projetos', 1, 4, 'Alta', '2026-04-05', 'Em andamento'),
-('Testes automatizados', 'Cobertura inicial de testes', 1, 6, 'Média', '2026-05-01', 'Pendente'),
-('Implementar autenticação API', 'Adicionar JWT/OAuth e middleware de segurança', 5, 11, 'Alta', '2026-06-15', 'Pendente'),
-('Criar endpoints de integração', 'Endpoints para parceiros e parceiros externos', 5, 11, 'Alta', '2026-06-30', 'Pendente'),
-('Refatorar componentes críticos', 'Refatorar componentes que impactam performance', 6, 13, 'Alta', '2026-06-20', 'Pendente'),
-('Melhorar cobertura de testes', 'Adicionar testes unitários e E2E', 9, 12, 'Média', '2026-07-15', 'Pendente'),
-('Integrar gateway de pagamentos', 'Implantar e testar gateway de pagamentos', 7, 20, 'Alta', '2026-08-01', 'Em andamento'),
-('Criar página B2B', 'Desenvolver fluxo de onboarding para clientes B2B', 8, 15, 'Alta', '2026-09-01', 'Em andamento'),
-('Preparar materiais de campanha', 'Criar artes e textos para campanha Q3', 10, 25, 'Média', '2026-07-05', 'Pendente'),
-('Migrar módulos legados', 'Planejar e executar migração dos módulos legados', 11, 6, 'Alta', '2026-09-30', 'Planejamento'),
-('Criar fluxos de onboarding', 'Automatizar emails e tarefas de onboarding', 12, 9, 'Média', '2026-07-15', 'Pendente'),
-('Configurar Dashboard Analytics', 'Conectar eventos e métricas ao painel', 13, 8, 'Alta', '2026-06-30', 'Em andamento'),
-('Desenvolver chatbot de suporte', 'Implementar fluxo inicial de respostas automáticas', 14, 21, 'Baixa', '2026-08-15', 'Pendente')
-ON DUPLICATE KEY UPDATE titulo = titulo;
+SELECT
+    x.titulo,
+    x.descricao,
+    x.id_projeto,
+    x.id_responsavel,
+    x.prioridade_task,
+    x.prazo,
+    x.status_task
+FROM (
+    SELECT 'Criar tela de login' AS titulo, 'Desenvolver tela inicial de autenticação' AS descricao, 1 AS id_projeto, 2 AS id_responsavel, 'Alta' AS prioridade_task, '2026-03-20' AS prazo, 'Em andamento' AS status_task
+    UNION ALL SELECT 'Criar layout do dashboard', 'Design da tela principal do sistema', 1, 1, 'Média', '2026-03-25', 'Pendente'
+    UNION ALL SELECT 'Modelar banco de dados', 'Criar estrutura inicial do banco', 2, 3, 'Alta', '2026-04-10', 'Pendente'
+    UNION ALL SELECT 'Publicar páginas institucionais', 'Criar as páginas iniciais do portal público', 3, 4, 'Média', '2026-05-22', 'Em andamento'
+    UNION ALL SELECT 'Ajustar SEO e acessibilidade', 'Melhorar headings, contraste e metadados', 3, 2, 'Baixa', '2026-05-28', 'Pendente'
+    UNION ALL SELECT 'Criar painel de relatórios', 'Montar tela interna com indicadores do administrativo', 4, 8, 'Alta', '2026-05-25', 'Em andamento'
+    UNION ALL SELECT 'Configurar permissões internas', 'Liberar acessos por cargo no portal administrativo', 4, 6, 'Alta', '2026-05-30', 'Pendente'
+    UNION ALL SELECT 'Implementar API de projetos', 'Endpoints REST para projetos', 1, 4, 'Alta', '2026-04-05', 'Em andamento'
+    UNION ALL SELECT 'Testes automatizados', 'Cobertura inicial de testes', 1, 6, 'Média', '2026-05-01', 'Pendente'
+    UNION ALL SELECT 'Implementar autenticação API', 'Adicionar JWT/OAuth e middleware de segurança', 5, 11, 'Alta', '2026-06-15', 'Pendente'
+    UNION ALL SELECT 'Criar endpoints de integração', 'Endpoints para parceiros e parceiros externos', 5, 11, 'Alta', '2026-06-30', 'Pendente'
+    UNION ALL SELECT 'Refatorar componentes críticos', 'Refatorar componentes que impactam performance', 6, 13, 'Alta', '2026-06-20', 'Pendente'
+    UNION ALL SELECT 'Melhorar cobertura de testes', 'Adicionar testes unitários e E2E', 9, 12, 'Média', '2026-07-15', 'Pendente'
+    UNION ALL SELECT 'Integrar gateway de pagamentos', 'Implantar e testar gateway de pagamentos', 7, 20, 'Alta', '2026-08-01', 'Em andamento'
+    UNION ALL SELECT 'Criar página B2B', 'Desenvolver fluxo de onboarding para clientes B2B', 8, 15, 'Alta', '2026-09-01', 'Em andamento'
+    UNION ALL SELECT 'Preparar materiais de campanha', 'Criar artes e textos para campanha Q3', 10, 25, 'Média', '2026-07-05', 'Pendente'
+    UNION ALL SELECT 'Migrar módulos legados', 'Planejar e executar migração dos módulos legados', 11, 6, 'Alta', '2026-09-30', 'Planejamento'
+    UNION ALL SELECT 'Criar fluxos de onboarding', 'Automatizar emails e tarefas de onboarding', 12, 9, 'Média', '2026-07-15', 'Pendente'
+    UNION ALL SELECT 'Configurar Dashboard Analytics', 'Conectar eventos e métricas ao painel', 13, 8, 'Alta', '2026-06-30', 'Em andamento'
+    UNION ALL SELECT 'Desenvolver chatbot de suporte', 'Implementar fluxo inicial de respostas automáticas', 14, 21, 'Baixa', '2026-08-15', 'Pendente'
+) AS x
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM tarefas t
+    WHERE t.titulo = x.titulo
+      AND t.id_projeto = x.id_projeto
+);
 
 INSERT INTO tarefas (titulo, descricao, id_projeto, id_responsavel, prioridade_task, tipo_task, data_inicio, data_prevista_termino, progresso, bloqueada, prazo, status_task)
 SELECT
@@ -315,27 +360,110 @@ FROM projetos p
 LEFT JOIN tarefas t ON t.id_projeto = p.id_projeto
 WHERE t.id_projeto IS NULL;
 
+# CARDS E TAREFAS PARA TODOS OS PROJETOS (KANBAN COMPLETO)
+INSERT INTO tarefas (titulo, descricao, id_projeto, id_responsavel, prioridade_task, tipo_task, data_inicio, data_prevista_termino, progresso, bloqueada, prazo, status_task)
+SELECT
+    CONCAT('Card ', s.status_task, ' - ', p.nome_projeto) AS titulo,
+    CONCAT('Card de ', s.status_task, ' do projeto ', p.nome_projeto) AS descricao,
+    p.id_projeto,
+    p.id_responsavel,
+    s.prioridade_task,
+    s.tipo_task,
+    CURDATE() AS data_inicio,
+    DATE_ADD(CURDATE(), INTERVAL s.dias_previstos DAY) AS data_prevista_termino,
+    s.progresso,
+    FALSE AS bloqueada,
+    DATE_ADD(CURDATE(), INTERVAL s.dias_previstos DAY) AS prazo,
+    s.status_task
+FROM projetos p
+CROSS JOIN (
+    SELECT 'TO_DO' AS status_task, 'MEDIA' AS prioridade_task, 'FRONT' AS tipo_task, 0 AS progresso, 14 AS dias_previstos
+    UNION ALL
+    SELECT 'DOING', 'ALTA', 'BACK', 50, 10
+    UNION ALL
+    SELECT 'TESTE', 'MEDIA', 'FULLSTACK', 75, 7
+    UNION ALL
+    SELECT 'APROVADO', 'BAIXA', 'FULLSTACK', 100, 3
+) AS s
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM tarefas t
+    WHERE t.id_projeto = p.id_projeto
+      AND t.status_task = s.status_task
+      AND t.titulo = CONCAT('Card ', s.status_task, ' - ', p.nome_projeto)
+);
+
+# TAREFA BASE PARA TODOS OS PROJETOS
+INSERT INTO tarefas (titulo, descricao, id_projeto, id_responsavel, prioridade_task, tipo_task, data_inicio, data_prevista_termino, progresso, bloqueada, prazo, status_task)
+SELECT
+    CONCAT('Tarefa Base - ', p.nome_projeto) AS titulo,
+    CONCAT('Tarefa base para planejamento inicial do projeto ', p.nome_projeto) AS descricao,
+    p.id_projeto,
+    p.id_responsavel,
+    'MEDIA' AS prioridade_task,
+    'BACK' AS tipo_task,
+    CURDATE() AS data_inicio,
+    DATE_ADD(CURDATE(), INTERVAL 7 DAY) AS data_prevista_termino,
+    50 AS progresso,
+    FALSE AS bloqueada,
+    DATE_ADD(CURDATE(), INTERVAL 7 DAY) AS prazo,
+    'DOING' AS status_task
+FROM projetos p
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM tarefas t
+    WHERE t.id_projeto = p.id_projeto
+      AND t.titulo = CONCAT('Tarefa Base - ', p.nome_projeto)
+);
+
 # HISTORICO DE PROGRESSO
 INSERT INTO historico_progresso (id_tarefa, progresso, data_atualizacao, id_usuario)
-VALUES
-(1, 40, NOW(), 2),
-(2, 20, NOW(), 1),
-(3, 10, NOW(), 3),
-(4, 60, NOW(), 4);
+SELECT x.id_tarefa, x.progresso, NOW(), x.id_usuario
+FROM (
+    SELECT 1 AS id_tarefa, 40 AS progresso, 2 AS id_usuario
+    UNION ALL SELECT 2, 20, 1
+    UNION ALL SELECT 3, 10, 3
+    UNION ALL SELECT 4, 60, 4
+) AS x
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM historico_progresso h
+    WHERE h.id_tarefa = x.id_tarefa
+      AND h.progresso = x.progresso
+      AND h.id_usuario = x.id_usuario
+);
 
 # LOG PROJETO
 INSERT INTO log_projeto (id_projeto, id_usuario, mensagem, data_hora)
-VALUES
-(1, 2, 'Usuário iniciou desenvolvimento da tela de login', NOW()),
-(1, 1, 'Designer começou o layout do dashboard', NOW()),
-(2, 3, 'Analista iniciou modelagem do banco de dados', NOW());
+SELECT x.id_projeto, x.id_usuario, x.mensagem, NOW()
+FROM (
+    SELECT 1 AS id_projeto, 2 AS id_usuario, 'Usuário iniciou desenvolvimento da tela de login' AS mensagem
+    UNION ALL SELECT 1, 1, 'Designer começou o layout do dashboard'
+    UNION ALL SELECT 2, 3, 'Analista iniciou modelagem do banco de dados'
+) AS x
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM log_projeto l
+    WHERE l.id_projeto = x.id_projeto
+      AND l.id_usuario = x.id_usuario
+      AND l.mensagem = x.mensagem
+);
 
 # LOG SISTEMA
 INSERT INTO log_sistema (id_usuario, acao, descricao, data_hora)
-VALUES
-(1, 'login', 'Usuário realizou login no sistema', NOW()),
-(2, 'criar_tarefa', 'Usuário criou a tarefa "Criar tela de login"', NOW()),
-(3, 'criar_projeto', 'Usuário criou o projeto "Aplicativo Mobile"', NOW());
+SELECT x.id_usuario, x.acao, x.descricao, NOW()
+FROM (
+    SELECT 1 AS id_usuario, 'login' AS acao, 'Usuário realizou login no sistema' AS descricao
+    UNION ALL SELECT 2, 'criar_tarefa', 'Usuário criou a tarefa "Criar tela de login"'
+    UNION ALL SELECT 3, 'criar_projeto', 'Usuário criou o projeto "Aplicativo Mobile"'
+) AS x
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM log_sistema l
+    WHERE l.id_usuario = x.id_usuario
+      AND l.acao = x.acao
+      AND l.descricao = x.descricao
+);
 
 -- Queries de exemplo
 SELECT

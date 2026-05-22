@@ -19,34 +19,18 @@
 
 import { router } from "@inertiajs/react";
 import { Bell, Search } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import UserDropdownMenu from "@/components/UserDropdownMenu";
 import { apiRoutes } from "@/lib/routes";
 
 interface NotificationItem {
-    id: number;
+    id: string;
+    source: "sistema" | "projeto";
     title: string;
     description: string;
-    time: string;
+    occurred_at: string | null;
     read: boolean;
 }
-
-const MOCK_NOTIFICATIONS: NotificationItem[] = [
-    {
-        id: 1,
-        title: "Nova tarefa atribuida",
-        description: "Voce recebeu a tarefa 'Refinar tela de dashboard'.",
-        time: "Agora",
-        read: false,
-    },
-    {
-        id: 3,
-        title: "Meta atualizada",
-        description: "A meta 'Entrega Sprint 3' foi atualizada.",
-        time: "Ha 1 h",
-        read: true,
-    },
-];
 
 // ------------------------------------------------------------------
 // TIPOS
@@ -68,6 +52,13 @@ interface SearchResultItem {
     title: string;
     subtitle: string;
     url: string;
+}
+
+interface NotificationsApiResponse {
+    data?: {
+        notifications?: NotificationItem[];
+        unread_count?: number;
+    };
 }
 
 function resolveAvatarUrl(avatar?: string | null): string | undefined {
@@ -112,8 +103,19 @@ export default function Header({ user }: HeaderProps) {
     const [searchResults, setSearchResults] = useState<SearchResultItem[]>([]);
     const [isSearchOpen, setIsSearchOpen] = useState(false);
     const [isSearching, setIsSearching] = useState(false);
+    const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+    const [lastSeenAt, setLastSeenAt] = useState<string>(() => {
+        try {
+            return localStorage.getItem("notifications:lastSeenAt") ?? new Date(0).toISOString();
+        } catch {
+            return new Date(0).toISOString();
+        }
+    });
 
-    const unreadCount = MOCK_NOTIFICATIONS.filter((item) => !item.read).length;
+    const unreadCount = useMemo(
+        () => notifications.filter((item) => !item.read).length,
+        [notifications],
+    );
     const avatar = resolveAvatarUrl(user.avatar);
     const [currentStatus, setCurrentStatus] = useState(user.status ?? "online");
 
@@ -199,6 +201,84 @@ export default function Header({ user }: HeaderProps) {
             window.clearTimeout(timer);
         };
     }, [searchQuery]);
+
+    useEffect(() => {
+        let isMounted = true;
+
+        const fetchNotifications = async () => {
+            try {
+                const response = await fetch(`${apiRoutes.notificacoes}?limit=30&since=${encodeURIComponent(lastSeenAt)}`, {
+                    credentials: "same-origin",
+                    headers: { Accept: "application/json" },
+                });
+
+                if (!response.ok || !isMounted) {
+                    return;
+                }
+
+                const payload = (await response.json()) as NotificationsApiResponse;
+                setNotifications(payload.data?.notifications ?? []);
+            } catch {
+                // Mantem estado anterior se o polling falhar.
+            }
+        };
+
+        void fetchNotifications();
+
+        const interval = window.setInterval(() => {
+            void fetchNotifications();
+        }, 5000);
+
+        return () => {
+            isMounted = false;
+            window.clearInterval(interval);
+        };
+    }, [lastSeenAt]);
+
+    useEffect(() => {
+        if (!isNotificationsOpen) {
+            return;
+        }
+
+        const now = new Date().toISOString();
+        setLastSeenAt(now);
+
+        try {
+            localStorage.setItem("notifications:lastSeenAt", now);
+        } catch {
+            // Ignore storage errors.
+        }
+    }, [isNotificationsOpen]);
+
+    const formatNotificationTime = (isoDate: string | null): string => {
+        if (!isoDate) {
+            return "Agora";
+        }
+
+        const date = new Date(isoDate);
+        if (Number.isNaN(date.getTime())) {
+            return "Agora";
+        }
+
+        const diffMs = Date.now() - date.getTime();
+        const diffMin = Math.floor(diffMs / 60000);
+
+        if (diffMin < 1) {
+            return "Agora";
+        }
+
+        if (diffMin < 60) {
+            return `Ha ${diffMin} min`;
+        }
+
+        const diffHours = Math.floor(diffMin / 60);
+        if (diffHours < 24) {
+            return `Ha ${diffHours} h`;
+        }
+
+        const diffDays = Math.floor(diffHours / 24);
+        return `Ha ${diffDays} d`;
+    };
 
     const goToResult = (item: SearchResultItem) => {
         setIsSearchOpen(false);
@@ -379,38 +459,45 @@ export default function Header({ user }: HeaderProps) {
                         <div className="
                             absolute right-0 top-11 z-40
                             w-88 max-w-[85vw]
-                            bg-white border border-gray-200 rounded-2xl shadow-xl
+                            rounded-2xl shadow-xl
                             overflow-hidden
                             animate-scale-in
-                        ">
-                            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-                                <span className="text-sm font-semibold text-gray-800">Notificações</span>
-                                <span className="text-xs font-semibold text-[#6c63ff] bg-[#6c63ff]/10 px-2 py-0.5 rounded-full">
+                        " style={{ backgroundColor: "var(--cor-widgets)", border: "1px solid var(--cor-borda)" }}>
+                            <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: "var(--cor-borda)" }}>
+                                <span className="text-sm font-semibold" style={{ color: "var(--cor-vetores)" }}>Notificações</span>
+                                <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{ color: "var(--cor-logo)", backgroundColor: "color-mix(in srgb, var(--cor-logo) 18%, transparent)" }}>
                                     {unreadCount} novas
                                 </span>
                             </div>
 
                             <div className="max-h-80 overflow-y-auto">
-                                {MOCK_NOTIFICATIONS.length === 0 ? (
-                                    <p className="text-sm text-gray-500 text-center py-6">Sem notificações no momento</p>
+                                {notifications.length === 0 ? (
+                                    <p className="text-sm text-center py-6" style={{ color: "var(--cor-textoII)" }}>Sem notificações no momento</p>
                                 ) : (
-                                    MOCK_NOTIFICATIONS.map((item, index) => (
+                                    notifications.map((item, index) => (
                                         <div
                                             key={item.id}
-                                            className={`px-4 py-3 border-b border-gray-100 last:border-b-0 hover:bg-[#c9deff]/20 transition-colors duration-150 ${
+                                            className={`px-4 py-3 border-b last:border-b-0 transition-colors duration-150 ${
                                                 index === 0 ? "animate-stagger-1" : index === 1 ? "animate-stagger-2" : "animate-stagger-3"
                                             }`}
+                                            style={{ borderColor: "var(--cor-borda)" }}
+                                            onMouseEnter={(event) => {
+                                                event.currentTarget.style.backgroundColor = "color-mix(in srgb, var(--cor-accent) 20%, transparent)";
+                                            }}
+                                            onMouseLeave={(event) => {
+                                                event.currentTarget.style.backgroundColor = "transparent";
+                                            }}
                                         >
                                             <div className="flex items-start justify-between gap-3">
                                                 <div className="min-w-0">
-                                                    <p className="text-sm font-semibold text-gray-800 truncate">{item.title}</p>
-                                                    <p className="text-xs text-gray-600 mt-0.5">{item.description}</p>
+                                                    <p className="text-sm font-semibold truncate" style={{ color: "var(--cor-vetores)" }}>{item.title}</p>
+                                                    <p className="text-xs mt-0.5" style={{ color: "var(--cor-textoII)" }}>{item.description}</p>
                                                 </div>
                                                 {!item.read && (
                                                     <span className="mt-1 w-2 h-2 rounded-full bg-[#6c63ff] shrink-0" />
                                                 )}
                                             </div>
-                                            <p className="text-[11px] text-gray-400 mt-1">{item.time}</p>
+                                            <p className="text-[11px] mt-1" style={{ color: "var(--cor-textoII)" }}>{formatNotificationTime(item.occurred_at)}</p>
                                         </div>
                                     ))
                                 )}

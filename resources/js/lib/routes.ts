@@ -29,4 +29,5 @@ export const apiRoutes = {
     usuariosExcluidosRestaurar: (id: number | string) => `/api/usuarios/excluidos/${id}/restaurar`,
     databaseBackup: '/api/database/backup',
     buscaGlobal: '/api/busca/global',
+    notificacoes: '/api/notificacoes',
 } as const;

@@ -87,6 +87,8 @@ interface TarefaSemResp {
 }
 
 interface ResumoOperacional {
+    pendentes: TarefaResumo[];
+    concluidas: TarefaResumo[];
     atrasadas: TarefaResumo[];
     vencendo_7dias: TarefaResumo[];
     sem_responsavel: TarefaSemResp[];
@@ -101,6 +103,14 @@ interface DashboardData {
     alertas: Alerta[];
     resumo_operacional: ResumoOperacional;
 }
+
+type KpiKey =
+    | "projetos_ativos"
+    | "projetos_em_risco"
+    | "tarefas_pendentes"
+    | "tarefas_atrasadas"
+    | "tarefas_concluidas"
+    | "progresso_medio";
 
 // ---------------------------------------------------------------------------
 // CONSTANTES DE ESTILO
@@ -210,6 +220,7 @@ function KpiCard({
     trend,
     trendUp,
     iconBg,
+    onClick,
 }: {
     icon: React.ReactNode;
     label: string;
@@ -217,9 +228,29 @@ function KpiCard({
     trend?: string;
     trendUp?: boolean;
     iconBg: string;
+    onClick?: () => void;
 }) {
+    const clickable = Boolean(onClick);
+
     return (
-        <div className="dashboard-print-card group flex items-start justify-between gap-3 rounded-2xl p-5 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg" style={{ background: "var(--cor-widgets)", border: "1px solid var(--cor-borda)" }}>
+        <div
+            className="dashboard-print-card group flex items-start justify-between gap-3 rounded-2xl p-5 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg"
+            style={{
+                background: "var(--cor-widgets)",
+                border: "1px solid var(--cor-borda)",
+                cursor: clickable ? "pointer" : "default",
+            }}
+            role={clickable ? "button" : undefined}
+            tabIndex={clickable ? 0 : undefined}
+            onClick={onClick}
+            onKeyDown={(e) => {
+                if (!clickable) return;
+                if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    onClick?.();
+                }
+            }}
+        >
             <div className="flex flex-col gap-1">
                 <span className="text-sm font-semibold" style={{ color: "var(--cor-logo2)" }}>{label}</span>
                 <span className="text-4xl font-bold" style={{ color: "var(--cor-logo)" }}>{value}</span>
@@ -230,6 +261,11 @@ function KpiCard({
                     >
                         {trendUp ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
                         {trend}
+                    </span>
+                )}
+                {clickable && (
+                    <span className="mt-1 text-xs font-semibold" style={{ color: "var(--cor-logo2)" }}>
+                        Clique para ver detalhes
                     </span>
                 )}
             </div>
@@ -373,6 +409,8 @@ export default function Dashboard() {
     const [error, setError] = useState<string | null>(null);
     const [dias, setDias] = useState(30);
     const [isPrinting, setIsPrinting] = useState(false);
+    const [selectedKpi, setSelectedKpi] = useState<KpiKey | null>(null);
+    const [kpiPage, setKpiPage] = useState(1);
 
     useEffect(() => {
         setLoading(true);
@@ -407,6 +445,29 @@ export default function Dashboard() {
         };
     }, []);
 
+    useEffect(() => {
+        if (!selectedKpi) return;
+
+        const handleEscape = (event: KeyboardEvent) => {
+            if (event.key === "Escape") {
+                setSelectedKpi(null);
+            }
+        };
+
+        document.addEventListener("keydown", handleEscape);
+        const originalOverflow = document.body.style.overflow;
+        document.body.style.overflow = "hidden";
+
+        return () => {
+            document.removeEventListener("keydown", handleEscape);
+            document.body.style.overflow = originalOverflow;
+        };
+    }, [selectedKpi]);
+
+    useEffect(() => {
+        setKpiPage(1);
+    }, [selectedKpi]);
+
     const handleExportPdf = () => {
         setIsPrinting(true);
 
@@ -416,6 +477,99 @@ export default function Dashboard() {
                 window.print();
             });
         });
+    };
+
+    const getKpiModalData = (kpiKey: KpiKey, dashboard: DashboardData) => {
+        const projectHealth = dashboard.saude_projetos;
+        const pendingTasks = dashboard.resumo_operacional.pendentes;
+        const completedTasks = dashboard.resumo_operacional.concluidas;
+        const overdueTasks = dashboard.resumo_operacional.atrasadas;
+
+        if (kpiKey === "projetos_ativos") {
+            return {
+                title: "Projetos Ativos",
+                value: dashboard.kpis.projetos_ativos,
+                subtitle: "Projetos atualmente acompanhados no painel de saúde",
+                items: projectHealth.map((p) => ({
+                    title: p.nome,
+                    detail: `${p.progresso}% concluído`,
+                    badge: statusLabel(p.status).label,
+                })),
+                emptyMessage: "Nenhum projeto ativo encontrado.",
+            };
+        }
+
+        if (kpiKey === "projetos_em_risco") {
+            const riskProjects = projectHealth.filter((p) => p.status === "EM_RISCO" || p.status === "ATRASADO");
+
+            return {
+                title: "Projetos em Risco",
+                value: dashboard.kpis.projetos_em_risco,
+                subtitle: "Projetos com risco de prazo ou já atrasados",
+                items: riskProjects.map((p) => ({
+                    title: p.nome,
+                    detail: `Prazo: ${formatDate(p.prazo)} • Responsável: ${p.responsavel ?? "Não definido"}`,
+                    badge: statusLabel(p.status).label,
+                })),
+                emptyMessage: "Nenhum projeto em risco neste período.",
+            };
+        }
+
+        if (kpiKey === "tarefas_pendentes") {
+            return {
+                title: "Tarefas Pendentes",
+                value: dashboard.kpis.tarefas_pendentes,
+                subtitle: "Prioridades de tarefas abertas para ação do time",
+                items: pendingTasks.map((t) => ({
+                    title: t.titulo,
+                    detail: `${t.projeto} • ${t.responsavel ?? "Sem responsável"}`,
+                    badge: t.prazo ? `Vence ${formatDateShort(t.prazo)}` : "Sem prazo",
+                })),
+                emptyMessage: "Não há tarefas pendentes com prioridade no momento.",
+            };
+        }
+
+        if (kpiKey === "tarefas_atrasadas") {
+            return {
+                title: "Tarefas Atrasadas",
+                value: dashboard.kpis.tarefas_atrasadas,
+                subtitle: "Itens vencidos que exigem tratamento imediato",
+                items: overdueTasks.map((t) => ({
+                    title: t.titulo,
+                    detail: `${t.projeto} • ${t.responsavel ?? "Sem responsável"}`,
+                    badge: formatDateShort(t.prazo),
+                })),
+                emptyMessage: "Nenhuma tarefa atrasada encontrada.",
+            };
+        }
+
+        if (kpiKey === "tarefas_concluidas") {
+            return {
+                title: `Tarefas Concluídas (${dias}d)`,
+                value: dashboard.kpis.tarefas_concluidas,
+                subtitle: "Lista completa de tarefas finalizadas no período",
+                items: completedTasks.map((t) => ({
+                    title: t.titulo,
+                    detail: `${t.projeto} • ${t.responsavel ?? "Sem responsável"}`,
+                    badge: t.prazo ? `Prazo ${formatDateShort(t.prazo)}` : "Sem prazo",
+                })),
+                emptyMessage: "Sem dados de produtividade para este período.",
+            };
+        }
+
+        return {
+            title: "Progresso Médio",
+            value: `${dashboard.kpis.progresso_medio}%`,
+            subtitle: "Projetos com maior contribuição para o progresso geral",
+            items: [...projectHealth]
+                .sort((a, b) => b.progresso - a.progresso)
+                .map((p) => ({
+                    title: p.nome,
+                    detail: `Progresso: ${p.progresso}% • Prazo: ${formatDate(p.prazo)}`,
+                    badge: p.status === "EM_DIA" ? "No prazo" : p.status === "EM_RISCO" ? "Em risco" : "Atrasado",
+                })),
+            emptyMessage: "Sem projetos suficientes para calcular o progresso médio.",
+        };
     };
 
     return (
@@ -470,6 +624,7 @@ export default function Dashboard() {
                                     iconBg="#3b82f6"
                                     trendUp
                                     trend="8.3%"
+                                    onClick={() => setSelectedKpi("projetos_ativos")}
                                 />
                                 <KpiCard
                                     label="Projetos em Risco"
@@ -478,6 +633,7 @@ export default function Dashboard() {
                                     iconBg="#6366f1"
                                     trendUp={false}
                                     trend="15.2%"
+                                    onClick={() => setSelectedKpi("projetos_em_risco")}
                                 />
                                 <KpiCard
                                     label="Tarefas Pendentes"
@@ -486,6 +642,7 @@ export default function Dashboard() {
                                     iconBg="#0ea5e9"
                                     trendUp={false}
                                     trend="5.1%"
+                                    onClick={() => setSelectedKpi("tarefas_pendentes")}
                                 />
                                 <KpiCard
                                     label="Tarefas Atrasadas"
@@ -494,6 +651,7 @@ export default function Dashboard() {
                                     iconBg="#14b8a6"
                                     trendUp
                                     trend="12.5%"
+                                    onClick={() => setSelectedKpi("tarefas_atrasadas")}
                                 />
                                 <KpiCard
                                     label={`Concluídas (${dias}d)`}
@@ -502,6 +660,7 @@ export default function Dashboard() {
                                     iconBg="#22c55e"
                                     trendUp
                                     trend="22.8%"
+                                    onClick={() => setSelectedKpi("tarefas_concluidas")}
                                 />
                                 <KpiCard
                                     label="Progresso Médio"
@@ -510,6 +669,7 @@ export default function Dashboard() {
                                     iconBg="#8b5cf6"
                                     trendUp
                                     trend="6.2%"
+                                    onClick={() => setSelectedKpi("progresso_medio")}
                                 />
                             </div>
 
@@ -890,6 +1050,133 @@ export default function Dashboard() {
                                     </div>
                                 </div>
                             )}
+
+                            {selectedKpi && !isPrinting && (() => {
+                                const modalData = getKpiModalData(selectedKpi, data);
+                                const pageSize = 8;
+                                const totalPages = Math.max(1, Math.ceil(modalData.items.length / pageSize));
+                                const safePage = Math.min(kpiPage, totalPages);
+                                const startIndex = (safePage - 1) * pageSize;
+                                const pageItems = modalData.items.slice(startIndex, startIndex + pageSize);
+
+                                return (
+                                    <div
+                                        className="fixed inset-0 z-[1200] flex items-center justify-center p-4"
+                                        style={{ background: "rgba(15, 23, 42, 0.55)" }}
+                                        onClick={() => setSelectedKpi(null)}
+                                    >
+                                        <div
+                                            className="max-h-[85vh] w-full max-w-3xl overflow-hidden rounded-2xl border shadow-2xl"
+                                            style={{ background: "var(--cor-widgets)", borderColor: "var(--cor-borda)" }}
+                                            onClick={(e) => e.stopPropagation()}
+                                        >
+                                            <div
+                                                className="flex items-start justify-between gap-4 border-b px-6 py-5"
+                                                style={{ borderColor: "var(--cor-borda)" }}
+                                            >
+                                                <div>
+                                                    <h3 className="text-2xl font-bold" style={{ color: "var(--cor-logo)" }}>
+                                                        {modalData.title}
+                                                    </h3>
+                                                    <p className="mt-1 text-sm" style={{ color: "var(--cor-logo2)" }}>
+                                                        {modalData.subtitle}
+                                                    </p>
+                                                </div>
+                                                <div className="text-right">
+                                                    <p className="text-sm font-semibold" style={{ color: "var(--cor-logo2)" }}>
+                                                        Total
+                                                    </p>
+                                                    <p className="text-3xl font-bold" style={{ color: "var(--cor-logo)" }}>
+                                                        {modalData.value}
+                                                    </p>
+                                                </div>
+                                            </div>
+
+                                            <div className="max-h-[60vh] overflow-y-auto px-6 py-4">
+                                                {modalData.items.length === 0 ? (
+                                                    <p className="py-8 text-center text-base" style={{ color: "var(--cor-logo2)" }}>
+                                                        {modalData.emptyMessage}
+                                                    </p>
+                                                ) : (
+                                                    <div className="flex flex-col gap-2">
+                                                        {pageItems.map((item, idx) => (
+                                                            <div
+                                                                key={`${item.title}-${startIndex + idx}`}
+                                                                className="rounded-xl border px-4 py-3"
+                                                                style={{ borderColor: "var(--cor-borda)", background: "var(--cor-fundo)" }}
+                                                            >
+                                                                <div className="flex items-start justify-between gap-3">
+                                                                    <div>
+                                                                        <p className="text-base font-semibold" style={{ color: "var(--cor-logo)" }}>
+                                                                            {item.title}
+                                                                        </p>
+                                                                        <p className="mt-0.5 text-sm" style={{ color: "var(--cor-logo2)" }}>
+                                                                            {item.detail}
+                                                                        </p>
+                                                                    </div>
+                                                                    {item.badge && (
+                                                                        <span
+                                                                            className="rounded-full px-2.5 py-1 text-xs font-semibold"
+                                                                            style={{
+                                                                                background: "color-mix(in srgb, var(--cor-accent) 12%, var(--cor-widgets))",
+                                                                                color: "var(--cor-logo)",
+                                                                            }}
+                                                                        >
+                                                                            {item.badge}
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            <div
+                                                className="flex items-center justify-between gap-3 border-t px-6 py-4"
+                                                style={{ borderColor: "var(--cor-borda)" }}
+                                            >
+                                                {modalData.items.length > 0 ? (
+                                                    <div className="flex items-center gap-2">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setKpiPage((prev) => Math.max(1, prev - 1))}
+                                                            disabled={safePage <= 1}
+                                                            className="rounded-xl px-3 py-2 text-sm font-semibold transition-opacity disabled:cursor-not-allowed disabled:opacity-50"
+                                                            style={{ background: "var(--cor-fundo)", color: "var(--cor-logo)" }}
+                                                        >
+                                                            Anterior
+                                                        </button>
+                                                        <span className="text-sm font-semibold" style={{ color: "var(--cor-logo2)" }}>
+                                                            Página {safePage} de {totalPages}
+                                                        </span>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setKpiPage((prev) => Math.min(totalPages, prev + 1))}
+                                                            disabled={safePage >= totalPages}
+                                                            className="rounded-xl px-3 py-2 text-sm font-semibold transition-opacity disabled:cursor-not-allowed disabled:opacity-50"
+                                                            style={{ background: "var(--cor-fundo)", color: "var(--cor-logo)" }}
+                                                        >
+                                                            Próximo
+                                                        </button>
+                                                    </div>
+                                                ) : (
+                                                    <div />
+                                                )}
+
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setSelectedKpi(null)}
+                                                    className="rounded-xl px-4 py-2 text-sm font-semibold transition-opacity hover:opacity-90"
+                                                    style={{ background: "var(--cor-botao)", color: "var(--cor-logo)" }}
+                                                >
+                                                    Fechar
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })()}
                         </>
                     )}
                 </div>
