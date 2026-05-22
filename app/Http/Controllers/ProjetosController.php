@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Projeto;
+use App\Support\Notificacoes;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -14,6 +15,19 @@ class ProjetosController extends Controller
 {
     private const DELETION_RETENTION_DAYS = 7;
     private const TEMP_DELETED_STATUS = '__EXCLUIDO_TEMP__';
+
+    private function authUserId(Request $request): ?int
+    {
+        $authUser = $request->session()->get('auth.user');
+
+        if (!is_array($authUser) || !isset($authUser['id'])) {
+            return null;
+        }
+
+        $id = (int) $authUser['id'];
+
+        return $id > 0 ? $id : null;
+    }
 
     private function ensureDeletedProjectsTable(): void
     {
@@ -119,6 +133,8 @@ class ProjetosController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        $autorId = $this->authUserId($request);
+
         $request->merge([
             'prioridade_proj' => $this->normalizarPrioridadeProjeto($request->input('prioridade_proj')),
         ]);
@@ -134,6 +150,20 @@ class ProjetosController extends Controller
         ]);
 
         $projeto = Projeto::create($validated);
+
+        $nomeProjeto = trim((string) $projeto->nome_projeto);
+
+        Notificacoes::logSistema($autorId, 'criar_projeto', sprintf('Criou o projeto "%s".', $nomeProjeto));
+        Notificacoes::logProjeto($autorId, $projeto->id_projeto, sprintf('Projeto criado: %s', $nomeProjeto));
+
+        Notificacoes::paraUsuarios(
+            [(int) ($projeto->id_responsavel ?? 0)],
+            $autorId,
+            'projeto_atribuido',
+            'Voce recebeu um novo projeto',
+            sprintf('Voce foi definido como responsavel do projeto "%s".', $nomeProjeto),
+            '/projetos'
+        );
 
         return response()->json([
             'success' => true,
@@ -153,6 +183,10 @@ class ProjetosController extends Controller
             ], 404);
         }
 
+        $autorId = $this->authUserId($request);
+        $responsavelAnterior = $projeto->id_responsavel ? (int) $projeto->id_responsavel : null;
+        $statusAnterior = (string) ($projeto->status_projeto ?? '');
+
         $request->merge([
             'prioridade_proj' => $this->normalizarPrioridadeProjeto($request->input('prioridade_proj')),
         ]);
@@ -168,6 +202,36 @@ class ProjetosController extends Controller
         ]);
 
         $projeto->update($validated);
+
+        $nomeProjeto = trim((string) $projeto->nome_projeto);
+
+        Notificacoes::logSistema($autorId, 'atualizar_projeto', sprintf('Atualizou o projeto "%s".', $nomeProjeto));
+        Notificacoes::logProjeto($autorId, $projeto->id_projeto, sprintf('Projeto atualizado: %s', $nomeProjeto));
+
+        if ($responsavelAnterior !== (int) ($projeto->id_responsavel ?? 0) && $projeto->id_responsavel) {
+            Notificacoes::paraUsuarios(
+                [(int) $projeto->id_responsavel],
+                $autorId,
+                'projeto_atribuido',
+                'Nova responsabilidade de projeto',
+                sprintf('Voce foi definido como responsavel do projeto "%s".', $nomeProjeto),
+                '/projetos'
+            );
+        }
+
+        if (array_key_exists('status_projeto', $validated)) {
+            $statusAtual = (string) ($projeto->status_projeto ?? '');
+            if ($statusAtual !== $statusAnterior) {
+                Notificacoes::paraUsuarios(
+                    [(int) ($projeto->id_responsavel ?? 0)],
+                    $autorId,
+                    'projeto_status',
+                    'Status de projeto atualizado',
+                    sprintf('O projeto "%s" mudou de "%s" para "%s".', $nomeProjeto, $statusAnterior, $statusAtual),
+                    '/projetos'
+                );
+            }
+        }
 
         return response()->json([
             'success' => true,

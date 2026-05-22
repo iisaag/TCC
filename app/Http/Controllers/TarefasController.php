@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Tarefa;
+use App\Support\Notificacoes;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -10,6 +11,19 @@ use Illuminate\Support\Facades\Log;
 
 class TarefasController extends Controller
 {
+    private function authUserId(Request $request): ?int
+    {
+        $authUser = $request->session()->get('auth.user');
+
+        if (!is_array($authUser) || !isset($authUser['id'])) {
+            return null;
+        }
+
+        $id = (int) $authUser['id'];
+
+        return $id > 0 ? $id : null;
+    }
+
     private function rules(bool $isUpdate = false): array
     {
         $tituloRule = $isUpdate ? 'sometimes|required|string|min:2|max:255' : 'required|string|min:2|max:255';
@@ -93,6 +107,7 @@ class TarefasController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        $autorId = $this->authUserId($request);
         $validated = $request->validate($this->rules());
 
         $relacionados = $validated['relacionados'] ?? [];
@@ -109,6 +124,24 @@ class TarefasController extends Controller
         }
 
         $tarefa->load(['projeto', 'responsavel', 'relacionados']);
+
+        $titulo = trim((string) $tarefa->titulo);
+        Notificacoes::logSistema($autorId, 'criar_tarefa', sprintf('Criou a tarefa "%s".', $titulo));
+        Notificacoes::logProjeto($autorId, $tarefa->id_projeto, sprintf('Nova tarefa criada: %s', $titulo));
+
+        $destinatarios = array_merge(
+            [$tarefa->id_responsavel],
+            $relacionados
+        );
+
+        Notificacoes::paraUsuarios(
+            $destinatarios,
+            $autorId,
+            'tarefa_criada',
+            'Nova tarefa atribuida',
+            sprintf('A tarefa "%s" foi criada e vinculada a voce.', $titulo),
+            '/desempenho'
+        );
 
         return response()->json([
             'success' => true,
@@ -128,6 +161,10 @@ class TarefasController extends Controller
             ], 404);
         }
 
+        $autorId = $this->authUserId($request);
+        $statusAnterior = (string) ($tarefa->status_task ?? '');
+        $responsavelAnterior = $tarefa->id_responsavel ? (int) $tarefa->id_responsavel : null;
+
         $validated = $request->validate($this->rules(true));
 
         $hasRelacionados = array_key_exists('relacionados', $validated);
@@ -145,6 +182,46 @@ class TarefasController extends Controller
         }
 
         $tarefa->load(['projeto', 'responsavel', 'relacionados']);
+
+        $titulo = trim((string) $tarefa->titulo);
+        Notificacoes::logSistema($autorId, 'atualizar_tarefa', sprintf('Atualizou a tarefa "%s".', $titulo));
+        Notificacoes::logProjeto($autorId, $tarefa->id_projeto, sprintf('Tarefa atualizada: %s', $titulo));
+
+        if ($hasRelacionados) {
+            Notificacoes::paraUsuarios(
+                $relacionados,
+                $autorId,
+                'tarefa_relacionada',
+                'Voce foi adicionado em uma tarefa',
+                sprintf('Voce foi adicionado como relacionado na tarefa "%s".', $titulo),
+                '/desempenho'
+            );
+        }
+
+        if ($responsavelAnterior !== (int) ($tarefa->id_responsavel ?? 0) && $tarefa->id_responsavel) {
+            Notificacoes::paraUsuarios(
+                [(int) $tarefa->id_responsavel],
+                $autorId,
+                'tarefa_atribuida',
+                'Nova responsabilidade atribuida',
+                sprintf('Voce foi definido como responsavel da tarefa "%s".', $titulo),
+                '/desempenho'
+            );
+        }
+
+        if (array_key_exists('status_task', $validated)) {
+            $statusAtual = (string) ($tarefa->status_task ?? '');
+            if ($statusAtual !== $statusAnterior) {
+                Notificacoes::paraUsuarios(
+                    [(int) ($tarefa->id_responsavel ?? 0)],
+                    $autorId,
+                    'tarefa_status',
+                    'Status de tarefa atualizado',
+                    sprintf('A tarefa "%s" mudou de "%s" para "%s".', $titulo, $statusAnterior, $statusAtual),
+                    '/desempenho'
+                );
+            }
+        }
 
         return response()->json([
             'success' => true,
@@ -168,7 +245,23 @@ class TarefasController extends Controller
             'status_task' => 'required|string',
         ]);
 
+        $autorId = $this->authUserId($request);
+        $statusAnterior = (string) ($tarefa->status_task ?? '');
+
         $tarefa->update(['status_task' => $validated['status_task']]);
+
+        $titulo = trim((string) $tarefa->titulo);
+        Notificacoes::logSistema($autorId, 'editar_status_tarefa', sprintf('Alterou status da tarefa "%s".', $titulo));
+        Notificacoes::logProjeto($autorId, $tarefa->id_projeto, sprintf('Status da tarefa "%s" alterado para %s', $titulo, $validated['status_task']));
+
+        Notificacoes::paraUsuarios(
+            [(int) ($tarefa->id_responsavel ?? 0)],
+            $autorId,
+            'tarefa_status',
+            'Status de tarefa atualizado',
+            sprintf('A tarefa "%s" mudou de "%s" para "%s".', $titulo, $statusAnterior, $validated['status_task']),
+            '/desempenho'
+        );
 
         return response()->json([
             'success' => true,
@@ -192,8 +285,23 @@ class TarefasController extends Controller
             'id_responsavel' => 'required|integer|exists:usuarios,id_usuario',
         ]);
 
+        $autorId = $this->authUserId($request);
+
         $tarefa->update(['id_responsavel' => $validated['id_responsavel']]);
         $tarefa->load('responsavel');
+
+        $titulo = trim((string) $tarefa->titulo);
+        Notificacoes::logSistema($autorId, 'atribuir_responsavel_tarefa', sprintf('Atribuiu responsavel na tarefa "%s".', $titulo));
+        Notificacoes::logProjeto($autorId, $tarefa->id_projeto, sprintf('Responsavel atualizado na tarefa "%s".', $titulo));
+
+        Notificacoes::paraUsuarios(
+            [(int) $validated['id_responsavel']],
+            $autorId,
+            'tarefa_atribuida',
+            'Nova responsabilidade atribuida',
+            sprintf('Voce foi definido como responsavel da tarefa "%s".', $titulo),
+            '/desempenho'
+        );
 
         return response()->json([
             'success' => true,

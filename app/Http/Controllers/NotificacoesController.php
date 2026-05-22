@@ -10,12 +10,40 @@ use Illuminate\Support\Facades\Schema;
 
 class NotificacoesController extends Controller
 {
+    private function authUserId(Request $request): ?int
+    {
+        $authUser = $request->session()->get('auth.user');
+
+        if (!is_array($authUser) || !isset($authUser['id'])) {
+            return null;
+        }
+
+        $id = (int) $authUser['id'];
+
+        return $id > 0 ? $id : null;
+    }
+
     public function index(Request $request): JsonResponse
     {
+        $authUserId = $this->authUserId($request);
+        $page = (int) $request->query('page', 1);
+        $page = max(1, $page);
+
         $limit = (int) $request->query('limit', 20);
         $limit = max(1, min($limit, 100));
 
         $sources = [];
+
+        if ($authUserId !== null && Schema::hasTable('notificacoes_usuario')) {
+            $sources[] = DB::table('notificacoes_usuario as nu')
+                ->selectRaw("CONCAT('usuario:', nu.id_notificacao) as id")
+                ->selectRaw("'sistema' as source")
+                ->selectRaw('COALESCE(nu.titulo, "Notificacao") as title')
+                ->selectRaw('COALESCE(nu.mensagem, "Sem detalhes") as description')
+                ->selectRaw('nu.criado_em as occurred_at')
+                ->where('nu.id_destinatario', $authUserId)
+                ->whereNotNull('nu.criado_em');
+        }
 
         if (Schema::hasTable('log_sistema')) {
             $sources[] = DB::table('log_sistema')
@@ -54,11 +82,7 @@ class NotificacoesController extends Controller
             $unionQuery = $unionQuery->unionAll($source);
         }
 
-        $notifications = DB::query()
-            ->fromSub($unionQuery, 'n')
-            ->orderByDesc('occurred_at')
-            ->limit($limit)
-            ->get();
+        $baseQuery = DB::query()->fromSub($unionQuery, 'n');
 
         $since = $request->query('since');
         $sinceDate = null;
@@ -70,6 +94,17 @@ class NotificacoesController extends Controller
                 $sinceDate = null;
             }
         }
+
+        $totalCount = (clone $baseQuery)->count();
+        $totalPages = max(1, (int) ceil($totalCount / $limit));
+        $page = min($page, $totalPages);
+        $offset = ($page - 1) * $limit;
+
+        $notifications = (clone $baseQuery)
+            ->orderByDesc('occurred_at')
+            ->offset($offset)
+            ->limit($limit)
+            ->get();
 
         $items = $notifications->map(static function ($item) use ($sinceDate): array {
             $occurredAt = $item->occurred_at ? Carbon::parse($item->occurred_at) : null;
@@ -84,13 +119,19 @@ class NotificacoesController extends Controller
             ];
         })->values();
 
-        $unreadCount = $items->where('read', false)->count();
+        $unreadCount = $sinceDate
+            ? (clone $baseQuery)->where('occurred_at', '>', $sinceDate->toDateTimeString())->count()
+            : $totalCount;
 
         return response()->json([
             'success' => true,
             'data' => [
                 'notifications' => $items,
                 'unread_count' => $unreadCount,
+                'page' => $page,
+                'limit' => $limit,
+                'total_count' => $totalCount,
+                'total_pages' => $totalPages,
             ],
         ]);
     }

@@ -19,7 +19,7 @@
 
 import { router } from "@inertiajs/react";
 import { Bell, Search } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import UserDropdownMenu from "@/components/UserDropdownMenu";
 import { apiRoutes } from "@/lib/routes";
 
@@ -58,6 +58,8 @@ interface NotificationsApiResponse {
     data?: {
         notifications?: NotificationItem[];
         unread_count?: number;
+        page?: number;
+        total_pages?: number;
     };
 }
 
@@ -104,6 +106,9 @@ export default function Header({ user }: HeaderProps) {
     const [isSearchOpen, setIsSearchOpen] = useState(false);
     const [isSearching, setIsSearching] = useState(false);
     const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+    const [unreadCount, setUnreadCount] = useState(0);
+    const [notificationsPage, setNotificationsPage] = useState(1);
+    const [notificationsTotalPages, setNotificationsTotalPages] = useState(1);
     const [lastSeenAt, setLastSeenAt] = useState<string>(() => {
         try {
             return localStorage.getItem("notifications:lastSeenAt") ?? new Date(0).toISOString();
@@ -112,10 +117,6 @@ export default function Header({ user }: HeaderProps) {
         }
     });
 
-    const unreadCount = useMemo(
-        () => notifications.filter((item) => !item.read).length,
-        [notifications],
-    );
     const avatar = resolveAvatarUrl(user.avatar);
     const [currentStatus, setCurrentStatus] = useState(user.status ?? "online");
 
@@ -207,7 +208,7 @@ export default function Header({ user }: HeaderProps) {
 
         const fetchNotifications = async () => {
             try {
-                const response = await fetch(`${apiRoutes.notificacoes}?limit=30&since=${encodeURIComponent(lastSeenAt)}`, {
+                const response = await fetch(`${apiRoutes.notificacoes}?limit=30&page=${notificationsPage}&since=${encodeURIComponent(lastSeenAt)}`, {
                     credentials: "same-origin",
                     headers: { Accept: "application/json" },
                 });
@@ -218,6 +219,10 @@ export default function Header({ user }: HeaderProps) {
 
                 const payload = (await response.json()) as NotificationsApiResponse;
                 setNotifications(payload.data?.notifications ?? []);
+                setUnreadCount(payload.data?.unread_count ?? 0);
+
+                const totalPages = Math.max(1, payload.data?.total_pages ?? 1);
+                setNotificationsTotalPages(totalPages);
             } catch {
                 // Mantem estado anterior se o polling falhar.
             }
@@ -233,7 +238,7 @@ export default function Header({ user }: HeaderProps) {
             isMounted = false;
             window.clearInterval(interval);
         };
-    }, [lastSeenAt]);
+    }, [lastSeenAt, notificationsPage]);
 
     useEffect(() => {
         if (!isNotificationsOpen) {
@@ -425,7 +430,13 @@ export default function Header({ user }: HeaderProps) {
                     <button
                         type="button"
                         onClick={() => {
-                            setIsNotificationsOpen((prev) => !prev);
+                            setIsNotificationsOpen((prev) => {
+                                const next = !prev;
+                                if (next) {
+                                    setNotificationsPage(1);
+                                }
+                                return next;
+                            });
                             setIsUserMenuOpen(false);
                         }}
                         className="
@@ -502,6 +513,34 @@ export default function Header({ user }: HeaderProps) {
                                     ))
                                 )}
                             </div>
+
+                            {notificationsTotalPages > 1 && (
+                                <div className="flex items-center justify-between border-t px-4 py-2.5" style={{ borderColor: "var(--cor-borda)" }}>
+                                    <button
+                                        type="button"
+                                        onClick={() => setNotificationsPage((prev) => Math.max(1, prev - 1))}
+                                        disabled={notificationsPage <= 1}
+                                        className="rounded-lg px-2.5 py-1 text-xs font-semibold transition-opacity disabled:cursor-not-allowed disabled:opacity-50"
+                                        style={{ background: "var(--cor-fundo)", color: "var(--cor-vetores)" }}
+                                    >
+                                        Anterior
+                                    </button>
+
+                                    <span className="text-xs" style={{ color: "var(--cor-textoII)" }}>
+                                        Pagina {notificationsPage} de {notificationsTotalPages}
+                                    </span>
+
+                                    <button
+                                        type="button"
+                                        onClick={() => setNotificationsPage((prev) => Math.min(notificationsTotalPages, prev + 1))}
+                                        disabled={notificationsPage >= notificationsTotalPages}
+                                        className="rounded-lg px-2.5 py-1 text-xs font-semibold transition-opacity disabled:cursor-not-allowed disabled:opacity-50"
+                                        style={{ background: "var(--cor-fundo)", color: "var(--cor-vetores)" }}
+                                    >
+                                        Proxima
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>

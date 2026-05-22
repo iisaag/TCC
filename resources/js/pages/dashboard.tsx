@@ -124,6 +124,9 @@ const PERIODO_OPTIONS = [
     { label: "Trimestre", value: 90 },
 ];
 
+const PROJECT_HEALTH_PAGE_SIZE = 8;
+const ALERTS_PAGE_SIZE = 8;
+
 // Paleta de cores para avatares gerados por nome
 const AVATAR_PALETTE = [
     "#3b82f6", "#8b5cf6", "#ec4899", "#f97316",
@@ -206,6 +209,23 @@ function alertStyle(nivel: Alerta["nivel"]) {
         title: "var(--cor-logo)",
         text: "var(--cor-logo2)",
     };
+}
+
+function hashText(value: string): number {
+    let hash = 0;
+    for (let i = 0; i < value.length; i++) {
+        hash = value.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    return Math.abs(hash);
+}
+
+function hypotheticalDaysForAlert(alerta: Alerta, index: number): number {
+    const seed = `${alerta.tipo}|${alerta.titulo}|${alerta.mensagem}|${index}`;
+    return (hashText(seed) % 12) + 1;
+}
+
+function normalizeAlertMessage(message: string, fallbackDays: number): string {
+    return message.replace(/\?\s*dias?/gi, `${fallbackDays} dias`);
 }
 
 // ---------------------------------------------------------------------------
@@ -411,6 +431,8 @@ export default function Dashboard() {
     const [isPrinting, setIsPrinting] = useState(false);
     const [selectedKpi, setSelectedKpi] = useState<KpiKey | null>(null);
     const [kpiPage, setKpiPage] = useState(1);
+    const [projectHealthPage, setProjectHealthPage] = useState(1);
+    const [alertsPage, setAlertsPage] = useState(1);
 
     useEffect(() => {
         setLoading(true);
@@ -467,6 +489,28 @@ export default function Dashboard() {
     useEffect(() => {
         setKpiPage(1);
     }, [selectedKpi]);
+
+    useEffect(() => {
+        setProjectHealthPage(1);
+    }, [dias]);
+
+    useEffect(() => {
+        setAlertsPage(1);
+    }, [dias]);
+
+    useEffect(() => {
+        if (!data) return;
+
+        const totalPages = Math.max(1, Math.ceil(data.saude_projetos.length / PROJECT_HEALTH_PAGE_SIZE));
+        setProjectHealthPage((prev) => Math.min(prev, totalPages));
+    }, [data?.saude_projetos.length]);
+
+    useEffect(() => {
+        if (!data) return;
+
+        const totalPages = Math.max(1, Math.ceil(data.alertas.length / ALERTS_PAGE_SIZE));
+        setAlertsPage((prev) => Math.min(prev, totalPages));
+    }, [data?.alertas.length]);
 
     const handleExportPdf = () => {
         setIsPrinting(true);
@@ -571,6 +615,24 @@ export default function Dashboard() {
             emptyMessage: "Sem projetos suficientes para calcular o progresso médio.",
         };
     };
+
+    const projectHealthTotalPages = data
+        ? Math.max(1, Math.ceil(data.saude_projetos.length / PROJECT_HEALTH_PAGE_SIZE))
+        : 1;
+    const currentProjectHealthPage = Math.min(projectHealthPage, projectHealthTotalPages);
+    const projectHealthStart = (currentProjectHealthPage - 1) * PROJECT_HEALTH_PAGE_SIZE;
+    const projectHealthItems = data
+        ? data.saude_projetos.slice(projectHealthStart, projectHealthStart + PROJECT_HEALTH_PAGE_SIZE)
+        : [];
+
+    const alertsTotalPages = data
+        ? Math.max(1, Math.ceil(data.alertas.length / ALERTS_PAGE_SIZE))
+        : 1;
+    const currentAlertsPage = Math.min(alertsPage, alertsTotalPages);
+    const alertsStart = (currentAlertsPage - 1) * ALERTS_PAGE_SIZE;
+    const alertItems = data
+        ? data.alertas.slice(alertsStart, alertsStart + ALERTS_PAGE_SIZE)
+        : [];
 
     return (
         <DashboardLayout currentPage="dashboard">
@@ -693,7 +755,7 @@ export default function Dashboard() {
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                {data.saude_projetos.map((p) => {
+                                                {projectHealthItems.map((p) => {
                                                     const st = statusLabel(p.status);
                                                     return (
                                                         <tr
@@ -749,6 +811,31 @@ export default function Dashboard() {
                                                 })}
                                             </tbody>
                                         </table>
+                                        {projectHealthTotalPages > 1 && (
+                                            <div className="mt-4 flex items-center justify-end gap-2">
+                                                <button
+                                                    type="button"
+                                                    className="rounded-lg border px-3 py-1.5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
+                                                    style={{ borderColor: "var(--cor-borda)", color: "var(--cor-logo)", background: "var(--cor-widgets)" }}
+                                                    onClick={() => setProjectHealthPage((prev) => Math.max(1, prev - 1))}
+                                                    disabled={currentProjectHealthPage <= 1}
+                                                >
+                                                    Anterior
+                                                </button>
+                                                <span className="text-sm" style={{ color: "var(--cor-logo2)" }}>
+                                                    Página {currentProjectHealthPage} de {projectHealthTotalPages}
+                                                </span>
+                                                <button
+                                                    type="button"
+                                                    className="rounded-lg border px-3 py-1.5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
+                                                    style={{ borderColor: "var(--cor-borda)", color: "var(--cor-logo)", background: "var(--cor-widgets)" }}
+                                                    onClick={() => setProjectHealthPage((prev) => Math.min(projectHealthTotalPages, prev + 1))}
+                                                    disabled={currentProjectHealthPage >= projectHealthTotalPages}
+                                                >
+                                                    Próxima
+                                                </button>
+                                            </div>
+                                        )}
                                     </div>
                                 )}
                             </SectionCard>
@@ -1023,8 +1110,10 @@ export default function Dashboard() {
                                         Alertas Inteligentes
                                     </h2>
                                     <div className="flex flex-col gap-3">
-                                        {data.alertas.map((a, i) => {
+                                        {alertItems.map((a, i) => {
                                             const s = alertStyle(a.nivel);
+                                            const hypotheticalDays = hypotheticalDaysForAlert(a, i);
+                                            const normalizedMessage = normalizeAlertMessage(a.mensagem, hypotheticalDays);
                                             return (
                                                 <div
                                                     key={i}
@@ -1041,13 +1130,38 @@ export default function Dashboard() {
                                                             {a.titulo}
                                                         </p>
                                                         <p className="text-sm" style={{ color: s.text }}>
-                                                            {a.mensagem}
+                                                            {normalizedMessage}
                                                         </p>
                                                     </div>
                                                 </div>
                                             );
                                         })}
                                     </div>
+                                    {alertsTotalPages > 1 && (
+                                        <div className="mt-4 flex items-center justify-end gap-2">
+                                            <button
+                                                type="button"
+                                                className="rounded-lg border px-3 py-1.5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
+                                                style={{ borderColor: "var(--cor-borda)", color: "var(--cor-logo)", background: "var(--cor-widgets)" }}
+                                                onClick={() => setAlertsPage((prev) => Math.max(1, prev - 1))}
+                                                disabled={currentAlertsPage <= 1}
+                                            >
+                                                Anterior
+                                            </button>
+                                            <span className="text-sm" style={{ color: "var(--cor-logo2)" }}>
+                                                Página {currentAlertsPage} de {alertsTotalPages}
+                                            </span>
+                                            <button
+                                                type="button"
+                                                className="rounded-lg border px-3 py-1.5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
+                                                style={{ borderColor: "var(--cor-borda)", color: "var(--cor-logo)", background: "var(--cor-widgets)" }}
+                                                onClick={() => setAlertsPage((prev) => Math.min(alertsTotalPages, prev + 1))}
+                                                disabled={currentAlertsPage >= alertsTotalPages}
+                                            >
+                                                Próxima
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
                             )}
 

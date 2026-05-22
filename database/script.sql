@@ -122,6 +122,25 @@ CREATE TABLE IF NOT EXISTS log_sistema (
     data_hora DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (id_usuario) REFERENCES usuarios(id_usuario)
 );
+
+# TABELA NOTIFICACOES POR USUARIO
+CREATE TABLE IF NOT EXISTS notificacoes_usuario (
+    id_notificacao INT AUTO_INCREMENT PRIMARY KEY,
+    id_destinatario INT NOT NULL,
+    id_autor INT NULL,
+    tipo VARCHAR(80) NOT NULL DEFAULT 'geral',
+    titulo VARCHAR(180) NOT NULL,
+    mensagem TEXT NOT NULL,
+    url VARCHAR(255) NULL,
+    criado_em DATETIME DEFAULT CURRENT_TIMESTAMP,
+    lida_em DATETIME NULL,
+    FOREIGN KEY (id_destinatario) REFERENCES usuarios(id_usuario)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE,
+    FOREIGN KEY (id_autor) REFERENCES usuarios(id_usuario)
+        ON DELETE SET NULL
+        ON UPDATE CASCADE
+);
     
     #TESTES/EXEMPLO DE DADOS
     
@@ -463,6 +482,22 @@ WHERE NOT EXISTS (
     WHERE l.id_usuario = x.id_usuario
       AND l.acao = x.acao
       AND l.descricao = x.descricao
+);
+
+# NOTIFICACOES POR USUARIO
+INSERT INTO notificacoes_usuario (id_destinatario, id_autor, tipo, titulo, mensagem, url, criado_em)
+SELECT x.id_destinatario, x.id_autor, x.tipo, x.titulo, x.mensagem, x.url, NOW()
+FROM (
+    SELECT 4 AS id_destinatario, 1 AS id_autor, 'tarefa_atribuida' AS tipo, 'Nova responsabilidade atribuida' AS titulo, 'Voce recebeu uma tarefa nova para acompanhar.' AS mensagem, '/desempenho' AS url
+    UNION ALL SELECT 6, 2, 'projeto_atribuido', 'Voce recebeu um novo projeto', 'Voce foi definido como responsavel por um projeto.', '/projetos'
+) AS x
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM notificacoes_usuario n
+    WHERE n.id_destinatario = x.id_destinatario
+      AND n.tipo = x.tipo
+      AND n.titulo = x.titulo
+      AND n.mensagem = x.mensagem
 );
 
 -- Queries de exemplo
