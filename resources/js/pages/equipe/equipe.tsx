@@ -241,31 +241,31 @@ function MemberCard({ member, compact = false }: { member: TeamMember; compact?:
         .toUpperCase();
 
     return (
-        <article className="group relative w-full rounded-2xl border border-[#d8e7ff] bg-white/90 p-5 shadow-[0_10px_30px_rgba(22,84,186,0.12)] backdrop-blur transition-all duration-500 ease-out hover:-translate-y-1 hover:shadow-[0_18px_40px_rgba(45,87,196,0.2)]">
+        <article className="group relative w-full rounded-2xl border border-[#d8e7ff] bg-white/90 p-5 shadow-[0_10px_30px_rgba(22,84,186,0.12)] backdrop-blur transition-all duration-500 ease-out hover:-translate-y-1 hover:shadow-[0_18px_40px_rgba(45,87,196,0.2)] dark:border-[#2d4353] dark:bg-[#1c2a35]/95 dark:shadow-[0_10px_28px_rgba(0,0,0,0.35)] dark:hover:shadow-[0_18px_36px_rgba(0,0,0,0.48)]">
             <div className="mx-auto flex w-fit items-center justify-center">
-                <div className="relative h-20 w-20 overflow-hidden rounded-full border-4 border-[#d2e6ff] bg-[#eaf3ff]">
+                <div className="relative h-20 w-20 overflow-hidden rounded-full border-4 border-[#d2e6ff] bg-[#eaf3ff] dark:border-[#3c5e78] dark:bg-[#243845]">
                     {member.avatar ? (
                         <img src={member.avatar} alt={member.name} className="h-full w-full object-cover" />
                     ) : (
-                        <div className="flex h-full w-full items-center justify-center text-lg font-bold text-[#2f5ea6]">{initials}</div>
+                        <div className="flex h-full w-full items-center justify-center text-lg font-bold text-[#2f5ea6] dark:text-[#c6e7ff]">{initials}</div>
                     )}
                 </div>
 
-                <span className={`absolute ml-14 mt-14 h-3.5 w-3.5 rounded-full border-2 border-white ${statusClass[member.status]}`} />
+                <span className={`absolute ml-14 mt-14 h-3.5 w-3.5 rounded-full border-2 border-white dark:border-[#1c2a35] ${statusClass[member.status]}`} />
             </div>
 
             <div className="mt-3 text-center">
-                <h3 className="text-[26px] font-semibold tracking-tight text-[#0f2746]" style={{ fontFamily: "'Belanosima', sans-serif" }}>
+                <h3 className="text-[26px] font-semibold tracking-tight text-[#0f2746] dark:text-[#d8ecfb]" style={{ fontFamily: "'Belanosima', sans-serif" }}>
                     {member.name}
                 </h3>
-                <p className="text-lg font-medium text-[#2563eb]">{member.role}</p>
-                <span className="mt-2 inline-flex rounded-full bg-[#eef4ff] px-3 py-1 text-sm font-medium text-[#61799d]">
+                <p className="text-lg font-medium text-[#2563eb] dark:text-[#9cc4df]">{member.role}</p>
+                <span className="mt-2 inline-flex rounded-full bg-[#eef4ff] px-3 py-1 text-sm font-medium text-[#61799d] dark:bg-[#243845] dark:text-[#c6e7ff]">
                     {member.department}
                 </span>
             </div>
 
             <div
-                className={`mt-4 overflow-hidden border-t border-[#dbe7fb] pt-3 text-[#334e73] transition-[max-height,opacity] duration-[620ms] ease-in-out ${
+                className={`mt-4 overflow-hidden border-t border-[#dbe7fb] pt-3 text-[#334e73] transition-[max-height,opacity] duration-[620ms] ease-in-out dark:border-[#2d4353] dark:text-[#b8d5eb] ${
                     compact ? "max-h-0 opacity-0 group-hover:max-h-52 group-hover:opacity-100" : "max-h-52 opacity-100"
                 }`}
             >
@@ -328,8 +328,8 @@ export default function Equipe() {
 
     return (
         <DashboardLayout currentPage="team">
-            <section className="relative isolate overflow-hidden rounded-3xl border border-[#d5e4ff] bg-gradient-to-b from-[#edf5ff] via-[#f5f7ff] to-[#f6f2ff] p-4 sm:p-6 lg:p-10 dark:border-[#244f73] dark:bg-[#173E5B]">
-                <div className="pointer-events-none absolute inset-0 opacity-60 [background-image:radial-gradient(circle_at_20%_20%,rgba(120,177,255,0.22),transparent_36%),radial-gradient(circle_at_80%_0%,rgba(118,128,255,0.2),transparent_32%),radial-gradient(circle_at_80%_80%,rgba(162,123,255,0.18),transparent_35%)] dark:opacity-0" />
+            <section className="relative isolate overflow-hidden rounded-3xl border border-[#d5e4ff] bg-gradient-to-b from-[#edf5ff] via-[#f5f7ff] to-[#f6f2ff] p-4 sm:p-6 lg:p-10 dark:border-[#2d4353] dark:bg-none dark:bg-[#16232d]">
+                <div className="pointer-events-none absolute inset-0 opacity-60 [background-image:radial-gradient(circle_at_20%_20%,rgba(120,177,255,0.22),transparent_36%),radial-gradient(circle_at_80%_0%,rgba(118,128,255,0.2),transparent_32%),radial-gradient(circle_at_80%_80%,rgba(162,123,255,0.18),transparent_35%)] dark:opacity-30 dark:[background-image:radial-gradient(circle_at_20%_20%,rgba(67,127,170,0.18),transparent_38%),radial-gradient(circle_at_80%_0%,rgba(61,104,139,0.2),transparent_34%),radial-gradient(circle_at_80%_80%,rgba(49,86,117,0.2),transparent_38%)]" />
 
                 <header className="relative z-10 mb-8 text-center">
                     <h1 className="text-5xl font-semibold tracking-tight text-[#12284a] dark:text-[#d3e8f8]">
@@ -346,8 +346,8 @@ export default function Equipe() {
                     {managers.length > 0 && (
                         <>
                             <div className="relative mx-auto mt-8 hidden h-14 w-[88%] lg:block">
-                                <div className="absolute left-1/2 top-0 h-7 w-px -translate-x-1/2 bg-[#b8d4ff]" />
-                                <div className="absolute left-0 right-0 top-7 h-px bg-[#b8d4ff]" />
+                                <div className="absolute left-1/2 top-0 h-7 w-px -translate-x-1/2 bg-[#b8d4ff] dark:bg-[#3a5f7d]" />
+                                <div className="absolute left-0 right-0 top-7 h-px bg-[#b8d4ff] dark:bg-[#3a5f7d]" />
                             </div>
 
                             <div className="mt-8 grid grid-cols-1 gap-6 md:grid-cols-2 lg:mt-0 lg:grid-cols-3">
@@ -357,7 +357,7 @@ export default function Equipe() {
                                         className="relative animate-[fadeIn_600ms_ease-out_forwards] opacity-0"
                                         style={{ animationDelay: `${140 + index * 80}ms` }}
                                     >
-                                        <div className="absolute -top-8 left-1/2 hidden h-8 w-px -translate-x-1/2 bg-[#b8d4ff] lg:block" />
+                                        <div className="absolute -top-8 left-1/2 hidden h-8 w-px -translate-x-1/2 bg-[#b8d4ff] dark:bg-[#3a5f7d] lg:block" />
                                         <MemberCard member={manager} compact />
                                     </div>
                                 ))}
@@ -368,8 +368,8 @@ export default function Equipe() {
                     {members.length > 0 && (
                         <>
                             <div className="relative mx-auto mt-10 hidden h-14 w-[92%] lg:block">
-                                <div className="absolute left-1/2 top-0 h-7 w-px -translate-x-1/2 bg-[#c2d9ff]" />
-                                <div className="absolute left-0 right-0 top-7 h-px bg-[#c2d9ff]" />
+                                <div className="absolute left-1/2 top-0 h-7 w-px -translate-x-1/2 bg-[#c2d9ff] dark:bg-[#3a5f7d]" />
+                                <div className="absolute left-0 right-0 top-7 h-px bg-[#c2d9ff] dark:bg-[#3a5f7d]" />
                             </div>
 
                             <div className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:mt-0 lg:grid-cols-5">
@@ -379,7 +379,7 @@ export default function Equipe() {
                                         className="relative animate-[fadeIn_600ms_ease-out_forwards] opacity-0"
                                         style={{ animationDelay: `${260 + index * 70}ms` }}
                                     >
-                                        <div className="absolute -top-8 left-1/2 hidden h-8 w-px -translate-x-1/2 bg-[#c2d9ff] lg:block" />
+                                        <div className="absolute -top-8 left-1/2 hidden h-8 w-px -translate-x-1/2 bg-[#c2d9ff] dark:bg-[#3a5f7d] lg:block" />
                                         <MemberCard member={member} compact />
                                     </div>
                                 ))}

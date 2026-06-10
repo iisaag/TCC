@@ -1498,17 +1498,24 @@ export default function Projetos() {
 							</div>
 
 							<div className="flex flex-wrap items-center gap-3 px-5 py-4">
-								<label className="inline-flex min-w-[280px] flex-1 items-center gap-3 rounded-xl border bg-white px-4 py-3">
+								<label
+									className="inline-flex min-w-[280px] flex-1 items-center gap-3 rounded-xl border px-4 py-3"
+									style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-fundo)" }}
+								>
 									<Search size={20} style={{ color: "var(--cor-logo2)" }} />
 									<input
 										value={query}
 										onChange={(e) => setQuery(e.target.value)}
 										placeholder="Pesquise por nome do card"
 										className="w-full bg-transparent text-lg outline-none"
+										style={{ color: "var(--cor-logo)" }}
 									/>
 								</label>
 
-								<span className="rounded-xl border bg-white px-5 py-3 text-lg" style={{ color: "var(--cor-logo2)" }}>
+								<span
+									className="rounded-xl border px-5 py-3 text-lg"
+									style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-fundo)", color: "var(--cor-logo2)" }}
+								>
 									Fluxo: To Do -{">"} Doing -{">"} Teste -{">"} Aprovado
 								</span>
 							</div>

@@ -572,7 +572,7 @@ export default function Header({ user }: HeaderProps) {
                             setIsUserMenuOpen((prev) => !prev);
                             setIsNotificationsOpen(false);
                         }}
-                        className="rounded-full focus:outline-none focus:ring-2 focus:ring-(--cor-accent)/30 transition-all duration-300 hover:scale-110"
+                        className="rounded-full focus:outline-none focus:ring-2 focus:ring-(--cor-accent)/30 transition-all duration-300 hover:scale-105"
                         aria-expanded={isUserMenuOpen}
                         aria-label="Abrir menu do usuario"
                     >
