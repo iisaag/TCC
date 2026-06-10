@@ -10,6 +10,7 @@ use App\Http\Controllers\MetasController;
 use App\Http\Controllers\NotificacoesController;
 use App\Http\Controllers\ProjetosController;
 use App\Http\Controllers\SenhaController;
+use App\Http\Controllers\SprintsController;
 use App\Http\Controllers\TarefasController;
 use App\Http\Controllers\DatabaseController;
 use App\Http\Controllers\UsuariosController;
@@ -45,6 +46,7 @@ Route::middleware(['web', 'session.auth'])->group(function (): void {
 	Route::get('projetos/excluidos/historico',       [ProjetosController::class, 'deletedHistory']);
 	Route::post('projetos/excluidos/{registro}/restaurar', [ProjetosController::class, 'restoreDeleted']);
 	Route::apiResource('projetos', ProjetosController::class);
+	Route::get('sprints',                             [SprintsController::class, 'index']);
 
 	// Tarefas
 	Route::get('tarefas/total/por-status',           [TarefasController::class, 'totalPorStatus']);
@@ -59,6 +61,10 @@ Route::middleware(['web', 'session.auth'])->group(function (): void {
 	Route::get('usuarios/{usuario}',                 [UsuariosController::class, 'show']);
 
 	Route::middleware('admin.access')->group(function (): void {
+		// Sprints
+		Route::post('sprints',                         [SprintsController::class, 'store']);
+		Route::patch('sprints/{id}/encerrar',          [SprintsController::class, 'encerrar']);
+
 		// Cargos
 		Route::apiResource('cargos', CargosController::class);
 

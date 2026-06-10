@@ -32,6 +32,7 @@ class TarefasController extends Controller
             'titulo'                => $tituloRule,
             'descricao'             => 'nullable|string',
             'id_projeto'            => 'nullable|integer|exists:projetos,id_projeto',
+            'id_sprint'             => 'nullable|integer|exists:sprints,id_sprint',
             'id_responsavel'        => 'nullable|integer|exists:usuarios,id_usuario',
             'prioridade_task'       => 'nullable|string|in:BAIXA,MEDIA,ALTA,CRITICA',
             'tipo_task'             => 'nullable|string|in:FRONT,BACK,FULLSTACK',
@@ -41,6 +42,7 @@ class TarefasController extends Controller
             'bloqueada'             => 'nullable|boolean',
             'prazo'                 => 'nullable|date',
             'status_task'           => 'nullable|string',
+            'em_historico'          => 'nullable|boolean',
             'relacionados'          => 'nullable|array',
             'relacionados.*'        => 'integer|exists:usuarios,id_usuario',
         ];
@@ -49,7 +51,7 @@ class TarefasController extends Controller
     public function index(Request $request): JsonResponse
     {
         try {
-            $query = Tarefa::with(['projeto', 'responsavel', 'relacionados'])
+            $query = Tarefa::with(['projeto', 'sprint', 'responsavel', 'relacionados'])
                 ->orderByRaw('COALESCE(data_prevista_termino, prazo) asc');
 
             $porProjeto     = $request->filled('id_projeto')     ? (int) $request->id_projeto     : null;
@@ -89,7 +91,7 @@ class TarefasController extends Controller
 
     public function show(int $id): JsonResponse
     {
-        $tarefa = Tarefa::with(['projeto', 'responsavel', 'relacionados'])->find($id);
+        $tarefa = Tarefa::with(['projeto', 'sprint', 'responsavel', 'relacionados'])->find($id);
 
         if (!$tarefa) {
             return response()->json([
@@ -117,13 +119,17 @@ class TarefasController extends Controller
             $validated['prazo'] = $validated['data_prevista_termino'];
         }
 
+        if (array_key_exists('id_sprint', $validated) && $validated['id_sprint']) {
+            $validated['em_historico'] = false;
+        }
+
         $tarefa = Tarefa::create($validated);
 
         if (!empty($relacionados)) {
             $tarefa->relacionados()->sync($relacionados);
         }
 
-        $tarefa->load(['projeto', 'responsavel', 'relacionados']);
+        $tarefa->load(['projeto', 'sprint', 'responsavel', 'relacionados']);
 
         $titulo = trim((string) $tarefa->titulo);
         Notificacoes::logSistema($autorId, 'criar_tarefa', sprintf('Criou a tarefa "%s".', $titulo));
@@ -175,13 +181,17 @@ class TarefasController extends Controller
             $validated['prazo'] = $validated['data_prevista_termino'];
         }
 
+        if (array_key_exists('id_sprint', $validated) && $validated['id_sprint']) {
+            $validated['em_historico'] = false;
+        }
+
         $tarefa->update($validated);
 
         if ($hasRelacionados) {
             $tarefa->relacionados()->sync($relacionados);
         }
 
-        $tarefa->load(['projeto', 'responsavel', 'relacionados']);
+        $tarefa->load(['projeto', 'sprint', 'responsavel', 'relacionados']);
 
         $titulo = trim((string) $tarefa->titulo);
         Notificacoes::logSistema($autorId, 'atualizar_tarefa', sprintf('Atualizou a tarefa "%s".', $titulo));

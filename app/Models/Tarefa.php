@@ -14,6 +14,7 @@ class Tarefa extends Model
         'titulo',
         'descricao',
         'id_projeto',
+        'id_sprint',
         'id_responsavel',
         'prioridade_task',
         'tipo_task',
@@ -23,6 +24,7 @@ class Tarefa extends Model
         'bloqueada',
         'prazo',
         'status_task',
+        'em_historico',
     ];
 
     protected $casts = [
@@ -31,6 +33,7 @@ class Tarefa extends Model
         'prazo' => 'date',
         'bloqueada' => 'boolean',
         'progresso' => 'integer',
+        'em_historico' => 'boolean',
     ];
 
     public function setTituloAttribute(string $value): void
@@ -50,6 +53,11 @@ class Tarefa extends Model
     public function projeto()
     {
         return $this->belongsTo(Projeto::class, 'id_projeto', 'id_projeto');
+    }
+
+    public function sprint()
+    {
+        return $this->belongsTo(Sprint::class, 'id_sprint', 'id_sprint');
     }
 
     public function responsavel()

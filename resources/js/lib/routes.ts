@@ -24,6 +24,8 @@ export const apiRoutes = {
     authVerificar: '/api/auth/verificar',
     senhas: '/api/senhas',
     tarefas: '/api/tarefas',
+    sprints: '/api/sprints',
+    sprintsEncerrar: (id: number | string) => `/api/sprints/${id}/encerrar`,
     usuarios: '/api/usuarios',
     usuariosExcluidosHistorico: '/api/usuarios/excluidos/historico',
     usuariosExcluidosRestaurar: (id: number | string) => `/api/usuarios/excluidos/${id}/restaurar`,

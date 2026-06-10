@@ -43,4 +43,9 @@ class Projeto extends Model
     {
         return $this->hasMany(Meta::class, 'id_projeto', 'id_projeto');
     }
+
+    public function sprints()
+    {
+        return $this->hasMany(Sprint::class, 'id_projeto', 'id_projeto');
+    }
 }

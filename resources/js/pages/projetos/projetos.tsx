@@ -1,11 +1,12 @@
 import { usePage } from "@inertiajs/react";
-import { ArrowLeft, CalendarDays, ChevronDown, GripVertical, History, Pencil, Plus, RotateCcw, Search, Trash2 } from "lucide-react";
+import { ArrowLeft, CalendarDays, ChevronDown, GripVertical, History, MoreVertical, Pencil, Plus, RotateCcw, Search, Trash2 } from "lucide-react";
 import type { FormEvent} from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import DashboardLayout from "@/layouts/DashboardLayout";
 import { apiRoutes } from "@/lib/routes";
 
 type BoardStatus = "TO_DO" | "DOING" | "TESTE" | "APROVADO";
+type BoardColumnKey = "BACKLOG" | BoardStatus | "HISTORY";
 
 interface Usuario {
 	id_usuario: number;
@@ -62,6 +63,9 @@ interface TarefaApi {
 	titulo: string;
 	descricao?: string | null;
 	id_projeto?: number | null;
+	id_sprint?: number | null;
+	sprint?: SprintApi | null;
+	em_historico?: boolean | null;
 	id_responsavel?: number | null;
 	prioridade_task?: string | null;
 	tipo_task?: string | null;
@@ -73,6 +77,17 @@ interface TarefaApi {
 	status_task?: string | null;
 	relacionados?: Usuario[];
 	responsavel?: Usuario | null;
+}
+
+interface SprintApi {
+	id_sprint: number;
+	id_projeto: number;
+	nome_sprint: string;
+	data_inicio: string;
+	data_fim: string;
+	status_sprint: "ATIVA" | "ENCERRADA";
+	encerrada_em?: string | null;
+	tarefas_count?: number;
 }
 
 interface ApiEnvelope<T> {
@@ -106,6 +121,12 @@ const STATUS_COLUMNS: Array<{ key: BoardStatus; label: string }> = [
 	{ key: "DOING", label: "Doing" },
 	{ key: "TESTE", label: "Teste" },
 	{ key: "APROVADO", label: "Aprovado" },
+];
+
+const BOARD_COLUMNS: Array<{ key: BoardColumnKey; label: string }> = [
+	{ key: "BACKLOG", label: "Backlog" },
+	...STATUS_COLUMNS,
+	{ key: "HISTORY", label: "History" },
 ];
 
 const STATUS_PROGRESS: Record<BoardStatus, number> = {
@@ -550,6 +571,14 @@ export default function Projetos() {
 	const [projectStatusFilter, setProjectStatusFilter] = useState<"TODOS" | "PLANEJAMENTO" | "EM_ANDAMENTO" | "CONCLUIDO">("TODOS");
 	const [projectPriorityFilter, setProjectPriorityFilter] = useState<"TODAS" | "ALTA" | "MEDIA" | "BAIXA">("TODAS");
 	const [query, setQuery] = useState("");
+	const [visibleColumns, setVisibleColumns] = useState<Record<BoardColumnKey, boolean>>({
+		BACKLOG: true,
+		TO_DO: true,
+		DOING: true,
+		TESTE: true,
+		APROVADO: true,
+		HISTORY: true,
+	});
 	const [selectedTask, setSelectedTask] = useState<TarefaApi | null>(null);
 	const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
 	const [isDetailsOpen, setIsDetailsOpen] = useState(false);
@@ -561,6 +590,16 @@ export default function Projetos() {
 	const [deletedProjectsHistory, setDeletedProjectsHistory] = useState<ProjetoExcluido[]>([]);
 	const [restoringProjectHistoryId, setRestoringProjectHistoryId] = useState<number | null>(null);
 	const [successMessage, setSuccessMessage] = useState<string | null>(null);
+	const [sprints, setSprints] = useState<SprintApi[]>([]);
+	const [isLoadingSprints, setIsLoadingSprints] = useState(false);
+	const [isSprintModalOpen, setIsSprintModalOpen] = useState(false);
+	const [isCreatingSprint, setIsCreatingSprint] = useState(false);
+	const [isClosingSprint, setIsClosingSprint] = useState(false);
+	const [sprintForm, setSprintForm] = useState({
+		nome_sprint: "",
+		data_inicio: "",
+		data_fim: "",
+	});
 
 	const csrfToken = useMemo(() => {
 		const tokenFromMeta = document.querySelector('meta[name="csrf-token"]')?.getAttribute("content") ?? "";
@@ -627,9 +666,46 @@ export default function Projetos() {
 		return () => window.clearTimeout(timer);
 	}, [successMessage]);
 
+	const fetchSprints = async (idProjeto: number) => {
+		setIsLoadingSprints(true);
+
+		try {
+			const response = await fetch(`${apiRoutes.sprints}?id_projeto=${idProjeto}`, {
+				credentials: "same-origin",
+				headers: { Accept: "application/json" },
+			});
+
+			if (!response.ok) {
+				throw new Error("Erro ao carregar sprints");
+			}
+
+			const payload = (await response.json()) as ApiEnvelope<{ sprints?: SprintApi[] }>;
+			setSprints(payload.data?.sprints ?? []);
+		} catch {
+			setSprints([]);
+		} finally {
+			setIsLoadingSprints(false);
+		}
+	};
+
+	useEffect(() => {
+		if (selectedProjectId === null) {
+			setSprints([]);
+			setIsSprintModalOpen(false);
+			return;
+		}
+
+		void fetchSprints(selectedProjectId);
+	}, [selectedProjectId]);
+
 	const selectedProject = useMemo(
 		() => projetos.find((projeto) => projeto.id_projeto === selectedProjectId) ?? null,
 		[projetos, selectedProjectId],
+	);
+
+	const activeSprint = useMemo(
+		() => sprints.find((sprint) => sprint.status_sprint === "ATIVA") ?? null,
+		[sprints],
 	);
 
 	const tasksOfSelectedProject = useMemo(() => {
@@ -651,6 +727,28 @@ export default function Projetos() {
 				? Math.round(projectTasks.reduce((acc, tarefa) => acc + getProgressFromStatus(tarefa.status_task), 0) / projectTasks.length)
 				: 0;
 
+			const sprintTasks = projectTasks.filter((tarefa) => !tarefa.em_historico && Number(tarefa.id_sprint));
+			const activeSprint = sprintTasks
+				.map((tarefa) => tarefa.sprint)
+				.filter((sprint): sprint is SprintApi => sprint != null && sprint.status_sprint === "ATIVA")
+				.sort((a, b) => Number(b.id_sprint) - Number(a.id_sprint))[0] ?? null;
+
+			const activeSprintTasks = activeSprint
+				? sprintTasks.filter((tarefa) => Number(tarefa.id_sprint) === Number(activeSprint.id_sprint))
+				: [];
+
+			const pendingInActiveSprint = activeSprintTasks.filter(
+				(tarefa) => normalizeStatus(tarefa.status_task) !== "APROVADO",
+			).length;
+
+			const sprintEndTime = activeSprint ? new Date(activeSprint.data_fim).setHours(23, 59, 59, 999) : NaN;
+			const isOverdueBySprint = Boolean(
+				activeSprint
+				&& Number.isFinite(sprintEndTime)
+				&& Date.now() > sprintEndTime
+				&& pendingInActiveSprint > 0,
+			);
+
 			return {
 				...projeto,
 				total: projectTasks.length,
@@ -659,6 +757,9 @@ export default function Projetos() {
 				teste,
 				aprovado,
 				avgProgress,
+				activeSprint,
+				pendingInActiveSprint,
+				isOverdueBySprint,
 			};
 		});
 	}, [projetos, tarefas]);
@@ -717,19 +818,31 @@ export default function Projetos() {
 	}, [projectCards, projectPriorityFilter, projectQuery, projectSort, projectStatusFilter]);
 
 	const grouped = useMemo(() => {
-		const base: Record<BoardStatus, TarefaApi[]> = {
+		const base: Record<BoardColumnKey, TarefaApi[]> = {
+			BACKLOG: [],
 			TO_DO: [],
 			DOING: [],
 			TESTE: [],
 			APROVADO: [],
+			HISTORY: [],
 		};
 
 		tasksOfSelectedProject.forEach((tarefa) => {
+			if (tarefa.em_historico) {
+				base.HISTORY.push(tarefa);
+				return;
+			}
+
+			if (!activeSprint || Number(tarefa.id_sprint) !== Number(activeSprint.id_sprint)) {
+				base.BACKLOG.push(tarefa);
+				return;
+			}
+
 			base[normalizeStatus(tarefa.status_task)].push(tarefa);
 		});
 
 		return base;
-	}, [tasksOfSelectedProject]);
+	}, [activeSprint, tasksOfSelectedProject]);
 
 	const filteredGrouped = useMemo(() => {
 		if (!query.trim()) {
@@ -737,23 +850,41 @@ export default function Projetos() {
 		}
 
 		const term = normalizeSearchText(query);
-		const base: Record<BoardStatus, TarefaApi[]> = {
+		const base: Record<BoardColumnKey, TarefaApi[]> = {
+			BACKLOG: [],
 			TO_DO: [],
 			DOING: [],
 			TESTE: [],
 			APROVADO: [],
+			HISTORY: [],
 		};
 
-		( Object.keys(grouped) as BoardStatus[] ).forEach((status) => {
+		(Object.keys(grouped) as BoardColumnKey[]).forEach((status) => {
 			base[status] = grouped[status].filter((item) => {
 				const title = normalizeSearchText(item.titulo);
-
 				return title.includes(term);
 			});
 		});
 
 		return base;
 	}, [grouped, query]);
+
+	const visibleBoardColumns = useMemo(
+		() => BOARD_COLUMNS.filter((column) => visibleColumns[column.key]),
+		[visibleColumns],
+	);
+
+	const hiddenBoardColumns = useMemo(
+		() => BOARD_COLUMNS.filter((column) => !visibleColumns[column.key]),
+		[visibleColumns],
+	);
+
+	const toggleColumnVisibility = (key: BoardColumnKey) => {
+		setVisibleColumns((current) => ({
+			...current,
+			[key]: !current[key],
+		}));
+	};
 
 	const selectedRelatedUsers = useMemo(
 		() => {
@@ -992,6 +1123,79 @@ export default function Projetos() {
 		}
 	};
 
+	const onCreateSprint = async (event: FormEvent<HTMLFormElement>) => {
+		event.preventDefault();
+
+		if (!isAdmin || !selectedProjectId) {
+			return;
+		}
+
+		setIsCreatingSprint(true);
+		setError(null);
+
+		try {
+			const response = await fetch(apiRoutes.sprints, {
+				method: "POST",
+				credentials: "same-origin",
+				headers: {
+					"Content-Type": "application/json",
+					...mutationHeaders,
+				},
+				body: JSON.stringify({
+					id_projeto: selectedProjectId,
+					nome_sprint: sprintForm.nome_sprint || null,
+					data_inicio: sprintForm.data_inicio,
+					data_fim: sprintForm.data_fim,
+				}),
+			});
+
+			if (!response.ok) {
+				const payloadError = (await response.json().catch(() => null)) as { message?: string } | null;
+				throw new Error(payloadError?.message ?? "Erro ao criar sprint");
+			}
+
+			setSprintForm({ nome_sprint: "", data_inicio: "", data_fim: "" });
+			await fetchSprints(selectedProjectId);
+			setSuccessMessage("Sprint criada com sucesso");
+		} catch (error) {
+			setError(error instanceof Error ? error.message : "Nao foi possivel criar a sprint.");
+		} finally {
+			setIsCreatingSprint(false);
+		}
+	};
+
+	const onCloseActiveSprint = async () => {
+		if (!isAdmin || !activeSprint || !selectedProjectId) {
+			return;
+		}
+
+		setIsClosingSprint(true);
+		setError(null);
+
+		try {
+			const response = await fetch(apiRoutes.sprintsEncerrar(activeSprint.id_sprint), {
+				method: "PATCH",
+				credentials: "same-origin",
+				headers: mutationHeaders,
+			});
+
+			if (!response.ok) {
+				const payloadError = (await response.json().catch(() => null)) as { message?: string } | null;
+				throw new Error(payloadError?.message ?? "Erro ao encerrar sprint");
+			}
+
+			await Promise.all([
+				fetchBoard(),
+				fetchSprints(selectedProjectId),
+			]);
+			setSuccessMessage("Sprint encerrada. Cards concluídos foram para History.");
+		} catch (error) {
+			setError(error instanceof Error ? error.message : "Nao foi possivel encerrar a sprint.");
+		} finally {
+			setIsClosingSprint(false);
+		}
+	};
+
 	const onSaveProject = async (event: FormEvent<HTMLFormElement>) => {
 		event.preventDefault();
 
@@ -1182,29 +1386,53 @@ export default function Projetos() {
 		}
 	};
 
-	const moveTaskToColumn = async (taskId: number, nextStatus: BoardStatus) => {
+	const moveTaskToColumn = async (taskId: number, nextStatus: BoardColumnKey) => {
 		const tarefaAtual = tarefas.find((item) => item.id_tarefa === taskId);
 
 		if (!tarefaAtual) {
 			return;
 		}
 
-		const oldStatus = normalizeStatus(tarefaAtual.status_task);
+		if (tarefaAtual.em_historico || nextStatus === "HISTORY") {
+			return;
+		}
 
-		if (oldStatus === nextStatus) {
+		if (nextStatus !== "BACKLOG" && !activeSprint) {
+			setError("Crie uma sprint ativa para mover cards para o fluxo da sprint.");
+			return;
+		}
+
+		const currentColumn: BoardColumnKey = tarefaAtual.em_historico
+			? "HISTORY"
+			: (activeSprint && Number(tarefaAtual.id_sprint) === Number(activeSprint.id_sprint)
+				? normalizeStatus(tarefaAtual.status_task)
+				: "BACKLOG");
+
+		if (currentColumn === nextStatus) {
 			return;
 		}
 
 		setMovingTaskId(taskId);
 		setError(null);
 
+		const patchPayload: Record<string, unknown> = {};
+
+		if (nextStatus === "BACKLOG") {
+			patchPayload.id_sprint = null;
+			patchPayload.em_historico = false;
+		} else {
+			patchPayload.id_sprint = activeSprint?.id_sprint ?? null;
+			patchPayload.em_historico = false;
+			patchPayload.status_task = denormalizeStatus(nextStatus as BoardStatus);
+			patchPayload.progresso = STATUS_PROGRESS[nextStatus as BoardStatus];
+		}
+
 		const previous = [...tarefas];
 		setTarefas((current) => current.map((item) => (
 			item.id_tarefa === taskId
 				? {
 					...item,
-					status_task: denormalizeStatus(nextStatus),
-					progresso: STATUS_PROGRESS[nextStatus],
+					...patchPayload,
 				}
 				: item
 		)));
@@ -1216,10 +1444,7 @@ export default function Projetos() {
 					"Content-Type": "application/json",
 					...mutationHeaders,
 				},
-				body: JSON.stringify({
-					status_task: denormalizeStatus(nextStatus),
-					progresso: getProgressFromStatus(nextStatus),
-				}),
+				body: JSON.stringify(patchPayload),
 			});
 
 			if (!response.ok) {
@@ -1391,6 +1616,27 @@ export default function Projetos() {
 											Resp.: {projeto.responsavel?.nome ?? "Nao definido"}
 										</p>
 
+										{projeto.activeSprint ? (
+											<div className="mt-2 flex items-center justify-between gap-2">
+												<span className="text-sm" style={{ color: "var(--cor-logo2)" }}>
+													Sprint: {displayWithoutAccents(projeto.activeSprint.nome_sprint)} ({formatDate(projeto.activeSprint.data_inicio)} a {formatDate(projeto.activeSprint.data_fim)})
+												</span>
+												<span
+													className="rounded-full px-2 py-1 text-xs font-semibold"
+													style={{
+														backgroundColor: projeto.isOverdueBySprint ? "#fee2e2" : "#dcfce7",
+														color: projeto.isOverdueBySprint ? "#991b1b" : "#166534",
+													}}
+												>
+													{projeto.isOverdueBySprint ? "Atrasado" : "No prazo"}
+												</span>
+											</div>
+										) : (
+											<p className="mt-2 text-sm" style={{ color: "var(--cor-logo2)" }}>
+												Sem sprint ativa
+											</p>
+										)}
+
 										<div className="mt-3 grid grid-cols-2 gap-2 text-base" style={{ color: "var(--cor-logo2)" }}>
 											<span>To Do: {projeto.toDo}</span>
 											<span>Doing: {projeto.doing}</span>
@@ -1451,7 +1697,7 @@ export default function Projetos() {
 				) : (
 					<>
 						<div className="rounded-3xl border" style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-widgets)" }}>
-							<div className="relative flex items-center justify-between gap-3 rounded-t-3xl px-5 py-4" style={{ backgroundColor: "var(--cor-accent)" }}>
+								<div className="relative flex items-center justify-between gap-3 rounded-t-3xl px-4 py-3" style={{ backgroundColor: "var(--cor-accent)" }}>
 								<button
 									type="button"
 									onClick={() => {
@@ -1478,6 +1724,17 @@ export default function Projetos() {
 								</div>
 
 								<div className="flex items-center gap-2">
+									{isAdmin ? (
+										<button
+											type="button"
+											onClick={() => setIsSprintModalOpen(true)}
+											className="inline-flex items-center gap-2 rounded-xl border px-4 py-3 text-base"
+											style={{ borderColor: "rgba(255,255,255,0.45)", color: "#fff" }}
+										>
+											Gerenciar sprints
+										</button>
+									) : null}
+
 									<button
 										type="button"
 										onClick={() => {
@@ -1497,27 +1754,66 @@ export default function Projetos() {
 								</div>
 							</div>
 
-							<div className="flex flex-wrap items-center gap-3 px-5 py-4">
+							<div className="flex flex-wrap items-center gap-2 px-5 py-4">
 								<label
-									className="inline-flex min-w-[280px] flex-1 items-center gap-3 rounded-xl border px-4 py-3"
+									className="inline-flex min-w-[280px] flex-1 items-center gap-2 rounded-xl border px-3 py-2 md:max-w-[560px]"
 									style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-fundo)" }}
 								>
-									<Search size={20} style={{ color: "var(--cor-logo2)" }} />
+									<Search size={18} style={{ color: "var(--cor-logo2)" }} />
 									<input
 										value={query}
 										onChange={(e) => setQuery(e.target.value)}
 										placeholder="Pesquise por nome do card"
-										className="w-full bg-transparent text-lg outline-none"
+										className="w-full bg-transparent text-base outline-none"
 										style={{ color: "var(--cor-logo)" }}
 									/>
 								</label>
 
 								<span
-									className="rounded-xl border px-5 py-3 text-lg"
+									className="w-full rounded-xl border px-3 py-2 text-sm font-medium sm:w-auto sm:min-w-[300px] md:min-w-[360px]"
 									style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-fundo)", color: "var(--cor-logo2)" }}
 								>
-									Fluxo: To Do -{">"} Doing -{">"} Teste -{">"} Aprovado
+									{isLoadingSprints
+										? "Carregando sprint..."
+										: activeSprint
+											? `Sprint: ${displayWithoutAccents(activeSprint.nome_sprint)} (${formatDate(activeSprint.data_inicio)} a ${formatDate(activeSprint.data_fim)})`
+											: "Sem sprint ativa (cards ficam no Backlog)"}
 								</span>
+
+								<details className="relative sm:ml-auto">
+									<summary
+										className="inline-flex h-9 w-9 cursor-pointer list-none items-center justify-center rounded-xl border"
+										style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-fundo)", color: "var(--cor-logo2)" }}
+										title="Mostrar colunas"
+									>
+										<MoreVertical size={16} />
+									</summary>
+									<div
+										className="absolute right-0 z-20 mt-2 min-w-[220px] rounded-xl border p-2 shadow-lg"
+										style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-widgets)", color: "var(--cor-logo)" }}
+									>
+										<p className="px-2 py-1 text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--cor-logo2)" }}>
+											Mostrar colunas
+										</p>
+										{hiddenBoardColumns.length === 0 ? (
+											<p className="px-2 py-2 text-xs" style={{ color: "var(--cor-logo2)" }}>
+												Nenhuma coluna oculta.
+											</p>
+										) : (
+											hiddenBoardColumns.map((column) => (
+												<button
+													key={column.key}
+													type="button"
+													onClick={() => toggleColumnVisibility(column.key)}
+													className="w-full rounded-lg px-2 py-2 text-left text-sm transition"
+													style={{ color: "var(--cor-logo)" }}
+												>
+													Mostrar {column.label}
+												</button>
+											))
+										)}
+									</div>
+								</details>
 							</div>
 						</div>
 
@@ -1527,38 +1823,71 @@ export default function Projetos() {
 							</div>
 						) : null}
 
-						<div className="grid grid-cols-1 gap-3 xl:grid-cols-4">
-					{STATUS_COLUMNS.map((column) => (
+						<div className="flex gap-4 overflow-x-auto pb-3">
+					{visibleBoardColumns.map((column) => (
 						<section
 							key={column.key}
-							className="rounded-2xl border p-3"
+							className="w-[290px] min-w-[290px] rounded-2xl border p-3"
 							onDragOver={(event) => event.preventDefault()}
 							onDrop={(event) => {
+								if (column.key === "HISTORY") {
+									return;
+								}
+
 								event.preventDefault();
 								const rawId = event.dataTransfer.getData("text/plain");
 								const taskId = Number(rawId);
 
 								if (Number.isFinite(taskId)) {
-									void moveTaskToColumn(taskId, column.key);
+									void moveTaskToColumn(taskId, column.key as BoardColumnKey);
 								}
 							}}
 							style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-fundo)" }}
 						>
 							<div className="mb-3 flex items-center justify-between">
-								<h2 className="text-3xl" style={{ color: "var(--cor-logo)" }}>
+								<h2 className="text-lg font-semibold" style={{ color: "var(--cor-logo)" }}>
 									{column.label}
 								</h2>
-								<span className="rounded-full px-2.5 py-1 text-sm" style={{ backgroundColor: "var(--cor-widgets)", color: "var(--cor-logo2)" }}>
-									{filteredGrouped[column.key].length}
-								</span>
+								<div className="flex items-center gap-1.5">
+									<span className="rounded-full px-2.5 py-1 text-sm" style={{ backgroundColor: "var(--cor-widgets)", color: "var(--cor-logo2)" }}>
+										{filteredGrouped[column.key].length}
+									</span>
+									<details className="relative">
+										<summary
+											className="inline-flex h-7 w-7 cursor-pointer list-none items-center justify-center rounded-lg border"
+											style={{ borderColor: "var(--cor-borda)", color: "var(--cor-logo2)" }}
+											title="Opcoes da coluna"
+										>
+											<MoreVertical size={14} />
+										</summary>
+										<div
+											className="absolute right-0 z-20 mt-2 min-w-[140px] rounded-xl border p-1.5 shadow-lg"
+											style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-widgets)" }}
+										>
+											<button
+												type="button"
+												onClick={() => toggleColumnVisibility(column.key)}
+												className="w-full rounded-lg px-2 py-2 text-left text-sm"
+												style={{ color: "var(--cor-logo)" }}
+											>
+												Ocultar
+											</button>
+										</div>
+									</details>
+								</div>
 							</div>
 
 							<div className="space-y-3">
 								{filteredGrouped[column.key].map((tarefa) => (
 									<article
 										key={tarefa.id_tarefa}
-										draggable
+										draggable={!tarefa.em_historico}
 										onDragStart={(event) => {
+											if (tarefa.em_historico) {
+												event.preventDefault();
+												return;
+											}
+
 											event.dataTransfer.setData("text/plain", String(tarefa.id_tarefa));
 											event.dataTransfer.effectAllowed = "move";
 										}}
@@ -1569,13 +1898,13 @@ export default function Projetos() {
 										<div className="h-2 w-full rounded-t-xl" style={{ backgroundColor: priorityColor(tarefa.prioridade_task) }} />
 										<div className="p-3">
 											<div className="mb-2 flex items-start justify-between gap-2">
-												<p className="text-xl leading-tight font-semibold" style={{ color: "var(--cor-logo)" }}>
+												<p className="text-base leading-tight font-semibold" style={{ color: "var(--cor-logo)" }}>
 													{tarefa.titulo}
 												</p>
 												<GripVertical size={16} style={{ color: "#94a2b3" }} />
 											</div>
 
-											<div className="mb-2 flex flex-wrap gap-1.5 text-sm">
+											<div className="mb-2 flex flex-wrap gap-1.5 text-xs">
 												<span className="rounded px-2 py-1 font-semibold" style={{ color: "#fff", backgroundColor: typeColor(tarefa.tipo_task) }}>
 													{typeLabel(tarefa.tipo_task)}
 												</span>
@@ -1589,7 +1918,7 @@ export default function Projetos() {
 												) : null}
 											</div>
 
-											<p className="text-sm" style={{ color: "var(--cor-logo2)" }}>
+											<p className="text-xs" style={{ color: "var(--cor-logo2)" }}>
 												Resp.: {tarefa.responsavel?.nome ?? "Nao definido"}
 											</p>
 											<div className="mt-2 flex items-center gap-1">
@@ -1602,13 +1931,13 @@ export default function Projetos() {
 													</span>
 												) : null}
 											</div>
-											<p className="mt-1 inline-flex items-center gap-1 text-sm" style={{ color: "var(--cor-logo2)" }}>
+											<p className="mt-1 inline-flex items-center gap-1 text-xs" style={{ color: "var(--cor-logo2)" }}>
 												<CalendarDays size={14} />
 												{formatDate(tarefa.data_inicio)} -{">"} {formatDate(tarefa.data_prevista_termino ?? tarefa.prazo)}
 											</p>
 
 											<div className="mt-2">
-												<div className="mb-1 flex items-center justify-between text-sm" style={{ color: "var(--cor-logo2)" }}>
+												<div className="mb-1 flex items-center justify-between text-xs" style={{ color: "var(--cor-logo2)" }}>
 													<span>Progresso</span>
 													<span>{getProgressFromStatus(tarefa.status_task)}%</span>
 												</div>
@@ -1640,6 +1969,11 @@ export default function Projetos() {
 							</div>
 						</section>
 					))}
+						{visibleBoardColumns.length === 0 ? (
+							<div className="rounded-xl border px-4 py-3 text-sm" style={{ borderColor: "var(--cor-borda)", color: "var(--cor-logo2)", backgroundColor: "var(--cor-fundo)" }}>
+								Nenhuma coluna selecionada. Marque ao menos uma em "Colunas".
+							</div>
+						) : null}
 						</div>
 
 						{movingTaskId ? (
@@ -1649,6 +1983,108 @@ export default function Projetos() {
 						) : null}
 					</>
 				)}
+
+				{isSprintModalOpen && isAdmin ? (
+					<div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/45 p-4 backdrop-blur-[3px] animate-fade-in">
+						<div
+							className="w-full max-w-3xl overflow-hidden rounded-2xl shadow-2xl animate-pop-in"
+							style={{ backgroundColor: "var(--cor-widgets)", border: "1px solid var(--cor-borda)" }}
+						>
+							<div className="flex items-center justify-between gap-3 px-6 py-4" style={{ backgroundColor: "var(--cor-primaria)" }}>
+								<h3 className="text-xl font-bold text-white">Gerenciar sprints</h3>
+								<button
+									type="button"
+									onClick={() => setIsSprintModalOpen(false)}
+									className="rounded-xl border border-white/60 bg-white/10 px-4 py-2 text-sm text-white"
+								>
+									Fechar
+								</button>
+							</div>
+
+							<div className="grid gap-5 p-6 md:grid-cols-2">
+								<div className="space-y-3">
+									<h4 className="text-lg" style={{ color: "var(--cor-logo)" }}>Sprints do projeto</h4>
+									<div className="max-h-[320px] space-y-2 overflow-y-auto pr-1">
+										{sprints.length === 0 ? (
+											<p className="text-sm" style={{ color: "var(--cor-logo2)" }}>Nenhuma sprint cadastrada.</p>
+										) : (
+											sprints.map((sprint) => (
+												<div
+													key={sprint.id_sprint}
+													className="rounded-xl border p-3"
+													style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-fundo)" }}
+												>
+													<p className="text-base" style={{ color: "var(--cor-logo)" }}>{displayWithoutAccents(sprint.nome_sprint)}</p>
+													<p className="text-sm" style={{ color: "var(--cor-logo2)" }}>
+														{formatDate(sprint.data_inicio)} -{">"} {formatDate(sprint.data_fim)}
+													</p>
+													<p className="text-xs" style={{ color: sprint.status_sprint === "ATIVA" ? "#1f7a42" : "var(--cor-logo2)" }}>
+														{sprint.status_sprint === "ATIVA" ? "Ativa" : "Encerrada"}
+													</p>
+												</div>
+											))
+										)}
+									</div>
+
+									{activeSprint ? (
+										<button
+											type="button"
+											onClick={() => void onCloseActiveSprint()}
+											disabled={isClosingSprint}
+											className="rounded-xl border px-4 py-2 text-sm"
+											style={{ borderColor: "#d88", color: "#b02a2a", backgroundColor: "#fff5f5" }}
+										>
+											{isClosingSprint ? "Encerrando..." : "Encerrar sprint ativa"}
+										</button>
+									) : null}
+								</div>
+
+								<form className="space-y-3" onSubmit={onCreateSprint}>
+									<h4 className="text-lg" style={{ color: "var(--cor-logo)" }}>Nova sprint</h4>
+									<label className="flex flex-col gap-1 text-sm" style={{ color: "var(--cor-logo)" }}>
+										Nome da sprint
+										<input
+											value={sprintForm.nome_sprint}
+											onChange={(e) => setSprintForm((c) => ({ ...c, nome_sprint: e.target.value }))}
+											className="rounded-xl border bg-white px-4 py-3 text-base shadow-sm"
+										/>
+									</label>
+
+									<label className="flex flex-col gap-1 text-sm" style={{ color: "var(--cor-logo)" }}>
+										Data de inicio *
+										<input
+											required
+											type="date"
+											value={sprintForm.data_inicio}
+											onChange={(e) => setSprintForm((c) => ({ ...c, data_inicio: e.target.value }))}
+											className="rounded-xl border bg-white px-4 py-3 text-base shadow-sm"
+										/>
+									</label>
+
+									<label className="flex flex-col gap-1 text-sm" style={{ color: "var(--cor-logo)" }}>
+										Data de finalizacao *
+										<input
+											required
+											type="date"
+											value={sprintForm.data_fim}
+											onChange={(e) => setSprintForm((c) => ({ ...c, data_fim: e.target.value }))}
+											className="rounded-xl border bg-white px-4 py-3 text-base shadow-sm"
+										/>
+									</label>
+
+									<button
+										type="submit"
+										disabled={isCreatingSprint}
+										className="rounded-xl border px-4 py-2.5 text-base"
+										style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-botao)", color: "var(--cor-logo)" }}
+									>
+										{isCreatingSprint ? "Criando..." : "Criar sprint"}
+									</button>
+								</form>
+							</div>
+						</div>
+					</div>
+				) : null}
 
 				{isProjectModalOpen && isAdmin ? (
 					<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 p-4 backdrop-blur-[2px] animate-fade-in">
