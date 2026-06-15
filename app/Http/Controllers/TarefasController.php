@@ -24,6 +24,27 @@ class TarefasController extends Controller
         return $id > 0 ? $id : null;
     }
 
+    private function isArchiveStatus(?string $status): bool
+    {
+        if ($status === null) {
+            return false;
+        }
+
+        $status = strtoupper(trim($status));
+
+        return in_array($status, ['APROVADO', 'DONE', 'CONCLUIDA', 'CONCLUÍDA'], true);
+    }
+
+    private function archiveApprovedTask(Tarefa $tarefa): void
+    {
+        if ($this->isArchiveStatus((string) $tarefa->status_task)) {
+            $tarefa->update([
+                'em_historico' => true,
+                'id_sprint' => null,
+            ]);
+        }
+    }
+
     private function rules(bool $isUpdate = false): array
     {
         $tituloRule = $isUpdate ? 'sometimes|required|string|min:2|max:255' : 'required|string|min:2|max:255';
@@ -119,7 +140,10 @@ class TarefasController extends Controller
             $validated['prazo'] = $validated['data_prevista_termino'];
         }
 
-        if (array_key_exists('id_sprint', $validated) && $validated['id_sprint']) {
+        if ($this->isArchiveStatus($validated['status_task'] ?? null)) {
+            $validated['em_historico'] = true;
+            $validated['id_sprint'] = null;
+        } elseif (array_key_exists('id_sprint', $validated) && $validated['id_sprint']) {
             $validated['em_historico'] = false;
         }
 
@@ -186,6 +210,7 @@ class TarefasController extends Controller
         }
 
         $tarefa->update($validated);
+        $this->archiveApprovedTask($tarefa);
 
         if ($hasRelacionados) {
             $tarefa->relacionados()->sync($relacionados);
@@ -259,6 +284,7 @@ class TarefasController extends Controller
         $statusAnterior = (string) ($tarefa->status_task ?? '');
 
         $tarefa->update(['status_task' => $validated['status_task']]);
+        $this->archiveApprovedTask($tarefa);
 
         $titulo = trim((string) $tarefa->titulo);
         Notificacoes::logSistema($autorId, 'editar_status_tarefa', sprintf('Alterou status da tarefa "%s".', $titulo));
