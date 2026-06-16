@@ -5,6 +5,7 @@ export const frontRoutes = {
     equipe: '/equipe',
     projetos: '/projetos',
     usuariosAdmin: '/usuarios',
+    gestao: '/gestao',
     login: '/login',
     settings: '/settings',
 } as const;

@@ -35,6 +35,7 @@ Route::middleware('session.auth')->group(function () {
 	Route::inertia('/projetos',   'projetos/projetos')->name('projetos');
 
 	Route::middleware('admin.access')->group(function () {
+		Route::inertia('/gestao', 'gestao/gestao')->name('gestao');
 		Route::inertia('/usuarios', 'usuarios/usuarios')->name('usuarios.admin');
 	});
 });

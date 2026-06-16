@@ -26,6 +26,11 @@ class UsuariosController extends Controller
         return Schema::hasTable('usuarios') && Schema::hasColumn('usuarios', 'status_atual');
     }
 
+    private function usuariosTemEquipe(): bool
+    {
+        return Schema::hasTable('usuarios') && Schema::hasColumn('usuarios', 'id_equipe');
+    }
+
     private function isAdmin(Request $request): bool
     {
         if (! $request->hasSession()) {
@@ -44,9 +49,10 @@ class UsuariosController extends Controller
 
     private function respostaUsuario(Usuario $usuario, bool $includeSensitiveData = true): array
     {
-        $usuario->loadMissing('cargoRelation');
+        $usuario->loadMissing(['cargoRelation', 'equipeRelation']);
 
         $cargoRelation = $usuario->cargoRelation;
+        $equipeRelation = $usuario->equipeRelation;
 
         $ultimoAcesso = Schema::hasTable('user_presences')
             ? UserPresence::where('user_id', $usuario->id_usuario)->max('last_seen')
@@ -60,6 +66,12 @@ class UsuariosController extends Controller
             'cargo_relation' => $cargoRelation ? [
                 'id_cargo'   => $cargoRelation->id_cargo,
                 'nome_cargo' => $cargoRelation->nome_cargo,
+            ] : null,
+            'id_equipe'     => $usuario->id_equipe,
+            'equipe_relation' => $equipeRelation ? [
+                'id_equipe' => $equipeRelation->id_equipe,
+                'nome'      => $equipeRelation->nome,
+                'tipo'      => $equipeRelation->tipo,
             ] : null,
             'nivel'         => $usuario->nivel,
             'status_atual'  => $usuario->status_atual,
@@ -136,6 +148,7 @@ class UsuariosController extends Controller
             'cargo'       => 'nullable|string|exists:cargos,nome_cargo',
             'nivel'       => 'nullable|string',
             'status_atual' => 'nullable|string|max:40',
+            'id_equipe'   => 'nullable|integer|exists:equipes,id_equipe',
             'telefone'    => 'nullable|string|max:30',
             'localizacao' => 'nullable|string|max:120',
             'senha'       => 'required|string|min:6',
@@ -157,6 +170,10 @@ class UsuariosController extends Controller
                 $dadosUsuario['status_atual'] = $validated['status_atual'] ?? 'Ativo';
             }
 
+            if ($this->usuariosTemEquipe()) {
+                $dadosUsuario['id_equipe'] = $validated['id_equipe'] ?? null;
+            }
+
             $usuario = Usuario::create($dadosUsuario);
 
             Senha::create([
@@ -168,7 +185,7 @@ class UsuariosController extends Controller
             return $usuario;
         });
 
-        $usuario->load('cargoRelation');
+        $usuario->load(['cargoRelation', 'equipeRelation']);
 
         return response()->json([
             'success' => true,
@@ -199,6 +216,7 @@ class UsuariosController extends Controller
             ],
             'cargo'       => 'nullable|string|exists:cargos,nome_cargo',
             'nivel'       => 'nullable|string',
+            'id_equipe'   => 'nullable|integer|exists:equipes,id_equipe',
             'telefone'    => 'nullable|string|max:30',
             'localizacao' => 'nullable|string|max:120',
         ]);
@@ -214,8 +232,12 @@ class UsuariosController extends Controller
             'localizacao' => $validated['localizacao'] ?? null,
         ];
 
+        if ($this->usuariosTemEquipe()) {
+            $updateData['id_equipe'] = $validated['id_equipe'] ?? null;
+        }
+
         $usuario->update($updateData);
-        $usuario->load('cargoRelation');
+        $usuario->load(['cargoRelation', 'equipeRelation']);
 
         return response()->json([
             'success' => true,

@@ -5,7 +5,7 @@ import ActiveUsers from "@/components/ActiveUsers";
 import Header from "@/components/Header";
 import Sidebar from "@/components/Sidebar";
 
-type PageName = "dashboard" | "performance" | "tasks" | "team" | "users-admin" | "settings";
+type PageName = "dashboard" | "performance" | "tasks" | "team" | "gestao" | "users-admin" | "settings";
 
 interface DashboardLayoutProps {
     children: ReactNode;

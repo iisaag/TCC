@@ -1,6 +1,8 @@
 import { usePage } from "@inertiajs/react";
-import { useEffect, useState } from "react";
+import { ChevronRight, Layers3, Users2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import DashboardLayout from "@/layouts/DashboardLayout";
+import { apiRoutes } from "@/lib/routes";
 
 type PresenceStatus = "online" | "ocupado" | "ausente" | "não perturbe" | "offline";
 
@@ -14,6 +16,21 @@ type TeamUser = {
     phone?: string | null;
     location?: string | null;
     avatar?: string;
+    id_equipe?: number | null;
+    equipe_relation?: {
+        id_equipe: number;
+        nome: string;
+        tipo?: string | null;
+    } | null;
+};
+
+type TeamRecord = {
+    id_equipe: number;
+    nome: string;
+    criado_por?: number | null;
+    equipe_pai?: number | null;
+    tipo?: string | null;
+    data_criacao?: string | null;
 };
 
 type TeamMember = {
@@ -38,6 +55,10 @@ type TeamPageProps = {
             };
         } | null;
     };
+};
+
+type ApiEnvelope<T> = {
+    data?: T;
 };
 
 type PresenceUsersResponse = {
@@ -79,6 +100,73 @@ function inferDepartment(role: string): string {
     if (lower.includes("dire") || lower.includes("ceo") || lower.includes("fundador")) return "Direção";
 
     return "Equipe";
+}
+
+function normalizeText(value: string): string {
+    return value
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase()
+        .trim();
+}
+
+function resolveTeamName(user: TeamUser, teams: TeamRecord[]): string {
+    if (user.equipe_relation?.nome) {
+        return user.equipe_relation.nome;
+    }
+
+    const role = normalizeText(user.role);
+    const userName = normalizeText(user.name);
+
+    if (typeof user.id_equipe === "number") {
+        const directTeam = teams.find((team) => team.id_equipe === user.id_equipe);
+        if (directTeam) {
+            return directTeam.nome;
+        }
+    }
+
+    const createdTeam = teams.find((team) => team.criado_por === user.id);
+    if (createdTeam) {
+        return createdTeam.nome;
+    }
+
+    const matchedByRole = teams.find((team) => {
+        const teamName = normalizeText(team.nome);
+
+        return (
+            role.includes(teamName)
+            || teamName.includes(role)
+            || (role.includes("desenvol") && teamName.includes("back"))
+            || (role.includes("desenvol") && teamName.includes("dev"))
+            || (role.includes("design") && teamName.includes("design"))
+            || (role.includes("analis") && teamName.includes("analise"))
+            || (role.includes("gerent") && teamName.includes("produto"))
+            || (role.includes("gerent") && teamName.includes("oper"))
+            || (userName.includes("ana clara") && teamName.includes("desenvol"))
+        );
+    });
+
+    if (matchedByRole) {
+        return matchedByRole.nome;
+    }
+
+    if (role.includes("desenvol")) {
+        return "Equipe de Desenvolvimento";
+    }
+
+    if (role.includes("design")) {
+        return "Equipe de Design";
+    }
+
+    if (role.includes("analis")) {
+        return "Equipe de Analise";
+    }
+
+    if (role.includes("gerent")) {
+        return "Equipe de Gestao";
+    }
+
+    return inferDepartment(user.role);
 }
 
 function classifyLeader(role: string): "ceo" | "manager" | "member" {
@@ -232,6 +320,83 @@ function buildHierarchy(users: TeamUser[]): { ceo: TeamMember; managers: TeamMem
     return { ceo, managers, members };
 }
 
+function formatDate(raw?: string | null): string {
+    if (!raw) {
+        return "—";
+    }
+
+    const parsed = new Date(raw);
+    if (Number.isNaN(parsed.getTime())) {
+        return "—";
+    }
+
+    return parsed.toLocaleDateString("pt-BR");
+}
+
+function TeamTreeCard({
+    team,
+    ownerName,
+    subteams,
+}: {
+    team: TeamRecord;
+    ownerName: string;
+    subteams: TeamRecord[];
+}) {
+    return (
+        <article className="rounded-2xl border border-[#d7e4f0] bg-white/95 p-5 shadow-[0_12px_30px_rgba(28,76,130,0.1)] dark:border-[#2d4353] dark:bg-[#1c2a35]/95">
+            <div className="flex items-start justify-between gap-3">
+                <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="text-xl font-semibold text-[#0f2746] dark:text-[#d8ecfb]">{team.nome}</h3>
+                        <span className="rounded-full border border-[#c9d9e8] bg-[#eef5fb] px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#5b728e] dark:border-[#395669] dark:bg-[#22313d] dark:text-[#c6e7ff]">
+                            {team.tipo ?? "SUBEQUIPE"}
+                        </span>
+                    </div>
+                    <p className="mt-1 text-sm text-[#47658f] dark:text-[#9fc0d8]">Criada por {ownerName}</p>
+                    <p className="text-sm text-[#47658f] dark:text-[#9fc0d8]">Data de criação: {formatDate(team.data_criacao)}</p>
+                </div>
+
+                <div className="rounded-full bg-[#eaf3ff] p-2 text-[#2f5ea6] dark:bg-[#22313d] dark:text-[#c6e7ff]">
+                    <Layers3 size={18} />
+                </div>
+            </div>
+
+            {subteams.length > 0 ? (
+                <div className="mt-5 space-y-3 border-t border-[#dbe7fb] pt-4 dark:border-[#2d4353]">
+                    <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.22em] text-[#61799d] dark:text-[#9fc0d8]">
+                        <ChevronRight size={14} />
+                        Subequipes
+                    </div>
+
+                    <div className="space-y-2">
+                        {subteams.map((subteam) => (
+                            <div
+                                key={subteam.id_equipe}
+                                className="flex items-center justify-between rounded-xl border border-[#dbe7fb] bg-[#f8fbff] px-4 py-3 dark:border-[#2d4353] dark:bg-[#22313d]"
+                            >
+                                <div>
+                                    <p className="font-medium text-[#12284a] dark:text-[#d8ecfb]">{subteam.nome}</p>
+                                    <p className="text-xs text-[#61799d] dark:text-[#9fc0d8]">
+                                        Tipo: {subteam.tipo ?? "SUBEQUIPE"} · Criada em {formatDate(subteam.data_criacao)}
+                                    </p>
+                                </div>
+
+                                <span className="rounded-full bg-[#edf3fb] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#4f6788] dark:bg-[#1c2a35] dark:text-[#c6e7ff]">
+                                    ID {subteam.id_equipe}
+                                </span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            ) : (
+                <p className="mt-4 border-t border-[#dbe7fb] pt-4 text-sm text-[#61799d] dark:border-[#2d4353] dark:text-[#9fc0d8]">
+                    Nenhuma subequipe vinculada.
+                </p>
+            )}
+        </article>
+    );
+}
+
 function MemberCard({ member, compact = false }: { member: TeamMember; compact?: boolean }) {
     const initials = member.name
         .split(" ")
@@ -281,10 +446,51 @@ function MemberCard({ member, compact = false }: { member: TeamMember; compact?:
 export default function Equipe() {
     const page = usePage<TeamPageProps>();
     const [users, setUsers] = useState<TeamUser[]>(page.props.projectUsers ?? []);
+    const [equipes, setEquipes] = useState<TeamRecord[]>([]);
+    const [loadingTeams, setLoadingTeams] = useState(true);
 
     useEffect(() => {
         setUsers(page.props.projectUsers ?? []);
     }, [page.props.projectUsers]);
+
+    useEffect(() => {
+        let isMounted = true;
+
+        const loadTeams = async () => {
+            setLoadingTeams(true);
+
+            try {
+                const response = await fetch(apiRoutes.equipes, {
+                    headers: {
+                        Accept: "application/json",
+                    },
+                });
+
+                if (!response.ok || !isMounted) {
+                    return;
+                }
+
+                const payload = (await response.json()) as ApiEnvelope<{ equipes?: TeamRecord[] }>;
+                if (isMounted) {
+                    setEquipes(payload.data?.equipes ?? []);
+                }
+            } catch {
+                if (isMounted) {
+                    setEquipes([]);
+                }
+            } finally {
+                if (isMounted) {
+                    setLoadingTeams(false);
+                }
+            }
+        };
+
+        void loadTeams();
+
+        return () => {
+            isMounted = false;
+        };
+    }, []);
 
     useEffect(() => {
         let isMounted = true;
@@ -326,6 +532,35 @@ export default function Equipe() {
 
     const { ceo, managers, members } = buildHierarchy(users);
 
+    const teamLabels = useMemo(() => {
+        const map = new Map<number, string>();
+
+        for (const user of users) {
+            map.set(user.id, resolveTeamName(user, equipes));
+        }
+
+        return map;
+    }, [users, equipes]);
+
+    const teamsByParent = useMemo(() => {
+        const grouped = new Map<number | null, TeamRecord[]>();
+
+        for (const team of equipes) {
+            const parent = team.equipe_pai ?? null;
+            const current = grouped.get(parent) ?? [];
+            current.push(team);
+            grouped.set(parent, current);
+        }
+
+        for (const entry of grouped.values()) {
+            entry.sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+        }
+
+        return grouped;
+    }, [equipes]);
+
+    const rootTeams = useMemo(() => teamsByParent.get(null) ?? [], [teamsByParent]);
+
     return (
         <DashboardLayout currentPage="team">
             <section className="relative isolate overflow-hidden rounded-3xl border border-[#d5e4ff] bg-gradient-to-b from-[#edf5ff] via-[#f5f7ff] to-[#f6f2ff] p-4 sm:p-6 lg:p-10 dark:border-[#2d4353] dark:bg-none dark:bg-[#16232d]">
@@ -340,7 +575,7 @@ export default function Equipe() {
 
                 <div className="relative z-10 mx-auto max-w-6xl">
                     <div className="mx-auto max-w-sm animate-[fadeIn_600ms_ease-out_forwards] opacity-0 [animation-delay:80ms]">
-                        <MemberCard member={ceo} compact />
+                        <MemberCard member={{ ...ceo, department: teamLabels.get(ceo.id) ?? ceo.department }} compact />
                     </div>
 
                     {managers.length > 0 && (
@@ -358,7 +593,7 @@ export default function Equipe() {
                                         style={{ animationDelay: `${140 + index * 80}ms` }}
                                     >
                                         <div className="absolute -top-8 left-1/2 hidden h-8 w-px -translate-x-1/2 bg-[#b8d4ff] dark:bg-[#3a5f7d] lg:block" />
-                                        <MemberCard member={manager} compact />
+                                        <MemberCard member={{ ...manager, department: teamLabels.get(manager.id) ?? manager.department }} compact />
                                     </div>
                                 ))}
                             </div>
@@ -380,12 +615,52 @@ export default function Equipe() {
                                         style={{ animationDelay: `${260 + index * 70}ms` }}
                                     >
                                         <div className="absolute -top-8 left-1/2 hidden h-8 w-px -translate-x-1/2 bg-[#c2d9ff] dark:bg-[#3a5f7d] lg:block" />
-                                        <MemberCard member={member} compact />
+                                        <MemberCard member={{ ...member, department: teamLabels.get(member.id) ?? member.department }} compact />
                                     </div>
                                 ))}
                             </div>
                         </>
                     )}
+
+                    <section className="mt-12 rounded-[2rem] border border-[#d5e4ff] bg-white/80 p-5 shadow-[0_14px_40px_rgba(20,56,110,0.1)] backdrop-blur dark:border-[#2d4353] dark:bg-[#16232d]/90">
+                        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#dbe7fb] pb-4 dark:border-[#2d4353]">
+                            <div>
+                                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.22em] text-[#61799d] dark:text-[#9fc0d8]">
+                                    <Users2 size={14} />
+                                    Estrutura das equipes
+                                </div>
+                                <h2 className="mt-2 text-2xl font-semibold text-[#12284a] dark:text-[#d3e8f8]">
+                                    Equipes principais e subequipes
+                                </h2>
+                            </div>
+
+                            <div className="rounded-full bg-[#eef5ff] px-4 py-2 text-sm font-medium text-[#355684] dark:bg-[#22313d] dark:text-[#c6e7ff]">
+                                {loadingTeams ? "Carregando equipes..." : `${equipes.length} equipe(s) cadastrada(s)`}
+                            </div>
+                        </div>
+
+                        <div className="mt-6 grid grid-cols-1 gap-5 lg:grid-cols-2">
+                            {rootTeams.length > 0 ? (
+                                rootTeams.map((team) => {
+                                    const subteams = teamsByParent.get(team.id_equipe) ?? [];
+                                    const owner = users.find((user) => user.id === team.criado_por)?.name ?? "Nao informado";
+
+                                    return (
+                                        <TeamTreeCard
+                                            key={team.id_equipe}
+                                            team={team}
+                                            ownerName={owner}
+                                            subteams={subteams}
+                                        />
+                                    );
+                                })
+                            ) : (
+                                <div className="rounded-2xl border border-dashed border-[#c9d9e8] bg-[#f8fbff] p-6 text-sm text-[#61799d] dark:border-[#2d4353] dark:bg-[#22313d] dark:text-[#9fc0d8]">
+                                    Nenhuma equipe principal cadastrada ainda.
+                                </div>
+                            )}
+                        </div>
+                    </section>
                 </div>
             </section>
 

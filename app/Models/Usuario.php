@@ -22,6 +22,7 @@ class Usuario extends Model
         'cargo',
         'nivel',
         'status_atual',
+        'id_equipe',
         'data_criacao',
     ];
 
@@ -62,5 +63,10 @@ class Usuario extends Model
     public function cargoRelation()
     {
         return $this->belongsTo('App\Models\Cargo', 'cargo', 'nome_cargo');
+    }
+
+    public function equipeRelation()
+    {
+        return $this->belongsTo('App\Models\Equipe', 'id_equipe', 'id_equipe');
     }
 }

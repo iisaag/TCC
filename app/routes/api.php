@@ -27,7 +27,8 @@ Route::middleware(['web', 'session.auth'])->group(function (): void {
 
 	// Equipes
 	Route::get('equipes/subequipes/total',           [EquipesController::class, 'totalSubequipes']);
-	Route::apiResource('equipes', EquipesController::class);
+	Route::get('equipes',                            [EquipesController::class, 'index']);
+	Route::get('equipes/{equipe}',                    [EquipesController::class, 'show']);
 
 	// Historico de Progresso
 	Route::get('historico-progresso/tarefa/{id}/ultimo', [HistoricoProgressoController::class, 'showUltimo']);
@@ -67,6 +68,12 @@ Route::middleware(['web', 'session.auth'])->group(function (): void {
 
 		// Cargos
 		Route::apiResource('cargos', CargosController::class);
+
+		// Equipes (gestao)
+		Route::post('equipes',                       [EquipesController::class, 'store']);
+		Route::put('equipes/{equipe}',               [EquipesController::class, 'update']);
+		Route::patch('equipes/{equipe}',             [EquipesController::class, 'update']);
+		Route::delete('equipes/{equipe}',            [EquipesController::class, 'destroy']);
 
 		// Log Projeto
 		Route::get('log-projeto/total/por-projeto',  [LogProjetoController::class, 'totalPorProjeto']);

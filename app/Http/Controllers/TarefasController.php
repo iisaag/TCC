@@ -8,9 +8,26 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 
 class TarefasController extends Controller
 {
+    private function hasSprintsTable(): bool
+    {
+        return Schema::hasTable('sprints');
+    }
+
+    private function tarefaRelations(): array
+    {
+        $relations = ['projeto', 'responsavel', 'relacionados'];
+
+        if ($this->hasSprintsTable()) {
+            $relations[] = 'sprint';
+        }
+
+        return $relations;
+    }
+
     private function authUserId(Request $request): ?int
     {
         $authUser = $request->session()->get('auth.user');
@@ -48,12 +65,15 @@ class TarefasController extends Controller
     private function rules(bool $isUpdate = false): array
     {
         $tituloRule = $isUpdate ? 'sometimes|required|string|min:2|max:255' : 'required|string|min:2|max:255';
+        $sprintRule = $this->hasSprintsTable()
+            ? 'nullable|integer|exists:sprints,id_sprint'
+            : 'nullable|integer';
 
         return [
             'titulo'                => $tituloRule,
             'descricao'             => 'nullable|string',
             'id_projeto'            => 'nullable|integer|exists:projetos,id_projeto',
-            'id_sprint'             => 'nullable|integer|exists:sprints,id_sprint',
+            'id_sprint'             => $sprintRule,
             'id_responsavel'        => 'nullable|integer|exists:usuarios,id_usuario',
             'prioridade_task'       => 'nullable|string|in:BAIXA,MEDIA,ALTA,CRITICA',
             'tipo_task'             => 'nullable|string|in:FRONT,BACK,FULLSTACK',
@@ -72,7 +92,7 @@ class TarefasController extends Controller
     public function index(Request $request): JsonResponse
     {
         try {
-            $query = Tarefa::with(['projeto', 'sprint', 'responsavel', 'relacionados'])
+            $query = Tarefa::with($this->tarefaRelations())
                 ->orderByRaw('COALESCE(data_prevista_termino, prazo) asc');
 
             $porProjeto     = $request->filled('id_projeto')     ? (int) $request->id_projeto     : null;
@@ -112,7 +132,7 @@ class TarefasController extends Controller
 
     public function show(int $id): JsonResponse
     {
-        $tarefa = Tarefa::with(['projeto', 'sprint', 'responsavel', 'relacionados'])->find($id);
+        $tarefa = Tarefa::with($this->tarefaRelations())->find($id);
 
         if (!$tarefa) {
             return response()->json([
@@ -153,7 +173,7 @@ class TarefasController extends Controller
             $tarefa->relacionados()->sync($relacionados);
         }
 
-        $tarefa->load(['projeto', 'sprint', 'responsavel', 'relacionados']);
+        $tarefa->load($this->tarefaRelations());
 
         $titulo = trim((string) $tarefa->titulo);
         Notificacoes::logSistema($autorId, 'criar_tarefa', sprintf('Criou a tarefa "%s".', $titulo));
@@ -216,7 +236,7 @@ class TarefasController extends Controller
             $tarefa->relacionados()->sync($relacionados);
         }
 
-        $tarefa->load(['projeto', 'sprint', 'responsavel', 'relacionados']);
+        $tarefa->load($this->tarefaRelations());
 
         $titulo = trim((string) $tarefa->titulo);
         Notificacoes::logSistema($autorId, 'atualizar_tarefa', sprintf('Atualizou a tarefa "%s".', $titulo));

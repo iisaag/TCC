@@ -33,7 +33,7 @@ import { frontRoutes } from "@/lib/routes";
 
 // TIPOS
 
-type PageName = "dashboard" | "performance" | "tasks" | "team" | "users-admin" | "settings";
+type PageName = "dashboard" | "performance" | "tasks" | "team" | "gestao" | "users-admin" | "settings";
 
 interface SidebarProps {
 
@@ -55,6 +55,7 @@ const navItems = [
 
 const adminNavItems = [
     { name: "users-admin" as PageName, label: "Usuários", href: frontRoutes.usuariosAdmin, icon: <UserCog size={20} /> },
+    {  name: "gestao" as PageName, label: "Gestão", href: frontRoutes.gestao, icon: <UserCog size={20} /> },
 ];
 
 // ------------------------------------------------------------------

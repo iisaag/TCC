@@ -103,7 +103,7 @@ class HandleInertiaRequests extends Middleware
         }
 
         $projectUsers = $hasUsuariosTable
-            ? Usuario::orderBy('nome', 'asc')->get()->map(function (Usuario $usuario) use ($onlineIds, $nivelAcessoPorEmail) {
+            ? Usuario::with('equipeRelation')->orderBy('nome', 'asc')->get()->map(function (Usuario $usuario) use ($onlineIds, $nivelAcessoPorEmail) {
                 $cargoTexto = $usuario->getRawOriginal('cargo');
                 $isOnline = in_array((int) $usuario->id_usuario, $onlineIds, true);
                 $customStatus = is_string($usuario->status_atual) && in_array($usuario->status_atual, self::ALLOWED_STATUS, true)
@@ -111,6 +111,7 @@ class HandleInertiaRequests extends Middleware
                     : 'online';
                 $nivelAcesso = $nivelAcessoPorEmail[strtolower((string) $usuario->email)] ?? '';
                 $isAdmin = in_array($nivelAcesso, ['adm'], true);
+                $equipeRelation = $usuario->equipeRelation;
 
                 return [
                     'id' => (int) $usuario->id_usuario,
@@ -124,6 +125,12 @@ class HandleInertiaRequests extends Middleware
                     'avatar' => $usuario->foto_perfil ?: null,
                     'status' => $isOnline ? $customStatus : 'offline',
                     'is_admin' => $isAdmin,
+                    'id_equipe' => $usuario->id_equipe,
+                    'equipe_relation' => $equipeRelation ? [
+                        'id_equipe' => $equipeRelation->id_equipe,
+                        'nome' => $equipeRelation->nome,
+                        'tipo' => $equipeRelation->tipo,
+                    ] : null,
                 ];
             })->values()
             : collect();

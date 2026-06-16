@@ -52,6 +52,12 @@ interface Usuario {
     status_atual?: string | null;
     data_criacao?: string | null;
     ultimo_acesso?: string | null;
+    id_equipe?: number | null;
+    equipe_relation?: {
+        id_equipe: number;
+        nome: string;
+        tipo?: string | null;
+    } | null;
 }
 
 interface SenhaRegistro {
@@ -106,6 +112,7 @@ interface UserForm {
     nome: string;
     email: string;
     cargo: string;
+    id_equipe: string;
     nivel: string;
     senha: string;
     nivel_acesso: AccessLevel;
@@ -118,6 +125,7 @@ const EMPTY_FORM: UserForm = {
     nome: "",
     email: "",
     cargo: "",
+    id_equipe: "",
     nivel: "",
     senha: "",
     nivel_acesso: "usuario",
@@ -566,6 +574,7 @@ export default function UsuariosAdminPage() {
             nome: user.nome,
             email: user.email ?? "",
             cargo: user.cargo ?? "",
+            id_equipe: user.id_equipe ? String(user.id_equipe) : "",
             nivel: user.nivel ?? "",
             telefone: (user as any).telefone ?? "",
             localizacao: (user as any).localizacao ?? "",
@@ -616,6 +625,7 @@ export default function UsuariosAdminPage() {
                     nome: form.nome,
                     email: form.email,
                     cargo: form.cargo || null,
+                    id_equipe: form.id_equipe ? Number(form.id_equipe) : null,
                     nivel: form.nivel || null,
                     status_atual: form.status_atual,
                     telefone: form.telefone || null,
@@ -651,13 +661,16 @@ export default function UsuariosAdminPage() {
                     nome: form.nome,
                     email: form.email,
                     cargo: form.cargo || null,
+                    id_equipe: form.id_equipe ? Number(form.id_equipe) : null,
                     nivel: form.nivel || null,
                     status_atual: form.status_atual,
                     telefone: form.telefone || null,
                     localizacao: form.localizacao || null,
                 }),
             });
-            if (!uRes.ok) throw new Error();
+            if (!uRes.ok) {
+                throw new Error(await readApiMessage(uRes, "Não foi possível atualizar o funcionário."));
+            }
             await fetch(`${apiRoutes.senhas}/${encodeURIComponent(form.email)}/nivel-acesso`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json", Accept: "application/json", "X-Requested-With": "XMLHttpRequest", "X-CSRF-TOKEN": csrfToken },
@@ -1080,6 +1093,29 @@ export default function UsuariosAdminPage() {
                                             {cargos.map((cargo) => (
                                                 <SelectItem key={cargo.id_cargo} value={cargo.nome_cargo} style={{ color: "var(--cor-logo)" }}>
                                                     {cargo.nome_cargo}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </label>
+
+                                <label className="flex flex-col gap-1.5 text-sm font-medium" style={{ color: "var(--cor-logo)" }}>
+                                    Equipe
+                                    <Select
+                                        value={form.id_equipe || "__none__"}
+                                        onValueChange={(v) => setForm((f) => ({ ...f, id_equipe: v === "__none__" ? "" : v }))}
+                                    >
+                                        <SelectTrigger
+                                            className="w-full rounded-xl border text-sm"
+                                            style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-fundo)", color: "var(--cor-logo)" }}
+                                        >
+                                            <SelectValue placeholder="Selecione uma equipe" />
+                                        </SelectTrigger>
+                                        <SelectContent className="border" style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-widgets)", color: "var(--cor-logo)" }}>
+                                            <SelectItem value="__none__" style={{ color: "var(--cor-logo2)" }}>Sem equipe</SelectItem>
+                                            {equipes.map((equipe) => (
+                                                <SelectItem key={equipe.id_equipe} value={String(equipe.id_equipe)} style={{ color: "var(--cor-logo)" }}>
+                                                    {equipe.nome}
                                                 </SelectItem>
                                             ))}
                                         </SelectContent>
