@@ -23,9 +23,17 @@ import { apiRoutes } from "@/lib/routes";
 
 type BoardStatus = "TO_DO" | "DOING" | "TESTE" | "APROVADO";
 
+interface SprintApi {
+    id_sprint: number;
+    data_fim: string;
+    status_sprint: string;
+}
+
 interface TarefaApi {
     id_tarefa: number;
     id_projeto?: number | null;
+    id_sprint?: number | null;
+    sprint?: SprintApi | null;
     prioridade_task?: string | null;
     tipo_task?: string | null;
     data_inicio?: string | null;
@@ -126,8 +134,20 @@ function parseDate(value?: string | null): Date | null {
     return parsed;
 }
 
+function isTaskLate(task: TarefaApi, today: Date): boolean {
+    if (normalizeStatus(task.status_task) === "APROVADO") return false;
+
+    if (task.sprint?.status_sprint === "ATIVA") {
+        const sprintEnd = parseDate(task.sprint.data_fim);
+        return sprintEnd !== null && sprintEnd < today;
+    }
+
+    const dueDate = parseDate(task.data_prevista_termino) ?? parseDate(task.prazo);
+    return dueDate !== null && dueDate < today;
+}
+
 function taskMonthIndex(task: TarefaApi): number {
-    const date = parseDate(task.data_inicio) ?? parseDate(task.data_prevista_termino) ?? parseDate(task.prazo) ?? new Date();
+    const date = parseDate(task.sprint?.data_fim) ?? parseDate(task.data_inicio) ?? parseDate(task.prazo) ?? new Date();
 
     return date.getMonth();
 }
@@ -316,24 +336,15 @@ export default function Desempenho() {
     }, [tarefasFiltradas]);
 
     const barData = useMemo(() => {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
         if (selectedProjetoId) {
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-
-            const atrasadas = tarefasFiltradas.filter((task) => {
-                const dueDate = parseDate(task.data_prevista_termino) ?? parseDate(task.prazo);
-                const isDone = normalizeStatus(task.status_task) === "APROVADO";
-
-                return Boolean(dueDate && dueDate < today && !isDone);
-            }).length;
-
+            const atrasadas = tarefasFiltradas.filter((task) => isTaskLate(task, today)).length;
             const emDia = tarefasFiltradas.length - atrasadas;
 
             return [{ projeto: projetoFiltrado?.nome_projeto ?? "Projeto", atrasadas, emDia }];
         }
-
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
 
         const grouped = new Map<string, { projeto: string; atrasadas: number; emDia: number }>();
 
@@ -351,11 +362,7 @@ export default function Desempenho() {
                 return;
             }
 
-            const dueDate = parseDate(task.data_prevista_termino) ?? parseDate(task.prazo);
-            const isDone = normalizeStatus(task.status_task) === "APROVADO";
-            const isLate = Boolean(dueDate && dueDate < today && !isDone);
-
-            if (isLate) {
+            if (isTaskLate(task, today)) {
                 row.atrasadas += 1;
             } else {
                 row.emDia += 1;
@@ -367,19 +374,9 @@ export default function Desempenho() {
 
     const kpisExecutivos = useMemo(() => {
         const total = tarefasFiltradas.length;
-        const atrasadas = tarefasFiltradas.filter((task) => {
-            const dueDate = parseDate(task.data_prevista_termino) ?? parseDate(task.prazo);
-            const isDone = normalizeStatus(task.status_task) === "APROVADO";
-
-            if (!dueDate || isDone) {
-                return false;
-            }
-
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-
-            return dueDate < today;
-        }).length;
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const atrasadas = tarefasFiltradas.filter((task) => isTaskLate(task, today)).length;
 
         const taxaAtraso = total > 0 ? (atrasadas / total) * 100 : 0;
 

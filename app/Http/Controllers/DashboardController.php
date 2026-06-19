@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Equipe;
 use App\Models\Meta;
 use App\Models\Projeto;
+use App\Models\Sprint;
 use App\Models\Tarefa;
 use App\Models\Usuario;
 use Illuminate\Http\JsonResponse;
@@ -249,13 +250,20 @@ class DashboardController extends Controller
                 self::CONCLUIDOS
             )->count();
 
-            $tarefasAtrasadas = Tarefa::whereNotIn(
-                DB::raw('UPPER(status_task)'),
-                self::CONCLUIDOS
-            )
-            ->whereNotNull('prazo')
-            ->where('prazo', '<', $hoje)
-            ->count();
+            // Sprint-based: tasks in active sprint past its end date
+            $tarefasAtrasadasSprint = Tarefa::whereNotIn(DB::raw('UPPER(status_task)'), self::CONCLUIDOS)
+                ->whereNotNull('id_sprint')
+                ->whereHas('sprint', fn($q) => $q->where('status_sprint', 'ATIVA')->whereDate('data_fim', '<', $hoje))
+                ->count();
+
+            // Fallback: tasks without sprint and with prazo in the past
+            $tarefasAtrasadasSemSprint = Tarefa::whereNotIn(DB::raw('UPPER(status_task)'), self::CONCLUIDOS)
+                ->whereNull('id_sprint')
+                ->whereNotNull('prazo')
+                ->whereDate('prazo', '<', $hoje)
+                ->count();
+
+            $tarefasAtrasadas = $tarefasAtrasadasSprint + $tarefasAtrasadasSemSprint;
 
             $tarefasConcluidas = Tarefa::whereIn(
                 DB::raw('UPPER(status_task)'),
@@ -279,20 +287,39 @@ class DashboardController extends Controller
                 )
                 ->get()
                 ->map(function ($projeto) use ($hoje) {
-                    $progresso  = $this->calcularProgressoProjeto((int) $projeto->id_projeto);
-                    $prazoFinal = $projeto->prazo_final ? Carbon::parse($projeto->prazo_final) : null;
+                    $progresso   = $this->calcularProgressoProjeto((int) $projeto->id_projeto);
+                    $sprintAtiva = Sprint::where('id_projeto', $projeto->id_projeto)
+                        ->where('status_sprint', 'ATIVA')
+                        ->first();
 
-                    if ($prazoFinal) {
-                        $diasRestantes = $hoje->diffInDays($prazoFinal, false);
-                        if ($diasRestantes < 0) {
+                    if ($sprintAtiva) {
+                        $sprintFim = Carbon::parse($sprintAtiva->data_fim)->endOfDay();
+                        $pendentes = Tarefa::where('id_sprint', $sprintAtiva->id_sprint)
+                            ->whereNotIn(DB::raw('UPPER(status_task)'), self::CONCLUIDOS)
+                            ->where('em_historico', false)
+                            ->count();
+
+                        if ($hoje->gt($sprintFim) && $pendentes > 0) {
                             $status = 'ATRASADO';
-                        } elseif ($diasRestantes <= 14 && $progresso < 80) {
+                        } elseif ($sprintFim->diffInDays($hoje, false) >= -3 && $pendentes > 0) {
                             $status = 'EM_RISCO';
                         } else {
                             $status = 'EM_DIA';
                         }
                     } else {
-                        $status = 'EM_DIA';
+                        $prazoFinal = $projeto->prazo_final ? Carbon::parse($projeto->prazo_final) : null;
+                        if ($prazoFinal) {
+                            $diasRestantes = $hoje->diffInDays($prazoFinal, false);
+                            if ($diasRestantes < 0) {
+                                $status = 'ATRASADO';
+                            } elseif ($diasRestantes <= 14 && $progresso < 80) {
+                                $status = 'EM_RISCO';
+                            } else {
+                                $status = 'EM_DIA';
+                            }
+                        } else {
+                            $status = 'EM_DIA';
+                        }
                     }
 
                     return [
@@ -430,32 +457,44 @@ class DashboardController extends Controller
             // ----------------------------------------------------------------
             // Resumo Operacional
             // ----------------------------------------------------------------
-            $tarefasAtrasadasLista = Tarefa::with(['projeto', 'responsavel'])
+            $tarefasAtrasadasLista = Tarefa::with(['projeto', 'responsavel', 'sprint'])
                 ->whereNotIn(DB::raw('UPPER(status_task)'), self::CONCLUIDOS)
-                ->whereNotNull('prazo')
-                ->where('prazo', '<', $hoje)
-                ->orderBy('prazo')
+                ->where(function ($q) use ($hoje) {
+                    $q->where(function ($inner) use ($hoje) {
+                        $inner->whereNotNull('id_sprint')
+                              ->whereHas('sprint', fn($sq) => $sq->where('status_sprint', 'ATIVA')->whereDate('data_fim', '<', $hoje));
+                    })->orWhere(function ($inner) use ($hoje) {
+                        $inner->whereNull('id_sprint')->whereNotNull('prazo')->whereDate('prazo', '<', $hoje);
+                    });
+                })
                 ->take(5)
                 ->get()
                 ->map(fn($t) => [
                     'titulo'      => $t->titulo,
                     'projeto'     => $t->projeto?->nome_projeto ?? '-',
                     'responsavel' => $t->responsavel?->nome ?? '-',
-                    'prazo'       => $t->prazo,
+                    'prazo'       => $t->sprint ? $t->sprint->data_fim : $t->prazo,
                 ]);
 
-            $vencendoEm7Dias = Tarefa::with(['projeto', 'responsavel'])
+            $vencendoEm7Dias = Tarefa::with(['projeto', 'responsavel', 'sprint'])
                 ->whereNotIn(DB::raw('UPPER(status_task)'), self::CONCLUIDOS)
-                ->whereNotNull('prazo')
-                ->whereBetween('prazo', [$hoje, $hoje->copy()->addDays(7)])
-                ->orderBy('prazo')
+                ->where(function ($q) use ($hoje) {
+                    $q->where(function ($inner) use ($hoje) {
+                        $inner->whereNotNull('id_sprint')
+                              ->whereHas('sprint', fn($sq) => $sq->where('status_sprint', 'ATIVA')
+                                  ->whereBetween('data_fim', [$hoje, $hoje->copy()->addDays(7)]));
+                    })->orWhere(function ($inner) use ($hoje) {
+                        $inner->whereNull('id_sprint')->whereNotNull('prazo')
+                              ->whereBetween('prazo', [$hoje, $hoje->copy()->addDays(7)]);
+                    });
+                })
                 ->take(5)
                 ->get()
                 ->map(fn($t) => [
                     'titulo'      => $t->titulo,
                     'projeto'     => $t->projeto?->nome_projeto ?? '-',
                     'responsavel' => $t->responsavel?->nome ?? '-',
-                    'prazo'       => $t->prazo,
+                    'prazo'       => $t->sprint ? $t->sprint->data_fim : $t->prazo,
                 ]);
 
             $semResponsavel = Tarefa::with('projeto')

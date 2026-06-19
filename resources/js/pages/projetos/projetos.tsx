@@ -1,5 +1,5 @@
 import { usePage } from "@inertiajs/react";
-import { ArrowLeft, CalendarDays, ChevronDown, GripVertical, History, MoreVertical, Pencil, Plus, RotateCcw, Search, Trash2 } from "lucide-react";
+import { ArrowLeft, ChevronDown, GripVertical, History, MoreVertical, Pencil, Plus, RotateCcw, Search, Trash2 } from "lucide-react";
 import type { FormEvent} from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import DashboardLayout from "@/layouts/DashboardLayout";
@@ -101,8 +101,6 @@ interface FormState {
 	id_responsavel: string;
 	prioridade_task: "BAIXA" | "MEDIA" | "ALTA" | "CRITICA";
 	tipo_task: "FRONT" | "BACK" | "FULLSTACK";
-	data_inicio: string;
-	data_prevista_termino: string;
 	bloqueada: boolean;
 	status_task: BoardStatus;
 	relacionados: number[];
@@ -143,8 +141,6 @@ const EMPTY_FORM: FormState = {
 	id_responsavel: "",
 	prioridade_task: "MEDIA",
 	tipo_task: "FRONT",
-	data_inicio: "",
-	data_prevista_termino: "",
 	bloqueada: false,
 	status_task: "TO_DO",
 	relacionados: [],
@@ -955,8 +951,6 @@ export default function Projetos() {
 				id_responsavel: form.id_responsavel ? Number(form.id_responsavel) : null,
 				prioridade_task: form.prioridade_task,
 				tipo_task: form.tipo_task,
-				data_inicio: form.data_inicio || null,
-				data_prevista_termino: form.data_prevista_termino || null,
 				progresso: STATUS_PROGRESS[form.status_task],
 				bloqueada: form.bloqueada,
 				status_task: denormalizeStatus(form.status_task),
@@ -1264,8 +1258,6 @@ export default function Projetos() {
 			id_responsavel: task.id_responsavel ? String(task.id_responsavel) : "",
 			prioridade_task: normalizePriorityValue(task.prioridade_task),
 			tipo_task: normalizeTipoValue(task.tipo_task),
-			data_inicio: task.data_inicio ? String(task.data_inicio).slice(0, 10) : "",
-			data_prevista_termino: (task.data_prevista_termino ?? task.prazo) ? String(task.data_prevista_termino ?? task.prazo).slice(0, 10) : "",
 			bloqueada: Boolean(task.bloqueada),
 			status_task: normalizeStatus(task.status_task),
 			relacionados: relatedIds,
@@ -1322,8 +1314,6 @@ export default function Projetos() {
 				id_responsavel: detailsForm.id_responsavel ? Number(detailsForm.id_responsavel) : null,
 				prioridade_task: detailsForm.prioridade_task,
 				tipo_task: detailsForm.tipo_task,
-				data_inicio: detailsForm.data_inicio || null,
-				data_prevista_termino: detailsForm.data_prevista_termino || null,
 				progresso: STATUS_PROGRESS[detailsForm.status_task],
 				bloqueada: detailsForm.bloqueada,
 				status_task: denormalizeStatus(detailsForm.status_task),
@@ -1931,11 +1921,6 @@ export default function Projetos() {
 													</span>
 												) : null}
 											</div>
-											<p className="mt-1 inline-flex items-center gap-1 text-xs" style={{ color: "var(--cor-logo2)" }}>
-												<CalendarDays size={14} />
-												{formatDate(tarefa.data_inicio)} -{">"} {formatDate(tarefa.data_prevista_termino ?? tarefa.prazo)}
-											</p>
-
 											<div className="mt-2">
 												<div className="mb-1 flex items-center justify-between text-xs" style={{ color: "var(--cor-logo2)" }}>
 													<span>Progresso</span>
@@ -2378,26 +2363,6 @@ export default function Projetos() {
 								</label>
 
 								<label className="flex flex-col gap-1 text-base" style={{ color: "var(--cor-logo)" }}>
-									Data de inicio
-									<input
-										type="date"
-										value={form.data_inicio}
-										onChange={(e) => setForm((c) => ({ ...c, data_inicio: e.target.value }))}
-										className="rounded-xl border bg-white px-4 py-3 text-base shadow-sm"
-									/>
-								</label>
-
-								<label className="flex flex-col gap-1 text-base" style={{ color: "var(--cor-logo)" }}>
-									Data prevista para terminar
-									<input
-										type="date"
-										value={form.data_prevista_termino}
-										onChange={(e) => setForm((c) => ({ ...c, data_prevista_termino: e.target.value }))}
-										className="rounded-xl border bg-white px-4 py-3 text-base shadow-sm"
-									/>
-								</label>
-
-								<label className="flex flex-col gap-1 text-base" style={{ color: "var(--cor-logo)" }}>
 									Status
 									<select
 										value={form.status_task}
@@ -2488,24 +2453,24 @@ export default function Projetos() {
 					<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 p-4 backdrop-blur-[2px] animate-fade-in">
 						<form
 							onSubmit={onSaveDetails}
-							className="w-full max-w-4xl overflow-hidden rounded-2xl shadow-2xl animate-pop-in"
+							className="w-full max-w-xl overflow-hidden rounded-xl shadow-2xl animate-pop-in"
 							style={{ backgroundColor: "var(--cor-widgets)", border: "1px solid var(--cor-borda)" }}
 						>
 							{/* Cabeçalho azul */}
 							<div
-								className="flex items-center justify-between px-8 py-5"
+								className="flex items-center justify-between px-5 py-3"
 								style={{ backgroundColor: "var(--cor-primaria)" }}
 							>
-								<h2 className="text-4xl font-bold text-white">
+								<h2 className="text-base font-bold text-white">
 									Card #{selectedTask.id_tarefa}
 								</h2>
-								<div className="flex gap-3">
+								<div className="flex gap-2">
 									{!isEditingDetails ? (
 										<>
 											<button
 												type="button"
 												onClick={() => setIsEditingDetails(true)}
-												className="rounded-xl border border-white/60 bg-white/10 px-5 py-2 text-lg text-white transition hover:bg-white/20"
+												className="rounded-lg border border-white/60 bg-white/10 px-3 py-1 text-sm text-white transition hover:bg-white/20"
 											>
 												Editar
 											</button>
@@ -2513,7 +2478,7 @@ export default function Projetos() {
 												type="button"
 												onClick={() => setIsDeleteConfirmOpen(true)}
 												disabled={isDeleting}
-												className="rounded-xl border border-white/60 bg-white/10 px-5 py-2 text-lg text-white transition hover:bg-white/20"
+												className="rounded-lg border border-white/60 bg-white/10 px-3 py-1 text-sm text-white transition hover:bg-white/20"
 											>
 												Excluir
 											</button>
@@ -2527,7 +2492,7 @@ export default function Projetos() {
 											setIsEditingDetails(false);
 											setSelectedTask(null);
 										}}
-										className="rounded-xl border border-white/60 bg-white/10 px-5 py-2 text-lg text-white transition hover:bg-white/20"
+										className="rounded-lg border border-white/60 bg-white/10 px-3 py-1 text-sm text-white transition hover:bg-white/20"
 									>
 										Fechar
 									</button>
@@ -2535,20 +2500,20 @@ export default function Projetos() {
 							</div>
 
 							{/* Corpo do modal */}
-							<div className="p-8">
-								<div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-									<label className="flex flex-col gap-2 text-lg font-medium" style={{ color: "var(--cor-logo)" }}>
+							<div className="p-5">
+								<div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+									<label className="flex flex-col gap-1 text-sm font-medium" style={{ color: "var(--cor-logo)" }}>
 										Título
 										<input
 											disabled={!isEditingDetails}
 											value={detailsForm.titulo}
 											onChange={(e) => setDetailsForm((c) => ({ ...c, titulo: e.target.value }))}
-											className="rounded-xl border px-4 py-3 text-xl outline-none transition focus:ring-2"
+											className="rounded-lg border px-3 py-2 text-sm outline-none transition focus:ring-2"
 											style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-widgets)", color: "var(--cor-logo)" }}
 										/>
 									</label>
 
-									<label className="flex flex-col gap-2 text-lg font-medium" style={{ color: "var(--cor-logo)" }}>
+									<label className="flex flex-col gap-1 text-sm font-medium" style={{ color: "var(--cor-logo)" }}>
 										Responsável
 										<CustomSelect
 											disabled={!isEditingDetails}
@@ -2561,7 +2526,7 @@ export default function Projetos() {
 										/>
 									</label>
 
-									<label className="flex flex-col gap-2 text-lg font-medium" style={{ color: "var(--cor-logo)" }}>
+									<label className="flex flex-col gap-1 text-sm font-medium" style={{ color: "var(--cor-logo)" }}>
 										Prioridade
 										<CustomSelect
 											disabled={!isEditingDetails}
@@ -2576,7 +2541,7 @@ export default function Projetos() {
 										/>
 									</label>
 
-									<label className="flex flex-col gap-2 text-lg font-medium" style={{ color: "var(--cor-logo)" }}>
+									<label className="flex flex-col gap-1 text-sm font-medium" style={{ color: "var(--cor-logo)" }}>
 										Status
 										<CustomSelect
 											disabled={!isEditingDetails}
@@ -2588,48 +2553,48 @@ export default function Projetos() {
 								</div>
 
 								{/* Badges de prioridade e tipo */}
-								<div className="mt-4 flex flex-wrap gap-2">
+								<div className="mt-3 flex flex-wrap gap-1.5">
 									<span
-										className="rounded-full px-4 py-1.5 text-base font-semibold text-white"
+										className="rounded-full px-3 py-1 text-xs font-semibold text-white"
 										style={{ backgroundColor: priorityColor(detailsForm.prioridade_task) }}
 									>
 										Prioridade: {priorityLabel(detailsForm.prioridade_task)}
 									</span>
 									<span
-										className="rounded-full px-4 py-1.5 text-base font-semibold text-white"
+										className="rounded-full px-3 py-1 text-xs font-semibold text-white"
 										style={{ backgroundColor: typeColor(detailsForm.tipo_task) }}
 									>
 										{typeLabel(detailsForm.tipo_task)}
 									</span>
 									{detailsForm.bloqueada ? (
-										<span className="rounded-full bg-rose-500 px-4 py-1.5 text-base font-semibold text-white">Bloqueada</span>
+										<span className="rounded-full bg-rose-500 px-3 py-1 text-xs font-semibold text-white">Bloqueada</span>
 									) : null}
 								</div>
 
-								<label className="mt-5 flex flex-col gap-2 text-lg font-medium" style={{ color: "var(--cor-logo)" }}>
+								<label className="mt-4 flex flex-col gap-1 text-sm font-medium" style={{ color: "var(--cor-logo)" }}>
 									Detalhes
 									<textarea
 										disabled={!isEditingDetails}
-										rows={5}
+										rows={3}
 										value={detailsForm.descricao}
 										onChange={(e) => setDetailsForm((c) => ({ ...c, descricao: e.target.value }))}
-										className="rounded-xl border px-4 py-3 text-lg outline-none transition focus:ring-2 resize-none"
+										className="rounded-lg border px-3 py-2 text-sm outline-none transition focus:ring-2 resize-none"
 										style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-widgets)", color: "var(--cor-logo)" }}
 									/>
 								</label>
 
 								{/* Pessoas relacionadas */}
 								<div
-									className="mt-5 rounded-xl p-5"
+									className="mt-4 rounded-lg p-3"
 									style={{ backgroundColor: "var(--cor-fundo)", border: "1px solid var(--cor-borda)" }}
 								>
-									<div className="mb-4 flex items-center justify-between">
-										<p className="text-lg font-semibold" style={{ color: "var(--cor-logo)" }}>Pessoas relacionadas</p>
+									<div className="mb-2 flex items-center justify-between">
+										<p className="text-sm font-semibold" style={{ color: "var(--cor-logo)" }}>Pessoas relacionadas</p>
 										{isEditingDetails && me?.id ? (
 											<button
 												type="button"
 												onClick={addMeToRelacionadosDetails}
-												className="rounded-lg border px-4 py-1.5 text-base"
+												className="rounded-lg border px-3 py-1 text-xs"
 												style={{ borderColor: "var(--cor-borda)", color: "var(--cor-logo)" }}
 											>
 												Me adicionar
@@ -2638,7 +2603,7 @@ export default function Projetos() {
 									</div>
 
 									{selectedRelatedUsers.length > 0 ? (
-										<div className="flex flex-col gap-3">
+										<div className="flex flex-col gap-2">
 											{selectedRelatedUsers.map((usuario) => {
 												const fullUser = usuarios.find((u) => u.id_usuario === getUsuarioId(usuario));
 												const nomeCargo = fullUser?.cargo_relation?.nome_cargo ?? null;
@@ -2646,13 +2611,13 @@ export default function Projetos() {
 												return (
 													<div
 														key={`related-avatar-${getUsuarioId(usuario) ?? usuario.nome}`}
-														className="flex items-center gap-4"
+														className="flex items-center gap-2"
 													>
-														<AvatarPill usuario={usuario} size={48} />
+														<AvatarPill usuario={usuario} size={32} />
 														<div className="flex flex-col">
-															<span className="text-base font-medium" style={{ color: "var(--cor-logo)" }}>{usuario.nome}</span>
+															<span className="text-sm font-medium" style={{ color: "var(--cor-logo)" }}>{usuario.nome}</span>
 															{nomeCargo ? (
-																<span className="text-sm" style={{ color: "var(--cor-logo2)" }}>{nomeCargo}</span>
+																<span className="text-xs" style={{ color: "var(--cor-logo2)" }}>{nomeCargo}</span>
 															) : null}
 														</div>
 													</div>
@@ -2660,21 +2625,21 @@ export default function Projetos() {
 											})}
 										</div>
 									) : (
-										<span className="text-lg" style={{ color: "var(--cor-logo2)" }}>
+										<span className="text-sm" style={{ color: "var(--cor-logo2)" }}>
 											Sem pessoas relacionadas neste card.
 										</span>
 									)}
 
 									{isEditingDetails ? (
-										<div className="mt-4 grid grid-cols-1 gap-2 md:grid-cols-2">
+										<div className="mt-3 grid grid-cols-1 gap-1.5 md:grid-cols-2">
 											{usuarios.map((usuario) => (
-												<label key={usuario.id_usuario} className="flex items-center gap-2 text-lg" style={{ color: "var(--cor-logo)" }}>
+												<label key={usuario.id_usuario} className="flex items-center gap-2 text-sm" style={{ color: "var(--cor-logo)" }}>
 													<input
 														type="checkbox"
 														checked={detailsForm.relacionados.includes(usuario.id_usuario)}
 														onChange={() => onToggleRelacionadoDetails(usuario.id_usuario)}
 													/>
-													<AvatarPill usuario={usuario} size={28} />
+													<AvatarPill usuario={usuario} size={22} />
 													{usuario.nome}
 												</label>
 											))}
@@ -2683,11 +2648,11 @@ export default function Projetos() {
 								</div>
 
 								{isEditingDetails ? (
-									<div className="mt-6 flex justify-end gap-3">
+									<div className="mt-4 flex justify-end gap-2">
 										<button
 											type="button"
 											onClick={() => setIsEditingDetails(false)}
-											className="rounded-xl border px-6 py-2.5 text-lg"
+											className="rounded-lg border px-4 py-1.5 text-sm"
 											style={{ borderColor: "var(--cor-borda)", color: "var(--cor-logo)" }}
 										>
 											Cancelar edição
@@ -2695,7 +2660,7 @@ export default function Projetos() {
 										<button
 											type="submit"
 											disabled={isUpdating}
-											className="rounded-xl px-6 py-2.5 text-lg text-white transition hover:opacity-90"
+											className="rounded-lg px-4 py-1.5 text-sm text-white transition hover:opacity-90"
 											style={{ backgroundColor: "var(--cor-primaria)" }}
 										>
 											{isUpdating ? "Salvando..." : "Salvar alterações"}

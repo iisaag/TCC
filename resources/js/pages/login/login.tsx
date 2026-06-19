@@ -1,4 +1,4 @@
-import { Head, useForm } from "@inertiajs/react";
+﻿import { Head, useForm } from "@inertiajs/react";
 import type { FormEvent } from "react";
 import { useState } from "react";
 
@@ -115,15 +115,15 @@ export default function Login() {
 										>
 											{showPassword ? (
 												<svg aria-hidden="true" viewBox="0 0 24 24" className="size-5" fill="none" stroke="currentColor" strokeWidth="2">
+													<path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12z" />
+													<circle cx="12" cy="12" r="3" />
+												</svg>
+											) : (
+												<svg aria-hidden="true" viewBox="0 0 24 24" className="size-5" fill="none" stroke="currentColor" strokeWidth="2">
 													<path d="M3 3l18 18" />
 													<path d="M10.6 10.6a2 2 0 002.8 2.8" />
 													<path d="M9.9 5.1A10.8 10.8 0 0112 5c6.5 0 10 7 10 7a18 18 0 01-4.2 5.2" />
 													<path d="M6.1 6.1C3.8 7.7 2 12 2 12s3.5 7 10 7c1.9 0 3.5-.6 4.9-1.5" />
-												</svg>
-											) : (
-												<svg aria-hidden="true" viewBox="0 0 24 24" className="size-5" fill="none" stroke="currentColor" strokeWidth="2">
-													<path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12z" />
-													<circle cx="12" cy="12" r="3" />
 												</svg>
 											)}
 										</button>
