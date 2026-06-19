@@ -72,6 +72,7 @@ class UsuariosController extends Controller
                 'id_equipe' => $equipeRelation->id_equipe,
                 'nome'      => $equipeRelation->nome,
                 'tipo'      => $equipeRelation->tipo,
+                'id_lider'  => $equipeRelation->id_lider,
             ] : null,
             'nivel'         => $usuario->nivel,
             'status_atual'  => $usuario->status_atual,

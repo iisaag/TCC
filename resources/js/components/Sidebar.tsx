@@ -54,8 +54,7 @@ const navItems = [
 ];
 
 const adminNavItems = [
-    { name: "users-admin" as PageName, label: "Usuários", href: frontRoutes.usuariosAdmin, icon: <UserCog size={20} /> },
-    {  name: "gestao" as PageName, label: "Gestão", href: frontRoutes.gestao, icon: <UserCog size={20} /> },
+    { name: "gestao" as PageName, label: "Gestão", href: frontRoutes.gestao, icon: <UserCog size={20} /> },
 ];
 
 // ------------------------------------------------------------------
@@ -187,7 +186,7 @@ export default function Sidebar({ currentPage, isAdmin = false }: SidebarProps) 
                                     transition-all duration-300
                                     whitespace-nowrap
                                     ${isActive
-                                        ? "text-white"          // cor do texto ativo
+                                        ? "text-white hover:bg-white/10 hover:scale-105 hover:shadow-sm"
                                         : "text-(--cor-textoII) hover:text-gray-800 hover:bg-gray-100 hover:shadow-md hover:scale-105"
                                     }
                                 `}

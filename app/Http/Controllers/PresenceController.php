@@ -94,8 +94,9 @@ class PresenceController extends Controller
                 'id_equipe' => $usuario->id_equipe,
                 'equipe_relation' => $equipeRelation ? [
                     'id_equipe' => $equipeRelation->id_equipe,
-                    'nome' => $equipeRelation->nome,
-                    'tipo' => $equipeRelation->tipo,
+                    'nome'      => $equipeRelation->nome,
+                    'tipo'      => $equipeRelation->tipo,
+                    'id_lider'  => $equipeRelation->id_lider,
                 ] : null,
             ];
         })->values();

@@ -1,6 +1,8 @@
 CREATE DATABASE IF NOT EXISTS TCC;
 USE tcc;
 
+SET FOREIGN_KEY_CHECKS = 0;
+
 # TABELA CARGOS
 CREATE TABLE IF NOT EXISTS cargos (
     id_cargo INT AUTO_INCREMENT PRIMARY KEY,
@@ -15,12 +17,51 @@ CREATE TABLE IF NOT EXISTS usuarios (
     email VARCHAR(150) NOT NULL UNIQUE,
     telefone VARCHAR(30) NULL,
     localizacao VARCHAR(120) NULL,
+    perfil_tags TEXT NULL,
+    perfil_sobre TEXT NULL,
     foto_perfil LONGTEXT,
     cargo VARCHAR(100),
     nivel VARCHAR(50),
+    status_atual VARCHAR(40) DEFAULT 'Ativo',
+    id_equipe INT DEFAULT NULL,
     data_criacao DATETIME DEFAULT CURRENT_TIMESTAMP,
 
-    FOREIGN KEY (cargo) REFERENCES cargos(nome_cargo)
+    FOREIGN KEY (cargo) REFERENCES cargos(nome_cargo),
+    FOREIGN KEY (id_equipe) REFERENCES equipes(id_equipe)
+        ON DELETE SET NULL
+        ON UPDATE CASCADE
+);
+
+# TABELA USER_PRESENCES (rastreia ultimo_acesso de cada usuário por sessão)
+CREATE TABLE IF NOT EXISTS user_presences (
+    session_id VARCHAR(191) PRIMARY KEY,
+    user_id INT UNSIGNED NOT NULL,
+    last_seen TIMESTAMP NULL,
+    created_at TIMESTAMP NULL,
+    updated_at TIMESTAMP NULL,
+    FOREIGN KEY (user_id) REFERENCES usuarios(id_usuario)
+        ON DELETE CASCADE
+);
+
+# TABELA USUARIOS_EXCLUIDOS (arquivo temporário — 30 dias para restaurar)
+CREATE TABLE IF NOT EXISTS usuarios_excluidos (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    id_usuario_original INT UNSIGNED NULL,
+    nome VARCHAR(100) NOT NULL,
+    email VARCHAR(150) NOT NULL,
+    telefone VARCHAR(30) NULL,
+    localizacao VARCHAR(120) NULL,
+    foto_perfil LONGTEXT NULL,
+    cargo VARCHAR(100) NULL,
+    nivel VARCHAR(50) NULL,
+    status_atual VARCHAR(40) NULL,
+    nivel_acesso VARCHAR(50) DEFAULT 'usuario',
+    senha_hash VARCHAR(255) NULL,
+    projetos_afetados INT UNSIGNED DEFAULT 0,
+    equipes_afetadas INT UNSIGNED DEFAULT 0,
+    excluido_em DATETIME NOT NULL,
+    expira_em DATETIME NOT NULL,
+    INDEX idx_expira_em (expira_em)
 );
 
 # TABELA SENHA
@@ -39,11 +80,15 @@ CREATE TABLE IF NOT EXISTS equipes (
     criado_por INT NOT NULL,
     equipe_pai INT DEFAULT NULL,
     tipo VARCHAR(50) DEFAULT 'SUBEQUIPE',
+    id_lider INT DEFAULT NULL,
     data_criacao DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (criado_por) REFERENCES usuarios(id_usuario)
         ON DELETE CASCADE
         ON UPDATE CASCADE,
     FOREIGN KEY (equipe_pai) REFERENCES equipes(id_equipe)
+        ON DELETE SET NULL
+        ON UPDATE CASCADE,
+    FOREIGN KEY (id_lider) REFERENCES usuarios(id_usuario)
         ON DELETE SET NULL
         ON UPDATE CASCADE
 );
@@ -59,6 +104,38 @@ CREATE TABLE IF NOT EXISTS projetos (
     prioridade_proj VARCHAR(15),
     id_responsavel INT,
     FOREIGN KEY (id_responsavel) REFERENCES usuarios(id_usuario)
+);
+
+# TABELA PROJETOS_EXCLUIDOS (arquivo temporario para restauracao)
+CREATE TABLE IF NOT EXISTS projetos_excluidos (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    id_projeto_original INT UNSIGNED NULL,
+    nome_projeto VARCHAR(255) NOT NULL,
+    descricao TEXT NULL,
+    data_inicio DATE NULL,
+    prazo_final DATE NULL,
+    status_projeto VARCHAR(100) NULL,
+    prioridade_proj VARCHAR(20) NULL,
+    id_responsavel INT UNSIGNED NULL,
+    tarefas_afetadas INT UNSIGNED DEFAULT 0,
+    metas_afetadas INT UNSIGNED DEFAULT 0,
+    excluido_em DATETIME NOT NULL,
+    expira_em DATETIME NOT NULL,
+    INDEX idx_proj_expira (expira_em)
+);
+
+# TABELA SPRINTS
+CREATE TABLE IF NOT EXISTS sprints (
+    id_sprint INT AUTO_INCREMENT PRIMARY KEY,
+    id_projeto INT NOT NULL,
+    nome_sprint VARCHAR(120) NOT NULL,
+    data_inicio DATE NOT NULL,
+    data_fim DATE NOT NULL,
+    status_sprint VARCHAR(20) DEFAULT 'ATIVA',
+    encerrada_em DATETIME NULL,
+    FOREIGN KEY (id_projeto) REFERENCES projetos(id_projeto)
+        ON DELETE CASCADE,
+    INDEX idx_sprint_proj_status (id_projeto, status_sprint)
 );
 
 # TABELA METAS
@@ -78,6 +155,7 @@ CREATE TABLE IF NOT EXISTS tarefas (
     titulo VARCHAR(150) NOT NULL,
     descricao TEXT,
     id_projeto INT,
+    id_sprint INT UNSIGNED NULL,
     id_responsavel INT,
     prioridade_task VARCHAR(15),
     tipo_task VARCHAR(20),
@@ -87,8 +165,21 @@ CREATE TABLE IF NOT EXISTS tarefas (
     bloqueada BOOLEAN DEFAULT FALSE,
     prazo DATE,
     status_task VARCHAR(50),
+    em_historico BOOLEAN DEFAULT FALSE,
     FOREIGN KEY (id_projeto) REFERENCES projetos(id_projeto),
+    FOREIGN KEY (id_sprint) REFERENCES sprints(id_sprint) ON DELETE SET NULL,
     FOREIGN KEY (id_responsavel) REFERENCES usuarios(id_usuario)
+);
+
+# TABELA TAREFA_USUARIOS_RELACIONADOS (usuarios adicionais vinculados a uma tarefa)
+CREATE TABLE IF NOT EXISTS tarefa_usuarios_relacionados (
+    id_tarefa INT NOT NULL,
+    id_usuario INT NOT NULL,
+    PRIMARY KEY (id_tarefa, id_usuario),
+    FOREIGN KEY (id_tarefa) REFERENCES tarefas(id_tarefa)
+        ON DELETE CASCADE ON UPDATE CASCADE,
+    FOREIGN KEY (id_usuario) REFERENCES usuarios(id_usuario)
+        ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 # TABELA HISTORICO
@@ -198,9 +289,9 @@ VALUES
 ('belli@ivyteam.com', '123', 'adm'),
 ('ana@ivyteam.com', '0809', 'adm'),
 ('bela@ivyteam.com', '0906', 'adm'),
-('bruno@ivyteam.com', '2222', 'usuario'),
+('bruno@ivyteam.com', '2222', 'adm'),
 ('carla@ivyteam.com', '3333', 'usuario'),
-('daniel@ivyteam.com', '4444', 'usuario'),
+('daniel@ivyteam.com', '4444', 'adm'),
 ('eva@ivyteam.com', '5555', 'usuario'),
 ('felipe@ivyteam.com', '6666', 'usuario'),
 ('gabriela@ivyteam.com', '7777', 'usuario'),
@@ -224,20 +315,35 @@ VALUES
 ON DUPLICATE KEY UPDATE senha = VALUES(senha);
 
 # EQUIPES
-INSERT INTO equipes (nome, criado_por, tipo)
-SELECT x.nome, x.criado_por, x.tipo
+INSERT INTO equipes (nome, criado_por, tipo, id_lider)
+SELECT x.nome, x.criado_por, x.tipo, x.id_lider
 FROM (
-    SELECT 'Equipe Design' AS nome, 1 AS criado_por, 'SUBEQUIPE' AS tipo
+    SELECT 'Equipe Design' AS nome, 1 AS criado_por, 'SUBEQUIPE' AS tipo, 1 AS id_lider
     UNION ALL
-    SELECT 'Equipe Backend', 4, 'SUBEQUIPE'
+    SELECT 'Equipe Backend', 4, 'SUBEQUIPE', 4
     UNION ALL
-    SELECT 'Núcleo Produto', 6, 'EMPRESA'
+    SELECT 'Núcleo Produto', 6, 'EMPRESA', 6
 ) AS x
 WHERE NOT EXISTS (
     SELECT 1
     FROM equipes e
     WHERE e.nome = x.nome
 );
+
+# Atribuir usuarios às equipes (após equipes existirem)
+-- Equipe Design (id 1): Isabelli (lider) + Eva, Laura, Marcos, Patricia
+UPDATE usuarios SET id_equipe = (SELECT id_equipe FROM equipes WHERE nome = 'Equipe Design' LIMIT 1)
+WHERE email IN ('belli@ivyteam.com', 'eva@ivyteam.com', 'laura.pinto@ivyteam.com', 'marcos.lima@ivyteam.com', 'patricia.nunes@ivyteam.com');
+
+-- Equipe Backend (id 2): Bruno (lider) + Lucas, Mariana S, Rafael, Tiago
+UPDATE usuarios SET id_equipe = (SELECT id_equipe FROM equipes WHERE nome = 'Equipe Backend' LIMIT 1)
+WHERE email IN ('bruno@ivyteam.com', 'lucas.almeida@ivyteam.com', 'mariana.santos@ivyteam.com', 'rafael.gomes@ivyteam.com', 'tiago.rocha@ivyteam.com');
+
+-- Núcleo Produto (id 3): Daniel (CEO)
+UPDATE usuarios SET id_equipe = (SELECT id_equipe FROM equipes WHERE nome = 'Núcleo Produto' LIMIT 1)
+WHERE email = 'daniel@ivyteam.com';
+
+SET FOREIGN_KEY_CHECKS = 1;
 
 # PROJETOS
 INSERT INTO projetos (nome_projeto, descricao, data_inicio, prazo_final, status_projeto, prioridade_proj, id_responsavel)

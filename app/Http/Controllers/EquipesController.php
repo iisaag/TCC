@@ -8,10 +8,27 @@ use Illuminate\Http\Request;
 
 class EquipesController extends Controller
 {
+    private function equipeData(Equipe $equipe): array
+    {
+        $equipe->loadMissing(['lider', 'criador']);
+
+        return [
+            'id_equipe'    => $equipe->id_equipe,
+            'nome'         => $equipe->nome,
+            'tipo'         => $equipe->tipo,
+            'criado_por'   => $equipe->criado_por,
+            'criador_nome' => $equipe->criador?->nome ?? null,
+            'equipe_pai'   => $equipe->equipe_pai,
+            'id_lider'     => $equipe->id_lider,
+            'lider_nome'   => $equipe->lider?->nome ?? null,
+            'data_criacao' => $equipe->data_criacao,
+        ];
+    }
+
     public function index(Request $request): JsonResponse
     {
         try {
-            $query = Equipe::query();
+            $query = Equipe::with(['lider', 'criador']);
 
             if ($request->filled('nome')) {
                 $query->whereRaw('LOWER(nome) LIKE LOWER(?)', ["%{$request->nome}%"]);
@@ -28,7 +45,7 @@ class EquipesController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Equipes listadas com sucesso',
-                'data'    => ['equipes' => $query->get()],
+                'data'    => ['equipes' => $query->get()->map(fn($e) => $this->equipeData($e))->values()],
             ]);
         } catch (\Exception $e) {
             return response()->json([
@@ -40,7 +57,7 @@ class EquipesController extends Controller
 
     public function show(int $id): JsonResponse
     {
-        $equipe = Equipe::find($id);
+        $equipe = Equipe::with(['lider', 'criador'])->find($id);
 
         if (!$equipe) {
             return response()->json([
@@ -52,8 +69,23 @@ class EquipesController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Equipe encontrada com sucesso',
-            'data'    => ['equipe' => $equipe],
+            'data'    => ['equipe' => $this->equipeData($equipe)],
         ]);
+    }
+
+    private function promoverLiderAdmin(?int $idLider): void
+    {
+        if ($idLider === null) return;
+
+        $email = \DB::table('usuarios')
+            ->where('id_usuario', $idLider)
+            ->value('email');
+
+        if (!$email) return;
+
+        \DB::table('senha')
+            ->where('email', $email)
+            ->update(['nivel_acesso' => 'adm']);
     }
 
     public function store(Request $request): JsonResponse
@@ -63,7 +95,10 @@ class EquipesController extends Controller
             'criado_por' => 'required|integer|exists:usuarios,id_usuario',
             'equipe_pai' => 'nullable|integer|exists:equipes,id_equipe',
             'tipo'       => 'nullable|string|in:EMPRESA,SUBEQUIPE',
+            'id_lider'   => 'nullable|integer|exists:usuarios,id_usuario',
         ]);
+
+        $this->promoverLiderAdmin($validated['id_lider'] ?? null);
 
         $validated['tipo'] = $validated['tipo'] ?? 'SUBEQUIPE';
 
@@ -72,7 +107,7 @@ class EquipesController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Equipe cadastrada com sucesso',
-            'data'    => ['equipe' => $equipe],
+            'data'    => ['equipe' => $this->equipeData($equipe->fresh())],
         ], 201);
     }
 
@@ -92,14 +127,17 @@ class EquipesController extends Controller
             'criado_por' => 'required|integer|exists:usuarios,id_usuario',
             'equipe_pai' => 'nullable|integer|exists:equipes,id_equipe',
             'tipo'       => 'nullable|string|in:EMPRESA,SUBEQUIPE',
+            'id_lider'   => 'nullable|integer|exists:usuarios,id_usuario',
         ]);
+
+        $this->promoverLiderAdmin($validated['id_lider'] ?? null);
 
         $equipe->update($validated);
 
         return response()->json([
             'success' => true,
             'message' => 'Equipe atualizada com sucesso',
-            'data'    => ['equipe' => $equipe],
+            'data'    => ['equipe' => $this->equipeData($equipe->fresh())],
         ]);
     }
 

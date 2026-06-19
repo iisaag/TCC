@@ -15,6 +15,7 @@ class Equipe extends Model
         'criado_por',
         'equipe_pai',
         'tipo',
+        'id_lider',
         'data_criacao',
     ];
 
@@ -34,5 +35,15 @@ class Equipe extends Model
             throw new \InvalidArgumentException("Tipo inválido: '{$tipo}'. Use 'EMPRESA' ou 'SUBEQUIPE'.");
         }
         $this->attributes['tipo'] = $tipo;
+    }
+
+    public function lider()
+    {
+        return $this->belongsTo(\App\Models\Usuario::class, 'id_lider', 'id_usuario');
+    }
+
+    public function criador()
+    {
+        return $this->belongsTo(\App\Models\Usuario::class, 'criado_por', 'id_usuario');
     }
 }

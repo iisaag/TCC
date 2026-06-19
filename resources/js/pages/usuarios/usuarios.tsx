@@ -1,9 +1,13 @@
 ﻿import { usePage } from "@inertiajs/react";
 import {
+    Briefcase,
     History,
     MoreVertical,
+    Pencil,
+    Plus,
     Search,
     Shield,
+    Trash2,
     Undo2,
     UserCheck,
     UserMinus,
@@ -434,6 +438,14 @@ export default function UsuariosAdminPage() {
     const [historyLoading, setHistoryLoading] = useState(false);
     const [restoringDeletedId, setRestoringDeletedId] = useState<number | null>(null);
 
+    // ─── Cargos state ───────────────────────────────────────────
+    const [activeSection, setActiveSection] = useState<"funcionarios" | "cargos">("funcionarios");
+    const [isCargoModalOpen, setIsCargoModalOpen] = useState(false);
+    const [cargoForm, setCargoForm] = useState({ nome_cargo: "" });
+    const [editingCargo, setEditingCargo] = useState<CargoItem | null>(null);
+    const [savingCargo, setSavingCargo] = useState(false);
+    const [deletingCargoId, setDeletingCargoId] = useState<number | null>(null);
+
     const csrfToken = useMemo(
         () => document.querySelector('meta[name="csrf-token"]')?.getAttribute("content") ?? "",
         [],
@@ -811,6 +823,63 @@ export default function UsuariosAdminPage() {
         }
     };
 
+    const openCargoModal = (cargo?: CargoItem) => {
+        if (cargo) {
+            setEditingCargo(cargo);
+            setCargoForm({ nome_cargo: cargo.nome_cargo });
+        } else {
+            setEditingCargo(null);
+            setCargoForm({ nome_cargo: "" });
+        }
+        setIsCargoModalOpen(true);
+    };
+
+    const closeCargoModal = () => {
+        setIsCargoModalOpen(false);
+        setEditingCargo(null);
+        setCargoForm({ nome_cargo: "" });
+    };
+
+    const submitCargo = async (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+        setSavingCargo(true);
+        setError(null);
+        try {
+            const url = editingCargo ? `${apiRoutes.cargos}/${editingCargo.id_cargo}` : apiRoutes.cargos;
+            const res = await fetch(url, {
+                method: editingCargo ? "PUT" : "POST",
+                headers: { "Content-Type": "application/json", Accept: "application/json", "X-Requested-With": "XMLHttpRequest", "X-CSRF-TOKEN": csrfToken },
+                body: JSON.stringify({ nome_cargo: cargoForm.nome_cargo }),
+            });
+            if (!res.ok) throw new Error(await readApiMessage(res, "Não foi possível salvar o cargo."));
+            setSuccess(editingCargo ? "Cargo atualizado com sucesso." : "Cargo criado com sucesso.");
+            closeCargoModal();
+            await fetchData();
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Não foi possível salvar o cargo.");
+        } finally {
+            setSavingCargo(false);
+        }
+    };
+
+    const removeCargo = async (id: number) => {
+        setDeletingCargoId(id);
+        setError(null);
+        try {
+            const res = await fetch(`${apiRoutes.cargos}/${id}`, {
+                method: "DELETE",
+                headers: { Accept: "application/json", "X-Requested-With": "XMLHttpRequest", "X-CSRF-TOKEN": csrfToken },
+            });
+            if (!res.ok) throw new Error(await readApiMessage(res, "Não foi possível excluir o cargo."));
+            setSuccess("Cargo excluído com sucesso.");
+            await fetchData();
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Não foi possível excluir o cargo.");
+        } finally {
+            setDeletingCargoId(null);
+        }
+    };
+
     if (!isAdmin) {
         return (
             <DashboardLayout currentPage="users-admin">
@@ -846,26 +915,143 @@ export default function UsuariosAdminPage() {
                         </p>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
-                        <button
-                            type="button"
-                            onClick={() => void openDeletedHistory()}
-                            className="inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-medium transition-all duration-200 hover:shadow-md"
-                            style={{ borderColor: "var(--cor-borda)", color: "var(--cor-logo)" }}
-                        >
-                            <History size={15} />
-                            Histórico de excluídos
-                        </button>
-                        <button
-                            type="button"
-                            onClick={openCreate}
-                            className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition-all duration-200 hover:shadow-lg active:scale-95"
-                            style={{ backgroundColor: "#1a1a2e", color: "#fff" }}
-                        >
-                            <UserPlus size={15} />
-                            Adicionar funcionário
-                        </button>
+                        {activeSection === "funcionarios" && (
+                            <>
+                                <button
+                                    type="button"
+                                    onClick={() => void openDeletedHistory()}
+                                    className="inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-medium transition-all duration-200 hover:shadow-md"
+                                    style={{ borderColor: "var(--cor-borda)", color: "var(--cor-logo)" }}
+                                >
+                                    <History size={15} />
+                                    Histórico de excluídos
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={openCreate}
+                                    className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition-all duration-200 hover:shadow-lg active:scale-95"
+                                    style={{ backgroundColor: "#1a1a2e", color: "#fff" }}
+                                >
+                                    <UserPlus size={15} />
+                                    Adicionar funcionário
+                                </button>
+                            </>
+                        )}
+                        {activeSection === "cargos" && (
+                            <button
+                                type="button"
+                                onClick={() => openCargoModal()}
+                                className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition-all duration-200 hover:shadow-lg active:scale-95"
+                                style={{ backgroundColor: "#1a1a2e", color: "#fff" }}
+                            >
+                                <Plus size={15} />
+                                Adicionar cargo
+                            </button>
+                        )}
                     </div>
                 </div>
+
+                {/* Section tabs */}
+                <div className="flex gap-2">
+                    {(["funcionarios", "cargos"] as const).map((section) => (
+                        <button
+                            key={section}
+                            type="button"
+                            onClick={() => setActiveSection(section)}
+                            className="rounded-xl border px-4 py-2 text-sm font-medium transition-all duration-200 hover:shadow-md active:scale-95"
+                            style={{
+                                backgroundColor: activeSection === section ? "#1a1a2e" : "var(--cor-widgets)",
+                                color: activeSection === section ? "#fff" : "var(--cor-logo)",
+                                borderColor: activeSection === section ? "#1a1a2e" : "var(--cor-borda)",
+                            }}
+                        >
+                            {section === "funcionarios" ? (
+                                <span className="flex items-center gap-2"><Users size={14} />Funcionários</span>
+                            ) : (
+                                <span className="flex items-center gap-2"><Briefcase size={14} />Cargos</span>
+                            )}
+                        </button>
+                    ))}
+                </div>
+
+                {/* ─── Cargos section ─────────────────────────────────── */}
+                {activeSection === "cargos" && (
+                    <div className="space-y-5 animate-in fade-in duration-200">
+                        {/* Stat */}
+                        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+                            <div
+                                className="flex items-center justify-between rounded-2xl border p-5 transition-all duration-200 hover:shadow-lg"
+                                style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-widgets)" }}
+                            >
+                                <div>
+                                    <p className="text-sm" style={{ color: "var(--cor-logo2)" }}>Total de Cargos</p>
+                                    <p className="mt-1 text-3xl font-bold" style={{ color: "var(--cor-logo)" }}>{cargos.length}</p>
+                                </div>
+                                <div className="flex items-center justify-center rounded-full p-3" style={{ backgroundColor: "#eef2ff" }}>
+                                    <Briefcase size={28} style={{ color: "#5b8dee" }} />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* List */}
+                        <div className="rounded-2xl border" style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-widgets)" }}>
+                            <div className="border-b px-4 py-3" style={{ borderColor: "var(--cor-borda)" }}>
+                                <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--cor-logo2)" }}>
+                                    {cargos.length} cargo{cargos.length !== 1 ? "s" : ""} cadastrado{cargos.length !== 1 ? "s" : ""}
+                                </p>
+                            </div>
+
+                            {loading ? (
+                                <div className="p-8 text-center text-sm" style={{ color: "var(--cor-logo2)" }}>Carregando...</div>
+                            ) : cargos.length === 0 ? (
+                                <div className="p-8 text-center text-sm" style={{ color: "var(--cor-logo2)" }}>Nenhum cargo cadastrado ainda.</div>
+                            ) : (
+                                <div className="divide-y" style={{ borderColor: "var(--cor-borda)" }}>
+                                    {cargos.map((cargo) => (
+                                        <div
+                                            key={cargo.id_cargo}
+                                            className="flex items-center justify-between gap-3 px-4 py-3 transition-all duration-200 hover:shadow-sm"
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                <div className="flex h-8 w-8 items-center justify-center rounded-full" style={{ backgroundColor: "#eef2ff" }}>
+                                                    <Briefcase size={14} style={{ color: "#5b8dee" }} />
+                                                </div>
+                                                <div>
+                                                    <p className="font-medium" style={{ color: "var(--cor-logo)" }}>{cargo.nome_cargo}</p>
+                                                    <p className="text-xs" style={{ color: "var(--cor-logo2)" }}>ID {cargo.id_cargo}</p>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => openCargoModal(cargo)}
+                                                    className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-all duration-200 hover:shadow-md active:scale-95"
+                                                    style={{ borderColor: "var(--cor-borda)", color: "var(--cor-logo)" }}
+                                                >
+                                                    <Pencil size={12} />
+                                                    Editar
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => void removeCargo(cargo.id_cargo)}
+                                                    disabled={deletingCargoId === cargo.id_cargo}
+                                                    className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-all duration-200 hover:shadow-md active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
+                                                    style={{ borderColor: "#e2a0a0", color: "#a02020" }}
+                                                >
+                                                    <Trash2 size={12} />
+                                                    {deletingCargoId === cargo.id_cargo ? "Excluindo..." : "Excluir"}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+
+                {/* ─── Funcionários section ──────────────────────────── */}
+                {activeSection === "funcionarios" && <div className="space-y-5 animate-in fade-in duration-200">
 
                 {/* Stat cards */}
                 <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
@@ -1012,6 +1198,60 @@ export default function UsuariosAdminPage() {
                         </div>
                     )}
                 </div>
+
+                </div>} {/* end activeSection === "funcionarios" */}
+
+                {/* ─── Cargo Modal ──────────────────────────────────── */}
+                {isCargoModalOpen && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-[2px] animate-in fade-in duration-200">
+                        <form
+                            onSubmit={submitCargo}
+                            className="w-full max-w-md rounded-2xl border p-6 shadow-2xl animate-in zoom-in-95 duration-200"
+                            style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-widgets)" }}
+                        >
+                            <div className="mb-5 flex items-center justify-between">
+                                <h2 className="text-lg font-semibold" style={{ color: "var(--cor-logo)" }}>
+                                    {editingCargo ? "Editar cargo" : "Novo cargo"}
+                                </h2>
+                                <button type="button" onClick={closeCargoModal} className="rounded-lg border p-1.5 transition-all duration-200 hover:shadow-md active:scale-90" style={{ borderColor: "var(--cor-borda)" }}>
+                                    <X size={14} style={{ color: "var(--cor-logo2)" }} />
+                                </button>
+                            </div>
+
+                            <label className="flex flex-col gap-1.5 text-sm font-medium" style={{ color: "var(--cor-logo)" }}>
+                                Nome do cargo
+                                <input
+                                    type="text"
+                                    required
+                                    value={cargoForm.nome_cargo}
+                                    placeholder="Ex: Desenvolvedor, Designer, Analista"
+                                    onChange={(e) => setCargoForm({ nome_cargo: e.target.value })}
+                                    className="rounded-xl border px-3 py-2 text-sm outline-none transition-all duration-200 focus:ring-2 focus:ring-offset-0"
+                                    style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-fundo)", color: "var(--cor-logo)" }}
+                                />
+                            </label>
+
+                            <div className="mt-6 flex justify-end gap-2">
+                                <button
+                                    type="button"
+                                    onClick={closeCargoModal}
+                                    className="rounded-xl border px-4 py-2 text-sm transition-all duration-200 hover:shadow-sm active:scale-95"
+                                    style={{ borderColor: "var(--cor-borda)", color: "var(--cor-logo)" }}
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={savingCargo}
+                                    className="rounded-xl px-4 py-2 text-sm font-medium text-white transition-all duration-200 hover:shadow-lg active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed"
+                                    style={{ backgroundColor: "#1a1a2e" }}
+                                >
+                                    {savingCargo ? "Salvando..." : "Salvar"}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                )}
 
                 {/* Create / Edit Modal */}
                 {(isCreateOpen || isEditOpen) && (
