@@ -87,6 +87,7 @@ interface EquipeItem {
     tipo?: string | null;
     id_lider?: number | null;
     data_criacao?: string | null;
+    membros?: number[];
 }
 
 interface UsuarioExcluido {
@@ -137,7 +138,7 @@ const EMPTY_USER_FORM: UserForm = {
 };
 
 const EMPTY_CARGO = { nome_cargo: "" };
-const EMPTY_EQUIPE = { nome: "", criado_por: "", equipe_pai: "", tipo: "SUBEQUIPE", id_lider: "" };
+const EMPTY_EQUIPE = { nome: "", equipe_pai: "", tipo: "SUBEQUIPE", id_lider: "", membros: [] as number[] };
 const PAGE_SIZE = 10;
 
 // ─────────────────────────── Helpers ───────────────────────────
@@ -455,6 +456,7 @@ export default function GestaoPage() {
     const [editingEquipe, setEditingEquipe] = useState<EquipeItem | null>(null);
     const [savingEquipe, setSavingEquipe] = useState(false);
     const [deletingEquipeId, setDeletingEquipeId] = useState<number | null>(null);
+    const [membrosSearch, setMembrosSearch] = useState("");
 
     const csrfToken = useMemo(
         () => document.querySelector('meta[name="csrf-token"]')?.getAttribute("content") ?? "",
@@ -817,19 +819,28 @@ export default function GestaoPage() {
 
     // ── Equipes actions ───────────────────────────────────────────
 
-    const resetEquipeForm = () => { setEditingEquipe(null); setEquipeForm(EMPTY_EQUIPE); };
+    const resetEquipeForm = () => { setEditingEquipe(null); setEquipeForm(EMPTY_EQUIPE); setMembrosSearch(""); };
+
+    const toggleMembro = (id: number) => {
+        setEquipeForm((c) => ({
+            ...c,
+            membros: c.membros.includes(id) ? c.membros.filter((m) => m !== id) : [...c.membros, id],
+        }));
+    };
 
     const submitEquipe = async (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         setSavingEquipe(true);
         setError(null);
         try {
+            const authUserId = page.props.auth?.user?.id;
             const payload = {
                 nome: equipeForm.nome,
-                criado_por: Number(equipeForm.criado_por),
+                criado_por: editingEquipe ? (editingEquipe.criado_por ?? authUserId) : authUserId,
                 equipe_pai: equipeForm.equipe_pai ? Number(equipeForm.equipe_pai) : null,
                 tipo: equipeForm.tipo,
                 id_lider: equipeForm.id_lider ? Number(equipeForm.id_lider) : null,
+                membros: equipeForm.membros,
             };
             const url = editingEquipe ? `${apiRoutes.equipes}/${editingEquipe.id_equipe}` : apiRoutes.equipes;
             const res = await fetch(url, {
@@ -1140,22 +1151,12 @@ export default function GestaoPage() {
                         <section className="rounded-[2rem] border p-6 shadow-lg" style={{ backgroundColor: "var(--cor-widgets)", borderColor: "var(--cor-borda)" }}>
                             <SectionHeader icon={<Plus size={18} />} title={editingEquipe ? "Editar equipe" : "Nova equipe"} subtitle="Crie equipes principais ou subequipes dentro da empresa." />
                             <form onSubmit={submitEquipe} className="mt-5 grid gap-4 md:grid-cols-2">
+                                {/* Row 1: Nome + Tipo (mesmo nível, sem descrição) */}
                                 <FieldLabel label="Nome da equipe">
                                     <input value={equipeForm.nome} onChange={(e) => setEquipeForm((c) => ({ ...c, nome: e.target.value }))}
                                         placeholder="Ex.: Produto, Marketing, Operações"
                                         className="w-full rounded-xl border px-4 py-3 text-sm shadow-sm outline-none transition focus:border-slate-400"
                                         style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-fundo)", color: "var(--cor-logo)" }} />
-                                </FieldLabel>
-
-                                <FieldLabel label="Responsável da criação">
-                                    <select value={equipeForm.criado_por} onChange={(e) => setEquipeForm((c) => ({ ...c, criado_por: e.target.value }))}
-                                        className="w-full rounded-xl border px-4 py-3 text-sm shadow-sm outline-none transition"
-                                        style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-fundo)", color: "var(--cor-logo)" }}>
-                                        <option value="">Selecione</option>
-                                        {usuarios.map((u) => (
-                                            <option key={u.id_usuario} value={u.id_usuario}>{u.nome}</option>
-                                        ))}
-                                    </select>
                                 </FieldLabel>
 
                                 <FieldLabel label="Tipo">
@@ -1167,27 +1168,73 @@ export default function GestaoPage() {
                                     </select>
                                 </FieldLabel>
 
-                                <FieldLabel label="Equipe pai" description="Opcional para subequipes.">
-                                    <select value={equipeForm.equipe_pai} onChange={(e) => setEquipeForm((c) => ({ ...c, equipe_pai: e.target.value }))}
-                                        className="w-full rounded-xl border px-4 py-3 text-sm shadow-sm outline-none transition"
-                                        style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-fundo)", color: "var(--cor-logo)" }}>
-                                        <option value="">Nenhuma</option>
-                                        {equipes.map((e) => <option key={e.id_equipe} value={e.id_equipe}>{e.nome}</option>)}
-                                    </select>
-                                </FieldLabel>
+                                {/* Row 2: Equipe pai (linha própria) */}
+                                <div className="md:col-span-2">
+                                    <FieldLabel label="Equipe pai" description="Opcional — selecione caso seja uma subequipe de outra.">
+                                        <select value={equipeForm.equipe_pai} onChange={(e) => setEquipeForm((c) => ({ ...c, equipe_pai: e.target.value }))}
+                                            className="w-full rounded-xl border px-4 py-3 text-sm shadow-sm outline-none transition"
+                                            style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-fundo)", color: "var(--cor-logo)" }}>
+                                            <option value="">Nenhuma</option>
+                                            {equipes.map((e) => <option key={e.id_equipe} value={e.id_equipe}>{e.nome}</option>)}
+                                        </select>
+                                    </FieldLabel>
+                                </div>
 
-                                <FieldLabel label="Líder" description="O usuário selecionado receberá acesso de administrador automaticamente.">
-                                    <select value={equipeForm.id_lider} onChange={(e) => setEquipeForm((c) => ({ ...c, id_lider: e.target.value }))}
-                                        className="w-full rounded-xl border px-4 py-3 text-sm shadow-sm outline-none transition"
-                                        style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-fundo)", color: "var(--cor-logo)" }}>
-                                        <option value="">Sem líder</option>
-                                        {usuarios.map((u) => (
-                                            <option key={u.id_usuario} value={u.id_usuario}>
-                                                {u.nome}{permissoes[(u.email ?? "").toLowerCase()] === "admin" ? " ★" : ""}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </FieldLabel>
+                                {/* Row 3: Líder (linha própria) */}
+                                <div className="md:col-span-2">
+                                    <FieldLabel label="Líder" description="O usuário selecionado receberá acesso de administrador automaticamente.">
+                                        <select value={equipeForm.id_lider} onChange={(e) => setEquipeForm((c) => ({ ...c, id_lider: e.target.value }))}
+                                            className="w-full rounded-xl border px-4 py-3 text-sm shadow-sm outline-none transition"
+                                            style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-fundo)", color: "var(--cor-logo)" }}>
+                                            <option value="">Sem líder</option>
+                                            {usuarios.map((u) => (
+                                                <option key={u.id_usuario} value={u.id_usuario}>
+                                                    {u.nome}{permissoes[(u.email ?? "").toLowerCase()] === "admin" ? " ★" : ""}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </FieldLabel>
+                                </div>
+
+                                {/* Row 4: Membros */}
+                                <div className="md:col-span-2">
+                                    <FieldLabel label="Membros da equipe" description="Selecione os usuários que farão parte desta equipe.">
+                                        <div className="overflow-hidden rounded-xl border" style={{ borderColor: "var(--cor-borda)" }}>
+                                            <div className="border-b px-2 py-2" style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-fundo)" }}>
+                                                <input
+                                                    type="text"
+                                                    placeholder="Buscar usuário..."
+                                                    value={membrosSearch}
+                                                    onChange={(e) => setMembrosSearch(e.target.value)}
+                                                    className="w-full rounded-lg border px-3 py-1.5 text-sm outline-none transition"
+                                                    style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-widgets)", color: "var(--cor-logo)" }}
+                                                />
+                                            </div>
+                                            <div className="max-h-40 divide-y overflow-y-auto" style={{ backgroundColor: "var(--cor-widgets)" }}>
+                                                {(membrosSearch.trim()
+                                                    ? usuarios.filter((u) => u.nome.toLowerCase().includes(membrosSearch.toLowerCase()))
+                                                    : usuarios
+                                                ).map((u) => (
+                                                    <label key={u.id_usuario} className="flex cursor-pointer items-center gap-3 px-4 py-2.5 transition hover:opacity-75">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={equipeForm.membros.includes(u.id_usuario)}
+                                                            onChange={() => toggleMembro(u.id_usuario)}
+                                                            className="h-4 w-4 rounded accent-[var(--cor-accent)]"
+                                                        />
+                                                        <span className="flex-1 text-sm" style={{ color: "var(--cor-logo)" }}>{u.nome}</span>
+                                                        {u.cargo && <span className="text-xs" style={{ color: "var(--cor-logo2)" }}>{u.cargo}</span>}
+                                                    </label>
+                                                ))}
+                                            </div>
+                                            {equipeForm.membros.length > 0 && (
+                                                <div className="border-t px-4 py-2 text-xs" style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-fundo)", color: "var(--cor-logo2)" }}>
+                                                    {equipeForm.membros.length} {equipeForm.membros.length === 1 ? "membro selecionado" : "membros selecionados"}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </FieldLabel>
+                                </div>
 
                                 <div className="md:col-span-2 flex flex-wrap gap-3">
                                     <button type="submit" disabled={savingEquipe}
@@ -1231,7 +1278,7 @@ export default function GestaoPage() {
                                                 <div className="flex items-center gap-2">
                                                     <IconButton onClick={() => {
                                                         setEditingEquipe(equipe);
-                                                        setEquipeForm({ nome: equipe.nome, criado_por: equipe.criado_por ? String(equipe.criado_por) : "", equipe_pai: equipe.equipe_pai ? String(equipe.equipe_pai) : "", tipo: equipe.tipo ?? "SUBEQUIPE", id_lider: equipe.id_lider ? String(equipe.id_lider) : "" });
+                                                        setEquipeForm({ nome: equipe.nome, equipe_pai: equipe.equipe_pai ? String(equipe.equipe_pai) : "", tipo: equipe.tipo ?? "SUBEQUIPE", id_lider: equipe.id_lider ? String(equipe.id_lider) : "", membros: equipe.membros ?? [] });
                                                     }} title="Editar equipe"><Pencil size={14} /></IconButton>
                                                     <IconButton onClick={() => void removeEquipe(equipe.id_equipe)} title="Excluir equipe" danger disabled={deletingEquipeId === equipe.id_equipe}>
                                                         {deletingEquipeId === equipe.id_equipe ? <RefreshCw size={14} className="animate-spin" /> : <Trash2 size={14} />}

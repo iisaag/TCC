@@ -12,6 +12,11 @@ class EquipesController extends Controller
     {
         $equipe->loadMissing(['lider', 'criador']);
 
+        $membros = \DB::table('usuarios')
+            ->where('id_equipe', $equipe->id_equipe)
+            ->pluck('id_usuario')
+            ->toArray();
+
         return [
             'id_equipe'    => $equipe->id_equipe,
             'nome'         => $equipe->nome,
@@ -22,6 +27,7 @@ class EquipesController extends Controller
             'id_lider'     => $equipe->id_lider,
             'lider_nome'   => $equipe->lider?->nome ?? null,
             'data_criacao' => $equipe->data_criacao,
+            'membros'      => $membros,
         ];
     }
 
@@ -96,13 +102,24 @@ class EquipesController extends Controller
             'equipe_pai' => 'nullable|integer|exists:equipes,id_equipe',
             'tipo'       => 'nullable|string|in:EMPRESA,SUBEQUIPE',
             'id_lider'   => 'nullable|integer|exists:usuarios,id_usuario',
+            'membros'    => 'nullable|array',
+            'membros.*'  => 'integer|exists:usuarios,id_usuario',
         ]);
 
         $this->promoverLiderAdmin($validated['id_lider'] ?? null);
 
         $validated['tipo'] = $validated['tipo'] ?? 'SUBEQUIPE';
 
+        $membros = $validated['membros'] ?? [];
+        unset($validated['membros']);
+
         $equipe = Equipe::create($validated);
+
+        if (!empty($membros)) {
+            \DB::table('usuarios')
+                ->whereIn('id_usuario', $membros)
+                ->update(['id_equipe' => $equipe->id_equipe]);
+        }
 
         return response()->json([
             'success' => true,
@@ -128,11 +145,27 @@ class EquipesController extends Controller
             'equipe_pai' => 'nullable|integer|exists:equipes,id_equipe',
             'tipo'       => 'nullable|string|in:EMPRESA,SUBEQUIPE',
             'id_lider'   => 'nullable|integer|exists:usuarios,id_usuario',
+            'membros'    => 'nullable|array',
+            'membros.*'  => 'integer|exists:usuarios,id_usuario',
         ]);
 
         $this->promoverLiderAdmin($validated['id_lider'] ?? null);
 
+        $membros = $validated['membros'] ?? [];
+        unset($validated['membros']);
+
         $equipe->update($validated);
+
+        \DB::table('usuarios')
+            ->where('id_equipe', $equipe->id_equipe)
+            ->whereNotIn('id_usuario', $membros)
+            ->update(['id_equipe' => null]);
+
+        if (!empty($membros)) {
+            \DB::table('usuarios')
+                ->whereIn('id_usuario', $membros)
+                ->update(['id_equipe' => $equipe->id_equipe]);
+        }
 
         return response()->json([
             'success' => true,
