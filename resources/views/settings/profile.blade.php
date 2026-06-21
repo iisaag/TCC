@@ -149,7 +149,7 @@
                 <input type="hidden" id="localizacao" name="localizacao" value="{{ $savedLocation }}">
 
                 <div>
-                    <label class="mb-2 block text-sm font-medium text-[#2f3f5a] dark:text-[#c6e7ff]">Tags da nutil</label>
+                    <label class="mb-2 block text-sm font-medium text-[#2f3f5a] dark:text-[#c6e7ff]">Tags</label>
                     <div id="tags-container" class="flex min-h-[44px] flex-wrap items-center gap-2 rounded-2xl border border-[#d6dce9] bg-[#edf1f7] px-3 py-2 dark:border-[#2d4353] dark:bg-[#16232d]"></div>
                     <div class="mt-2 flex gap-2">
                         <input id="tag-input" type="text" class="h-10 flex-1 rounded-xl border border-[#d6dce9] bg-white px-3 text-sm text-[#344864] outline-none dark:border-[#2d4353] dark:bg-[#1c2a35] dark:text-[#d8ecfb]" placeholder="Digite uma tag">

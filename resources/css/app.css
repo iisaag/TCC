@@ -332,6 +332,14 @@
     }
 }
 
+    .gestao-banner {
+        background: linear-gradient(135deg, #f7fbff 0%, #eef4fb 55%, #fdfefe 100%);
+    }
+
+    .dark .gestao-banner {
+        background: linear-gradient(135deg, #1c2a35 0%, #243a4b 55%, #1a2832 100%);
+    }
+
     @media print {
         @page {
             size: A4 portrait;

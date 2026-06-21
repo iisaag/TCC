@@ -240,13 +240,13 @@ function Avatar({ nome, foto }: { nome: string; foto?: string | null }) {
 function PermissionBadge({ access }: { access: AccessLevel }) {
     if (access === "admin") {
         return (
-            <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold" style={{ backgroundColor: "#1a1a2e", color: "#fff" }}>
+            <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold bg-[#1a1a2e] dark:bg-[#2c5a7e] text-white">
                 <Shield size={10} /> Administrador
             </span>
         );
     }
     return (
-        <span className="inline-flex rounded-full border px-2.5 py-0.5 text-xs font-semibold" style={{ borderColor: "#bbb", color: "#444" }}>
+        <span className="inline-flex rounded-full border px-2.5 py-0.5 text-xs font-semibold border-[#bbb] text-[#444] dark:border-(--cor-borda) dark:text-(--cor-logo2)">
             Usuário
         </span>
     );
@@ -331,7 +331,7 @@ function ActionMenu({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => 
 
 function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: number }) {
     return (
-        <div className="rounded-2xl border bg-white/85 p-4 shadow-sm backdrop-blur transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md" style={{ borderColor: "#d4e0eb" }}>
+        <div className="rounded-2xl border p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md" style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-widgets)" }}>
             <div className="flex items-center gap-2 text-sm font-medium" style={{ color: "var(--cor-logo2)" }}>
                 {icon} {label}
             </div>
@@ -357,7 +357,7 @@ function TabButton({ active, label, onClick }: { active: boolean; label: string;
 function SectionHeader({ icon, title, subtitle }: { icon: React.ReactNode; title: string; subtitle: string }) {
     return (
         <div className="flex items-start gap-3">
-            <div className="mt-0.5 rounded-xl border p-2" style={{ borderColor: "#d4e0eb", backgroundColor: "#eef5fb", color: "var(--cor-logo)" }}>
+            <div className="mt-0.5 rounded-xl border p-2" style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-fundo)", color: "var(--cor-logo)" }}>
                 {icon}
             </div>
             <div>
@@ -385,9 +385,9 @@ function IconButton({ children, onClick, title, danger = false, disabled = false
         <button type="button" onClick={onClick} title={title} disabled={disabled}
             className="inline-flex h-9 w-9 items-center justify-center rounded-xl border transition hover:-translate-y-0.5 disabled:opacity-60"
             style={{
-                borderColor: danger ? "#efb4b4" : "#d4e0eb",
-                backgroundColor: danger ? "#fff4f4" : "#f8fbff",
-                color: danger ? "#b23b3b" : "var(--cor-logo)",
+                borderColor: danger ? "rgba(176, 58, 58, 0.4)" : "var(--cor-borda)",
+                backgroundColor: danger ? "rgba(176, 58, 58, 0.1)" : "var(--cor-fundo)",
+                color: danger ? "#c55" : "var(--cor-logo)",
             }}>
             {children}
         </button>
@@ -396,7 +396,7 @@ function IconButton({ children, onClick, title, danger = false, disabled = false
 
 function EmptyState({ text }: { text: string }) {
     return (
-        <div className="rounded-2xl border border-dashed px-4 py-6 text-sm" style={{ borderColor: "#d4e0eb", color: "var(--cor-logo2)" }}>
+        <div className="rounded-2xl border border-dashed px-4 py-6 text-sm" style={{ borderColor: "var(--cor-borda)", color: "var(--cor-logo2)" }}>
             {text}
         </div>
     );
@@ -892,18 +892,18 @@ export default function GestaoPage() {
 
                 {/* Toasts */}
                 {success && (
-                    <div className="rounded-xl border px-4 py-3 text-sm" style={{ borderColor: "#9ad8b0", backgroundColor: "#eefaf2", color: "#1d7740" }}>
+                    <div className="rounded-xl border px-4 py-3 text-sm" style={{ borderColor: "rgba(74,185,110,0.5)", backgroundColor: "rgba(74,185,110,0.1)", color: "#2e9e56" }}>
                         {success}
                     </div>
                 )}
                 {error && (
-                    <div className="rounded-xl border px-4 py-3 text-sm" style={{ borderColor: "#efb4b4", backgroundColor: "#fff4f4", color: "#9f2f2f" }}>
+                    <div className="rounded-xl border px-4 py-3 text-sm" style={{ borderColor: "rgba(192,57,43,0.5)", backgroundColor: "rgba(192,57,43,0.1)", color: "#c05050" }}>
                         {error}
                     </div>
                 )}
 
                 {/* Header banner */}
-                <section className="relative overflow-hidden rounded-[2rem] border p-6 shadow-[0_22px_60px_rgba(25,42,67,0.12)]" style={{ borderColor: "var(--cor-borda)", background: "linear-gradient(135deg, #f7fbff 0%, #eef4fb 55%, #fdfefe 100%)" }}>
+                <section className="gestao-banner relative overflow-hidden rounded-[2rem] border p-6 shadow-[0_22px_60px_rgba(25,42,67,0.12)]" style={{ borderColor: "var(--cor-borda)" }}>
                     <div className="absolute inset-y-0 right-0 hidden w-2/5 bg-[radial-gradient(circle_at_center,rgba(92,127,168,0.16),transparent_70%)] md:block" />
                     <div className="relative flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
                         <div className="max-w-2xl space-y-3">
@@ -999,14 +999,14 @@ export default function GestaoPage() {
                             </div>
 
                             {/* Table */}
-                            <div className="mt-5 overflow-hidden rounded-2xl border" style={{ borderColor: "#d8e2eb" }}>
+                            <div className="mt-5 overflow-hidden rounded-2xl border" style={{ borderColor: "var(--cor-borda)" }}>
                                 {filteredUsers.length === 0 ? (
                                     <EmptyState text="Nenhum usuário encontrado." />
                                 ) : (
                                     <div className="overflow-x-auto">
                                         <table className="w-full text-sm">
                                             <thead>
-                                                <tr className="border-b" style={{ borderColor: "#d8e2eb", backgroundColor: "#fbfdff" }}>
+                                                <tr className="border-b" style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-fundo)" }}>
                                                     {["Nome", "Email", "Telefone", "Localização", "Cargo", "Nível", "Permissão", "Status", "Último Acesso", "Data de Criação", "Ações"].map((h) => (
                                                         <th key={h} className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--cor-logo2)" }}>{h}</th>
                                                     ))}
@@ -1016,7 +1016,7 @@ export default function GestaoPage() {
                                                 {pagedUsers.map((user) => {
                                                     const access = permissoes[(user.email ?? "").toLowerCase()] ?? "usuario";
                                                     return (
-                                                        <tr key={user.id_usuario} className="border-b last:border-b-0 transition hover:-translate-y-px hover:shadow-sm" style={{ borderColor: "#d8e2eb", backgroundColor: "#fbfdff" }}>
+                                                        <tr key={user.id_usuario} className="border-b last:border-b-0 transition hover:-translate-y-px hover:shadow-sm" style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-widgets)" }}>
                                                             <td className="px-4 py-3">
                                                                 <div className="flex items-center gap-2.5">
                                                                     <Avatar nome={user.nome} foto={user.foto_perfil} />
@@ -1084,8 +1084,8 @@ export default function GestaoPage() {
                                 <FieldLabel label="Nome do cargo">
                                     <input value={cargoForm.nome_cargo} onChange={(e) => setCargoForm({ nome_cargo: e.target.value })}
                                         placeholder="Ex.: Diretoria, Analista, Designer"
-                                        className="w-full rounded-xl border bg-white px-4 py-3 text-sm shadow-sm outline-none transition focus:border-slate-400"
-                                        style={{ borderColor: "var(--cor-borda)" }} />
+                                        className="w-full rounded-xl border px-4 py-3 text-sm shadow-sm outline-none transition focus:border-slate-400"
+                                        style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-fundo)", color: "var(--cor-logo)" }} />
                                 </FieldLabel>
                                 <div className="flex flex-wrap gap-3">
                                     <button type="submit" disabled={savingCargo}
@@ -1109,7 +1109,7 @@ export default function GestaoPage() {
                             <SectionHeader icon={<BriefcaseBusiness size={18} />} title="Cargos cadastrados" subtitle="Edite ou remova cargos existentes." />
                             <div className="mt-5 space-y-3">
                                 {cargos.length === 0 ? <EmptyState text="Nenhum cargo cadastrado ainda." /> : cargos.map((cargo) => (
-                                    <div key={cargo.id_cargo} className="flex items-center justify-between gap-3 rounded-2xl border px-4 py-3 transition hover:-translate-y-0.5" style={{ borderColor: "#d8e2eb", backgroundColor: "#fbfdff" }}>
+                                    <div key={cargo.id_cargo} className="flex items-center justify-between gap-3 rounded-2xl border px-4 py-3 transition hover:-translate-y-0.5" style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-widgets)" }}>
                                         <div>
                                             <p className="font-medium" style={{ color: "var(--cor-logo)" }}>{cargo.nome_cargo}</p>
                                             <p className="text-xs" style={{ color: "var(--cor-logo2)" }}>ID {cargo.id_cargo}</p>
@@ -1143,14 +1143,14 @@ export default function GestaoPage() {
                                 <FieldLabel label="Nome da equipe">
                                     <input value={equipeForm.nome} onChange={(e) => setEquipeForm((c) => ({ ...c, nome: e.target.value }))}
                                         placeholder="Ex.: Produto, Marketing, Operações"
-                                        className="w-full rounded-xl border bg-white px-4 py-3 text-sm shadow-sm outline-none transition focus:border-slate-400"
-                                        style={{ borderColor: "var(--cor-borda)" }} />
+                                        className="w-full rounded-xl border px-4 py-3 text-sm shadow-sm outline-none transition focus:border-slate-400"
+                                        style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-fundo)", color: "var(--cor-logo)" }} />
                                 </FieldLabel>
 
                                 <FieldLabel label="Responsável da criação">
                                     <select value={equipeForm.criado_por} onChange={(e) => setEquipeForm((c) => ({ ...c, criado_por: e.target.value }))}
-                                        className="w-full rounded-xl border bg-white px-4 py-3 text-sm shadow-sm outline-none transition"
-                                        style={{ borderColor: "var(--cor-borda)" }}>
+                                        className="w-full rounded-xl border px-4 py-3 text-sm shadow-sm outline-none transition"
+                                        style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-fundo)", color: "var(--cor-logo)" }}>
                                         <option value="">Selecione</option>
                                         {usuarios.map((u) => (
                                             <option key={u.id_usuario} value={u.id_usuario}>{u.nome}</option>
@@ -1160,8 +1160,8 @@ export default function GestaoPage() {
 
                                 <FieldLabel label="Tipo">
                                     <select value={equipeForm.tipo} onChange={(e) => setEquipeForm((c) => ({ ...c, tipo: e.target.value }))}
-                                        className="w-full rounded-xl border bg-white px-4 py-3 text-sm shadow-sm outline-none transition"
-                                        style={{ borderColor: "var(--cor-borda)" }}>
+                                        className="w-full rounded-xl border px-4 py-3 text-sm shadow-sm outline-none transition"
+                                        style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-fundo)", color: "var(--cor-logo)" }}>
                                         <option value="EMPRESA">Equipe principal</option>
                                         <option value="SUBEQUIPE">Subequipe</option>
                                     </select>
@@ -1169,8 +1169,8 @@ export default function GestaoPage() {
 
                                 <FieldLabel label="Equipe pai" description="Opcional para subequipes.">
                                     <select value={equipeForm.equipe_pai} onChange={(e) => setEquipeForm((c) => ({ ...c, equipe_pai: e.target.value }))}
-                                        className="w-full rounded-xl border bg-white px-4 py-3 text-sm shadow-sm outline-none transition"
-                                        style={{ borderColor: "var(--cor-borda)" }}>
+                                        className="w-full rounded-xl border px-4 py-3 text-sm shadow-sm outline-none transition"
+                                        style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-fundo)", color: "var(--cor-logo)" }}>
                                         <option value="">Nenhuma</option>
                                         {equipes.map((e) => <option key={e.id_equipe} value={e.id_equipe}>{e.nome}</option>)}
                                     </select>
@@ -1178,8 +1178,8 @@ export default function GestaoPage() {
 
                                 <FieldLabel label="Líder" description="O usuário selecionado receberá acesso de administrador automaticamente.">
                                     <select value={equipeForm.id_lider} onChange={(e) => setEquipeForm((c) => ({ ...c, id_lider: e.target.value }))}
-                                        className="w-full rounded-xl border bg-white px-4 py-3 text-sm shadow-sm outline-none transition"
-                                        style={{ borderColor: "var(--cor-borda)" }}>
+                                        className="w-full rounded-xl border px-4 py-3 text-sm shadow-sm outline-none transition"
+                                        style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-fundo)", color: "var(--cor-logo)" }}>
                                         <option value="">Sem líder</option>
                                         {usuarios.map((u) => (
                                             <option key={u.id_usuario} value={u.id_usuario}>
@@ -1214,7 +1214,7 @@ export default function GestaoPage() {
                                     const owner = usuarios.find((u) => u.id_usuario === equipe.criado_por)?.nome ?? "Não informado";
                                     const parent = equipes.find((e) => e.id_equipe === equipe.equipe_pai)?.nome ?? null;
                                     return (
-                                        <div key={equipe.id_equipe} className="rounded-2xl border px-4 py-4 transition hover:-translate-y-0.5" style={{ borderColor: "#d8e2eb", backgroundColor: "#fbfdff" }}>
+                                        <div key={equipe.id_equipe} className="rounded-2xl border px-4 py-4 transition hover:-translate-y-0.5" style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-widgets)" }}>
                                             <div className="flex items-start justify-between gap-3">
                                                 <div>
                                                     <div className="flex flex-wrap items-center gap-2">
@@ -1346,8 +1346,7 @@ export default function GestaoPage() {
                                     className="rounded-xl border px-4 py-2 text-sm transition hover:shadow-sm"
                                     style={{ borderColor: "var(--cor-borda)", color: "var(--cor-logo)" }}>Cancelar</button>
                                 <button type="submit" disabled={savingUser}
-                                    className="rounded-xl px-4 py-2 text-sm font-medium text-white transition hover:shadow-lg disabled:opacity-60"
-                                    style={{ backgroundColor: "#1a1a2e" }}>
+                                    className="rounded-xl px-4 py-2 text-sm font-medium text-white dark:text-(--cor-fundo) transition hover:shadow-lg disabled:opacity-60 bg-[#1a1a2e] dark:bg-(--cor-accentII)">
                                     {savingUser ? "Salvando..." : isCreateOpen ? "Cadastrar" : "Salvar"}
                                 </button>
                             </div>
@@ -1374,7 +1373,7 @@ export default function GestaoPage() {
                             {(() => {
                                 const impacto = getImpactoExclusao(deletingUser);
                                 return impacto.projetosAtivos.length > 0 || impacto.equipesAssociadas.length > 0 ? (
-                                    <div className="mb-4 rounded-xl border px-4 py-3 text-sm" style={{ borderColor: "#f3d594", backgroundColor: "#fff8e8", color: "#8a5a00" }}>
+                                    <div className="mb-4 rounded-xl border px-4 py-3 text-sm" style={{ borderColor: "rgba(218,165,32,0.5)", backgroundColor: "rgba(218,165,32,0.1)", color: "#b8900a" }}>
                                         <p className="font-medium">Impacto: {impacto.nivel}</p>
                                         {impacto.projetosAtivos.length > 0 && <p>• {impacto.projetosAtivos.length} projeto(s) ativo(s) afetado(s)</p>}
                                         {impacto.equipesAssociadas.length > 0 && <p>• {impacto.equipesAssociadas.length} equipe(s) afetada(s)</p>}
@@ -1416,8 +1415,7 @@ export default function GestaoPage() {
                                     className="rounded-xl border px-4 py-2 text-sm"
                                     style={{ borderColor: "var(--cor-borda)", color: "var(--cor-logo)" }}>Cancelar</button>
                                 <button type="button" onClick={() => void onToggleStatus()} disabled={statusUpdatingId === statusUser.id_usuario}
-                                    className="rounded-xl px-4 py-2 text-sm font-medium text-white transition hover:shadow-lg disabled:opacity-60"
-                                    style={{ backgroundColor: "#1a1a2e" }}>
+                                    className="rounded-xl px-4 py-2 text-sm font-medium text-white dark:text-(--cor-fundo) transition hover:shadow-lg disabled:opacity-60 bg-[#1a1a2e] dark:bg-(--cor-accentII)">
                                     {statusUpdatingId === statusUser.id_usuario ? "Salvando..." : "Confirmar"}
                                 </button>
                             </div>

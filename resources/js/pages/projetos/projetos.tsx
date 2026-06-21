@@ -469,7 +469,7 @@ setOpen(false);
 				type="button"
 				disabled={disabled}
 				onClick={() => !disabled && setOpen((v) => !v)}
-				className="w-full rounded-xl border px-4 py-3 text-xl text-left flex items-center justify-between outline-none transition"
+				className="w-full rounded-xl border px-4 py-2.5 text-base text-left flex items-center justify-between outline-none transition"
 				style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-widgets)", color: "var(--cor-logo)" }}
 			>
 				<span>{selected?.label ?? placeholder}</span>
@@ -490,7 +490,7 @@ setOpen(false);
 							onClick={() => {
  onChange(option.value); setOpen(false); 
 }}
-							className="w-full px-4 py-3 text-xl text-left transition-colors"
+							className="w-full px-4 py-2.5 text-base text-left transition-colors"
 							style={{
 								color: "var(--cor-logo)",
 								backgroundColor: value === option.value ? "var(--cor-botao)" : "transparent",
@@ -1888,13 +1888,13 @@ export default function Projetos() {
 										<div className="h-2 w-full rounded-t-xl" style={{ backgroundColor: priorityColor(tarefa.prioridade_task) }} />
 										<div className="p-3">
 											<div className="mb-2 flex items-start justify-between gap-2">
-												<p className="text-base leading-tight font-semibold" style={{ color: "var(--cor-logo)" }}>
+												<p className="text-lg leading-tight font-semibold" style={{ color: "var(--cor-logo)" }}>
 													{tarefa.titulo}
 												</p>
 												<GripVertical size={16} style={{ color: "#94a2b3" }} />
 											</div>
 
-											<div className="mb-2 flex flex-wrap gap-1.5 text-xs">
+											<div className="mb-2 flex flex-wrap gap-1.5 text-sm">
 												<span className="rounded px-2 py-1 font-semibold" style={{ color: "#fff", backgroundColor: typeColor(tarefa.tipo_task) }}>
 													{typeLabel(tarefa.tipo_task)}
 												</span>
@@ -1908,7 +1908,7 @@ export default function Projetos() {
 												) : null}
 											</div>
 
-											<p className="text-xs" style={{ color: "var(--cor-logo2)" }}>
+											<p className="text-sm" style={{ color: "var(--cor-logo2)" }}>
 												Resp.: {tarefa.responsavel?.nome ?? "Nao definido"}
 											</p>
 											<div className="mt-2 flex items-center gap-1">
@@ -1916,13 +1916,13 @@ export default function Projetos() {
 													<AvatarPill key={`${tarefa.id_tarefa}-${usuario.id_usuario}`} usuario={usuario} size={30} />
 												))}
 												{(tarefa.relacionados ?? []).length > 5 ? (
-													<span className="rounded-full border px-2 py-1 text-xs" style={{ color: "#4b5f75", borderColor: "#c6d0db" }}>
+													<span className="rounded-full border px-2 py-1 text-sm" style={{ color: "#4b5f75", borderColor: "#c6d0db" }}>
 														+{(tarefa.relacionados ?? []).length - 5}
 													</span>
 												) : null}
 											</div>
 											<div className="mt-2">
-												<div className="mb-1 flex items-center justify-between text-xs" style={{ color: "var(--cor-logo2)" }}>
+												<div className="mb-1 flex items-center justify-between text-sm" style={{ color: "var(--cor-logo2)" }}>
 													<span>Progresso</span>
 													<span>{getProgressFromStatus(tarefa.status_task)}%</span>
 												</div>
@@ -2508,7 +2508,7 @@ export default function Projetos() {
 											disabled={!isEditingDetails}
 											value={detailsForm.titulo}
 											onChange={(e) => setDetailsForm((c) => ({ ...c, titulo: e.target.value }))}
-											className="rounded-lg border px-3 py-2 text-sm outline-none transition focus:ring-2"
+											className="rounded-lg border px-3 py-2.5 text-base outline-none transition focus:ring-2"
 											style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-widgets)", color: "var(--cor-logo)" }}
 										/>
 									</label>
@@ -2578,7 +2578,7 @@ export default function Projetos() {
 										rows={3}
 										value={detailsForm.descricao}
 										onChange={(e) => setDetailsForm((c) => ({ ...c, descricao: e.target.value }))}
-										className="rounded-lg border px-3 py-2 text-sm outline-none transition focus:ring-2 resize-none"
+										className="rounded-lg border px-3 py-2.5 text-base outline-none transition focus:ring-2 resize-none"
 										style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-widgets)", color: "var(--cor-logo)" }}
 									/>
 								</label>
