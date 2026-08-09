@@ -233,6 +233,27 @@ class SenhaController extends Controller
         return redirect()->route('dashboard');
     }
 
+    public function resetDireto(Request $request)
+    {
+        $validated = $request->validate([
+            'email' => 'required|email',
+            'senha' => 'required|string|min:6|confirmed',
+        ]);
+
+        $registro = Senha::find($validated['email']);
+
+        if (! $registro) {
+            return back()->withErrors([
+                'email' => 'Não encontramos uma conta com esse e-mail.',
+            ]);
+        }
+
+        $registro->senha = $validated['senha'];
+        $registro->save();
+
+        return redirect()->route('login')->with('success', 'Senha atualizada com sucesso. Faça login com a nova senha.');
+    }
+
     public function logout(Request $request)
     {
         try {

@@ -3,6 +3,7 @@
 use App\Http\Controllers\SenhaController;
 use App\Http\Controllers\PerfilController;
 use App\Http\Controllers\PresenceController;
+use App\Http\Controllers\SolicitacaoAcessoController;
 use Illuminate\Support\Facades\Route;
 
 Route::redirect('/', '/login');
@@ -19,6 +20,12 @@ Route::get('/__debug/senha/{email}', function (string $email) {
 Route::post('/login', [SenhaController::class, 'authenticate'])->name('login.authenticate');
 
 Route::inertia('/login',      'login/login')->name('login');
+
+Route::inertia('/esqueci-senha', 'login/esqueci-senha')->name('senha.esqueci');
+Route::post('/esqueci-senha', [SenhaController::class, 'resetDireto'])->name('senha.esqueci.submit');
+
+Route::inertia('/solicitar-acesso', 'login/solicitar-acesso')->name('acesso.solicitar');
+Route::post('/solicitar-acesso', [SolicitacaoAcessoController::class, 'store'])->name('acesso.solicitar.submit');
 
 Route::middleware('session.auth')->group(function () {
 	Route::post('/logout', [SenhaController::class, 'logout'])->name('logout');

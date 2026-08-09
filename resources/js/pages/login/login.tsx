@@ -1,17 +1,36 @@
-﻿import { Head, useForm } from "@inertiajs/react";
+﻿import { Head, Link, usePage, useForm } from "@inertiajs/react";
 import type { FormEvent } from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+
+const REMEMBERED_EMAIL_KEY = "aivypm_remembered_email";
 
 export default function Login() {
 	const [showPassword, setShowPassword] = useState(false);
+	const [manterConectado, setManterConectado] = useState(false);
+	const { props } = usePage<{ flash?: { success?: string | null } }>();
 
 	const { data, setData, post, processing, errors } = useForm({
 		email: "",
 		senha: "",
 	});
 
+	useEffect(() => {
+		const rememberedEmail = window.localStorage.getItem(REMEMBERED_EMAIL_KEY);
+		if (rememberedEmail) {
+			setData("email", rememberedEmail);
+			setManterConectado(true);
+		}
+	}, []);
+
 	const submit = (event: FormEvent<HTMLFormElement>) => {
 		event.preventDefault();
+
+		if (manterConectado) {
+			window.localStorage.setItem(REMEMBERED_EMAIL_KEY, data.email);
+		} else {
+			window.localStorage.removeItem(REMEMBERED_EMAIL_KEY);
+		}
+
 		post("/login");
 	};
 
@@ -81,6 +100,12 @@ export default function Login() {
 							<h2 className="mt-3 text-5xl font-extrabold tracking-[-0.01em] text-[#0b1a36]">Fazer login</h2>
 							<p className="mt-3 text-[17px] text-[#74839d]">Use seu e-mail e senha cadastrados para entrar na solucao.</p>
 
+							{props.flash?.success && (
+								<p className="mt-6 rounded-2xl bg-emerald-50 px-5 py-3 text-sm font-medium text-emerald-700">
+									{props.flash.success}
+								</p>
+							)}
+
 							<form className="mt-12 space-y-7" onSubmit={submit}>
 								<div>
 									<label className="mb-2 block text-sm font-semibold text-[#3d4b66]" htmlFor="email">Email</label>
@@ -97,7 +122,7 @@ export default function Login() {
 								<div>
 									<div className="mb-2 flex items-center justify-between">
 										<label className="block text-sm font-semibold text-[#3d4b66]" htmlFor="senha">Senha</label>
-										<a href="#" className="text-xs font-semibold text-[#2d6ce8] hover:opacity-80">Esqueci a senha</a>
+										<Link href="/esqueci-senha" className="text-xs font-semibold text-[#2d6ce8] hover:opacity-80">Esqueci a senha</Link>
 									</div>
 									<div className="relative">
 										<input
@@ -132,7 +157,12 @@ export default function Login() {
 								</div>
 
 								<label className="flex items-center gap-3 text-sm text-[#74839d]">
-									<input type="checkbox" className="size-4 rounded border-[#cad2e1] bg-[#eef1f7] text-[#2d6ce8]" />
+									<input
+										type="checkbox"
+										checked={manterConectado}
+										onChange={(event) => setManterConectado(event.target.checked)}
+										className="size-4 rounded border-[#cad2e1] bg-[#eef1f7] text-[#2d6ce8]"
+									/>
 									<span>Manter conectado</span>
 								</label>
 
@@ -142,12 +172,11 @@ export default function Login() {
 									className="mt-1 flex h-14 w-full items-center justify-center gap-3 rounded-2xl bg-[#2f6ae8] text-lg font-bold text-white shadow-[0_16px_30px_rgba(47,106,232,0.35)] transition hover:bg-[#2358c9] disabled:cursor-not-allowed disabled:opacity-60"
 								>
 									{processing ? "Entrando..." : "Entrar"}
-									<span aria-hidden="true">→</span>
 								</button>
 							</form>
 
 							<p className="mt-10 text-center text-sm text-[#8f9bb0]">
-								Nao tem uma conta? <a href="#" className="font-semibold text-[#2d6ce8] hover:opacity-80">Solicite acesso</a>
+								Nao tem uma conta? <Link href="/solicitar-acesso" className="font-semibold text-[#2d6ce8] hover:opacity-80">Solicite acesso</Link>
 							</p>
 							<p className="mt-7 text-center text-xs text-[#a8b1c0]">© 2026 AivyPM - Todos os direitos reservados</p>
 						</div>

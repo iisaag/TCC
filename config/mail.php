@@ -115,4 +115,15 @@ return [
         'name' => env('MAIL_FROM_NAME', env('APP_NAME', 'Laravel')),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Admin Notification Address
+    |--------------------------------------------------------------------------
+    |
+    | Address that receives "solicitar acesso" (request access) notifications.
+    |
+    */
+
+    'admin_address' => env('MAIL_ADMIN_ADDRESS', 'admin.local@tcc.dev'),
+
 ];
