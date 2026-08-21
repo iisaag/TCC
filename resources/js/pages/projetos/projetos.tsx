@@ -515,6 +515,30 @@ setOpen(false);
 	);
 }
 
+function RequiredMark() {
+	return (
+		<span className="group relative ml-1 inline-flex align-middle">
+			<span
+				className="flex h-4 w-4 items-center justify-center rounded-full text-[11px] font-bold leading-none"
+				style={{ backgroundColor: "var(--cor-perigo)", color: "#fff" }}
+			>
+				*
+			</span>
+			<span
+				role="tooltip"
+				className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 w-max max-w-[170px] -translate-x-1/2 translate-y-1 scale-95 rounded-lg px-2.5 py-1.5 text-xs font-normal text-white opacity-0 shadow-lg transition-all duration-150 ease-out group-hover:translate-y-0 group-hover:scale-100 group-hover:opacity-100"
+				style={{ backgroundColor: "var(--cor-primaria)" }}
+			>
+				Campo obrigatorio
+				<span
+					className="absolute left-1/2 top-full -translate-x-1/2 border-4 border-transparent"
+					style={{ borderTopColor: "var(--cor-primaria)" }}
+				/>
+			</span>
+		</span>
+	);
+}
+
 function AvatarPill({ usuario, size = 30 }: { usuario: Usuario; size?: number }) {
 	const avatarUrl = resolveAvatarUrl(usuario.foto_perfil);
 
@@ -1534,41 +1558,38 @@ export default function Projetos() {
 								</p>
 
 								<div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-3">
-									<select
+									<CustomSelect
 										value={projectSort}
-										onChange={(e) => setProjectSort(e.target.value as "AZ" | "ZA" | "CARDS_DESC" | "CARDS_ASC")}
-										className="rounded-xl border px-3 py-2 text-sm outline-none"
-										style={{ borderColor: "var(--cor-borda)", color: "var(--cor-logo)", backgroundColor: "var(--cor-fundo)" }}
-									>
-										<option value="AZ">Ordem: A-Z</option>
-										<option value="ZA">Ordem: Z-A</option>
-										<option value="CARDS_DESC">Mais cards</option>
-										<option value="CARDS_ASC">Menos cards</option>
-									</select>
+										onChange={(v) => setProjectSort(v as "AZ" | "ZA" | "CARDS_DESC" | "CARDS_ASC")}
+										options={[
+											{ value: "AZ", label: "Ordem: A-Z" },
+											{ value: "ZA", label: "Ordem: Z-A" },
+											{ value: "CARDS_DESC", label: "Mais cards" },
+											{ value: "CARDS_ASC", label: "Menos cards" },
+										]}
+									/>
 
-									<select
+									<CustomSelect
 										value={projectStatusFilter}
-										onChange={(e) => setProjectStatusFilter(e.target.value as "TODOS" | "PLANEJAMENTO" | "EM_ANDAMENTO" | "CONCLUIDO")}
-										className="rounded-xl border px-3 py-2 text-sm outline-none"
-										style={{ borderColor: "var(--cor-borda)", color: "var(--cor-logo)", backgroundColor: "var(--cor-fundo)" }}
-									>
-										<option value="TODOS">Status: Todos</option>
-										<option value="PLANEJAMENTO">Status: Planejamento</option>
-										<option value="EM_ANDAMENTO">Status: Em andamento</option>
-										<option value="CONCLUIDO">Status: Concluido</option>
-									</select>
+										onChange={(v) => setProjectStatusFilter(v as "TODOS" | "PLANEJAMENTO" | "EM_ANDAMENTO" | "CONCLUIDO")}
+										options={[
+											{ value: "TODOS", label: "Status: Todos" },
+											{ value: "PLANEJAMENTO", label: "Status: Planejamento" },
+											{ value: "EM_ANDAMENTO", label: "Status: Em andamento" },
+											{ value: "CONCLUIDO", label: "Status: Concluido" },
+										]}
+									/>
 
-									<select
+									<CustomSelect
 										value={projectPriorityFilter}
-										onChange={(e) => setProjectPriorityFilter(e.target.value as "TODAS" | "ALTA" | "MEDIA" | "BAIXA")}
-										className="rounded-xl border px-3 py-2 text-sm outline-none"
-										style={{ borderColor: "var(--cor-borda)", color: "var(--cor-logo)", backgroundColor: "var(--cor-fundo)" }}
-									>
-										<option value="TODAS">Prioridade: Todas</option>
-										<option value="ALTA">Prioridade: Alta</option>
-										<option value="MEDIA">Prioridade: Media</option>
-										<option value="BAIXA">Prioridade: Baixa</option>
-									</select>
+										onChange={(v) => setProjectPriorityFilter(v as "TODAS" | "ALTA" | "MEDIA" | "BAIXA")}
+										options={[
+											{ value: "TODAS", label: "Prioridade: Todas" },
+											{ value: "ALTA", label: "Prioridade: Alta" },
+											{ value: "MEDIA", label: "Prioridade: Media" },
+											{ value: "BAIXA", label: "Prioridade: Baixa" },
+										]}
+									/>
 								</div>
 							</div>
 
@@ -2016,8 +2037,8 @@ export default function Projetos() {
 											type="button"
 											onClick={() => void onCloseActiveSprint()}
 											disabled={isClosingSprint}
-											className="rounded-xl border px-4 py-2 text-sm"
-											style={{ borderColor: "#d88", color: "#b02a2a", backgroundColor: "#fff5f5" }}
+											className="rounded-xl border px-4 py-2 text-sm transition disabled:cursor-not-allowed disabled:opacity-60"
+											style={{ borderColor: "var(--cor-perigo-borda)", color: "var(--cor-perigo)", backgroundColor: "var(--cor-perigo-fundo)" }}
 										>
 											{isClosingSprint ? "Encerrando..." : "Encerrar sprint ativa"}
 										</button>
@@ -2031,29 +2052,32 @@ export default function Projetos() {
 										<input
 											value={sprintForm.nome_sprint}
 											onChange={(e) => setSprintForm((c) => ({ ...c, nome_sprint: e.target.value }))}
-											className="rounded-xl border bg-white px-4 py-3 text-base shadow-sm"
+											className="rounded-xl border px-4 py-3 text-base shadow-sm outline-none transition focus:ring-2"
+											style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-widgets)", color: "var(--cor-logo)" }}
 										/>
 									</label>
 
 									<label className="flex flex-col gap-1 text-sm" style={{ color: "var(--cor-logo)" }}>
-										Data de inicio *
+										<span className="inline-flex items-center">Data de inicio<RequiredMark /></span>
 										<input
 											required
 											type="date"
 											value={sprintForm.data_inicio}
 											onChange={(e) => setSprintForm((c) => ({ ...c, data_inicio: e.target.value }))}
-											className="rounded-xl border bg-white px-4 py-3 text-base shadow-sm"
+											className="rounded-xl border px-4 py-3 text-base shadow-sm outline-none transition focus:ring-2"
+											style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-widgets)", color: "var(--cor-logo)" }}
 										/>
 									</label>
 
 									<label className="flex flex-col gap-1 text-sm" style={{ color: "var(--cor-logo)" }}>
-										Data de finalizacao *
+										<span className="inline-flex items-center">Data de finalizacao<RequiredMark /></span>
 										<input
 											required
 											type="date"
 											value={sprintForm.data_fim}
 											onChange={(e) => setSprintForm((c) => ({ ...c, data_fim: e.target.value }))}
-											className="rounded-xl border bg-white px-4 py-3 text-base shadow-sm"
+											className="rounded-xl border px-4 py-3 text-base shadow-sm outline-none transition focus:ring-2"
+											style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-widgets)", color: "var(--cor-logo)" }}
 										/>
 									</label>
 
@@ -2082,50 +2106,52 @@ export default function Projetos() {
 								<h2 className="text-2xl" style={{ color: "var(--cor-logo)" }}>
 									{editingProjectId ? "Editar projeto" : "Novo projeto"}
 								</h2>
-								<button type="button" onClick={closeProjectModal} className="rounded-lg border px-3 py-1.5 text-sm">
+								<button
+									type="button"
+									onClick={closeProjectModal}
+									className="rounded-lg border px-3 py-1.5 text-sm"
+									style={{ borderColor: "var(--cor-borda)", color: "var(--cor-logo)" }}
+								>
 									Fechar
 								</button>
 							</div>
 
 							<div className="grid grid-cols-1 gap-3 md:grid-cols-2">
 								<label className="flex flex-col gap-1 text-base" style={{ color: "var(--cor-logo)" }}>
-									Nome do projeto *
+									<span className="inline-flex items-center">Nome do projeto<RequiredMark /></span>
 									<input
 										required
 										value={projectForm.nome_projeto}
 										onChange={(e) => setProjectForm((c) => ({ ...c, nome_projeto: e.target.value }))}
-										className="rounded-xl border bg-white px-4 py-3 text-base shadow-sm"
+										className="rounded-xl border px-4 py-3 text-base shadow-sm outline-none transition focus:ring-2"
+										style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-widgets)", color: "var(--cor-logo)" }}
 									/>
 								</label>
 
 								<label className="flex flex-col gap-1 text-base" style={{ color: "var(--cor-logo)" }}>
 									Prioridade
-									<select
+									<CustomSelect
 										value={projectForm.prioridade_proj}
-										onChange={(e) => setProjectForm((c) => ({ ...c, prioridade_proj: e.target.value as ProjectFormState["prioridade_proj"] }))}
-										className="rounded-xl border bg-white px-4 py-3 text-base shadow-sm"
-									>
-										<option value="">Selecione</option>
-										<option value="BAIXA">Baixa</option>
-										<option value="MEDIA">Media</option>
-										<option value="ALTA">Alta</option>
-									</select>
+										onChange={(v) => setProjectForm((c) => ({ ...c, prioridade_proj: v as ProjectFormState["prioridade_proj"] }))}
+										options={[
+											{ value: "", label: "Selecione" },
+											{ value: "BAIXA", label: "Baixa" },
+											{ value: "MEDIA", label: "Media" },
+											{ value: "ALTA", label: "Alta" },
+										]}
+									/>
 								</label>
 
 								<label className="flex flex-col gap-1 text-base md:col-span-2" style={{ color: "var(--cor-logo)" }}>
 									Responsavel do projeto
-									<select
+									<CustomSelect
 										value={projectForm.id_responsavel}
-										onChange={(e) => setProjectForm((c) => ({ ...c, id_responsavel: e.target.value }))}
-										className="rounded-xl border bg-white px-4 py-3 text-base shadow-sm"
-									>
-										<option value="">Selecione</option>
-										{usuarios.map((usuario) => (
-											<option key={usuario.id_usuario} value={usuario.id_usuario}>
-												{usuario.nome}
-											</option>
-										))}
-									</select>
+										onChange={(v) => setProjectForm((c) => ({ ...c, id_responsavel: v }))}
+										options={[
+											{ value: "", label: "Selecione" },
+											...usuarios.map((usuario) => ({ value: String(usuario.id_usuario), label: usuario.nome })),
+										]}
+									/>
 								</label>
 
 								<label className="md:col-span-2 flex flex-col gap-1 text-base" style={{ color: "var(--cor-logo)" }}>
@@ -2134,13 +2160,19 @@ export default function Projetos() {
 										rows={4}
 										value={projectForm.descricao}
 										onChange={(e) => setProjectForm((c) => ({ ...c, descricao: e.target.value }))}
-										className="rounded-xl border bg-white px-4 py-3 text-base shadow-sm"
+										className="rounded-xl border px-4 py-3 text-base shadow-sm outline-none transition focus:ring-2"
+										style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-widgets)", color: "var(--cor-logo)" }}
 									/>
 								</label>
 							</div>
 
 							<div className="mt-5 flex justify-end gap-3">
-								<button type="button" onClick={closeProjectModal} className="rounded-xl border px-4 py-2.5 text-base">
+								<button
+									type="button"
+									onClick={closeProjectModal}
+									className="rounded-xl border px-4 py-2.5 text-base"
+									style={{ borderColor: "var(--cor-borda)", color: "var(--cor-logo)" }}
+								>
 									Cancelar
 								</button>
 								<button
@@ -2276,7 +2308,7 @@ export default function Projetos() {
 						>
 							<div
 								className="mb-5 flex items-center justify-between rounded-2xl border px-4 py-3"
-								style={{ borderColor: "#d6e0ea", background: "linear-gradient(135deg, #eef5fb 0%, #f8fbff 100%)" }}
+								style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-fundo)" }}
 							>
 								<h2 className="text-2xl" style={{ color: "var(--cor-logo)" }}>
 									Novo card de tarefa
@@ -2286,7 +2318,7 @@ export default function Projetos() {
 									type="button"
 									onClick={() => setIsModalOpen(false)}
 									className="rounded-xl border px-4 py-2 text-sm transition-transform duration-200 hover:-translate-y-0.5"
-									style={{ color: "var(--cor-logo)", borderColor: "#d0dbe7" }}
+									style={{ color: "var(--cor-logo)", borderColor: "var(--cor-borda)" }}
 								>
 									Fechar
 								</button>
@@ -2294,87 +2326,74 @@ export default function Projetos() {
 
 							<div className="grid grid-cols-1 gap-4 md:grid-cols-2">
 								<label className="flex flex-col gap-1 text-base" style={{ color: "var(--cor-logo)" }}>
-									Titulo da tarefa *
+									<span className="inline-flex items-center">Titulo da tarefa<RequiredMark /></span>
 									<input
 										required
 										value={form.titulo}
 										onChange={(e) => setForm((c) => ({ ...c, titulo: e.target.value }))}
-										className="rounded-xl border bg-white px-4 py-3 text-base shadow-sm"
+										className="rounded-xl border px-4 py-3 text-base shadow-sm outline-none transition focus:ring-2"
+										style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-widgets)", color: "var(--cor-logo)" }}
 									/>
 								</label>
 
 								<label className="flex flex-col gap-1 text-base" style={{ color: "var(--cor-logo)" }}>
 									Responsavel principal
-									<select
+									<CustomSelect
 										value={form.id_responsavel}
-										onChange={(e) => setForm((c) => ({ ...c, id_responsavel: e.target.value }))}
-										className="rounded-xl border bg-white px-4 py-3 text-base shadow-sm"
-									>
-										<option value="">Selecione</option>
-										{usuarios.map((usuario) => (
-											<option key={usuario.id_usuario} value={usuario.id_usuario}>
-												{usuario.nome}
-											</option>
-										))}
-									</select>
+										onChange={(v) => setForm((c) => ({ ...c, id_responsavel: v }))}
+										options={[
+											{ value: "", label: "Selecione" },
+											...usuarios.map((usuario) => ({ value: String(usuario.id_usuario), label: usuario.nome })),
+										]}
+									/>
 								</label>
 
 								<label className="flex flex-col gap-1 text-base" style={{ color: "var(--cor-logo)" }}>
 									Projeto
-									<select
+									<CustomSelect
 										value={form.id_projeto}
-										onChange={(e) => setForm((c) => ({ ...c, id_projeto: e.target.value }))}
-										className="rounded-xl border bg-white px-4 py-3 text-base shadow-sm"
-									>
-										<option value="">Selecione</option>
-										{projetos.map((projeto) => (
-											<option key={projeto.id_projeto} value={projeto.id_projeto}>
-												{displayWithoutAccents(projeto.nome_projeto)}
-											</option>
-										))}
-									</select>
+										onChange={(v) => setForm((c) => ({ ...c, id_projeto: v }))}
+										options={[
+											{ value: "", label: "Selecione" },
+											...projetos.map((projeto) => ({ value: String(projeto.id_projeto), label: displayWithoutAccents(projeto.nome_projeto) })),
+										]}
+									/>
 								</label>
 
 								<label className="flex flex-col gap-1 text-base" style={{ color: "var(--cor-logo)" }}>
 									Prioridade
-									<select
+									<CustomSelect
 										value={form.prioridade_task}
-										onChange={(e) => setForm((c) => ({ ...c, prioridade_task: e.target.value as FormState["prioridade_task"] }))}
-										className="rounded-xl border bg-white px-4 py-3 text-base shadow-sm"
-									>
-										<option value="BAIXA">Baixa</option>
-										<option value="MEDIA">Media</option>
-										<option value="ALTA">Alta</option>
-										<option value="CRITICA">Critica</option>
-									</select>
+										onChange={(v) => setForm((c) => ({ ...c, prioridade_task: v as FormState["prioridade_task"] }))}
+										options={[
+											{ value: "BAIXA", label: "Baixa" },
+											{ value: "MEDIA", label: "Media" },
+											{ value: "ALTA", label: "Alta" },
+											{ value: "CRITICA", label: "Critica" },
+										]}
+									/>
 								</label>
 
 								<label className="flex flex-col gap-1 text-base" style={{ color: "var(--cor-logo)" }}>
 									Tipo tecnico
-									<select
+									<CustomSelect
 										value={form.tipo_task}
-										onChange={(e) => setForm((c) => ({ ...c, tipo_task: e.target.value as FormState["tipo_task"] }))}
-										className="rounded-xl border bg-white px-4 py-3 text-base shadow-sm"
-									>
-										<option value="FRONT">Front</option>
-										<option value="BACK">Back</option>
-										<option value="FULLSTACK">Full Stack</option>
-									</select>
+										onChange={(v) => setForm((c) => ({ ...c, tipo_task: v as FormState["tipo_task"] }))}
+										options={[
+											{ value: "FRONT", label: "Front" },
+											{ value: "BACK", label: "Back" },
+											{ value: "FULLSTACK", label: "Full Stack" },
+										]}
+									/>
 								</label>
 
 								<label className="flex flex-col gap-1 text-base" style={{ color: "var(--cor-logo)" }}>
 									Status
-									<select
+									<CustomSelect
 										value={form.status_task}
-										onChange={(e) => setForm((c) => ({ ...c, status_task: e.target.value as BoardStatus }))}
-										className="rounded-xl border bg-white px-4 py-3 text-base shadow-sm"
-									>
-										{STATUS_COLUMNS.map((status) => (
-											<option key={status.key} value={status.key}>
-												{status.label}
-											</option>
-										))}
-									</select>
+										onChange={(v) => setForm((c) => ({ ...c, status_task: v as BoardStatus }))}
+										options={STATUS_COLUMNS.map((status) => ({ value: status.key, label: status.label }))}
+									/>
 								</label>
 
 							</div>
@@ -2394,11 +2413,12 @@ export default function Projetos() {
 									rows={5}
 									value={form.descricao}
 									onChange={(e) => setForm((c) => ({ ...c, descricao: e.target.value }))}
-									className="rounded-xl border bg-white px-4 py-3 text-base shadow-sm"
+									className="rounded-xl border px-4 py-3 text-base shadow-sm outline-none transition focus:ring-2"
+									style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-widgets)", color: "var(--cor-logo)" }}
 								/>
 							</label>
 
-							<div className="mt-4 rounded-2xl border p-3" style={{ borderColor: "#dce4ec", backgroundColor: "#f7fafc" }}>
+							<div className="mt-4 rounded-2xl border p-3" style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-fundo)" }}>
 								<div className="mb-1 flex items-center justify-between">
 									<p className="text-base" style={{ color: "var(--cor-logo)" }}>
 										Pessoas relacionadas
@@ -2407,7 +2427,8 @@ export default function Projetos() {
 										<button
 											type="button"
 											onClick={addMeToRelacionados}
-											className="rounded-lg border bg-white px-3 py-1.5 text-sm"
+											className="rounded-lg border px-3 py-1.5 text-sm"
+											style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-widgets)", color: "var(--cor-logo)" }}
 										>
 											Me adicionar
 										</button>
@@ -2433,6 +2454,7 @@ export default function Projetos() {
 									type="button"
 									onClick={() => setIsModalOpen(false)}
 									className="rounded-xl border px-5 py-2.5 text-base transition-transform duration-200 hover:-translate-y-0.5"
+									style={{ borderColor: "var(--cor-borda)", color: "var(--cor-logo)" }}
 								>
 									Cancelar
 								</button>

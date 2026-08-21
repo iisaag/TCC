@@ -51,7 +51,12 @@
     --cor-atrasoIII: #D3080B; /* atraso nivel 3 */
     --cor-adiantado: #448AF4;
     --cor-emdia: #7BC768;
-    
+
+    /* cores de perigo (acoes destrutivas) */
+    --cor-perigo: #b02a2a;
+    --cor-perigo-borda: #dd8888;
+    --cor-perigo-fundo: #fff5f5;
+
 }
 
 @layer base {
@@ -122,7 +127,12 @@
     --cor-atrasoIII: #ffb4bd; /* atraso nivel 3 */
     --cor-adiantado: #66a9ff;
     --cor-emdia: #7ecb79;
-    
+
+    /* cores de perigo (acoes destrutivas) */
+    --cor-perigo: #ff8a8a;
+    --cor-perigo-borda: #6b2f36;
+    --cor-perigo-fundo: #3a1f22;
+
     }
 }
 
