@@ -1,4 +1,6 @@
-CREATE DATABASE IF NOT EXISTS TCC
+DROP DATABASE IF EXISTS TCC;
+
+CREATE DATABASE TCC
 CHARACTER SET utf8mb4
 COLLATE utf8mb4_unicode_ci;
 
@@ -218,13 +220,13 @@ CREATE TABLE sessions (
 -- CACHE
 -- =====================================================
 CREATE TABLE cache (
-    key VARCHAR(255) PRIMARY KEY,
+    `key` VARCHAR(255) PRIMARY KEY,
     value MEDIUMTEXT NOT NULL,
     expiration INT NOT NULL
 );
 
 CREATE TABLE cache_locks (
-    key VARCHAR(255) PRIMARY KEY,
+    `key` VARCHAR(255) PRIMARY KEY,
     owner VARCHAR(255),
     expiration INT NOT NULL
 );

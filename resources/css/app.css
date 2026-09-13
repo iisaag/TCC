@@ -67,15 +67,20 @@
 
     body {
         font-size: 1rem;
-        zoom: 110%;
+        zoom: 100%; /* zoom padrao do sistema, aplicado a todas as telas */
     }
 
     @supports not (zoom: 1) {
         #app {
-            transform: scale(1.1);
+            transform: scale(1);
             transform-origin: top left;
-            width: 90.9091%;
+            width: 100%;
         }
+    }
+
+    /* excecoes: telas com zoom proprio de 110% (equipe e configuracoes) */
+    .zoom-110 {
+        zoom: 110%;
     }
 
     body,

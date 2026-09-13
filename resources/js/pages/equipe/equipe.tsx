@@ -322,7 +322,7 @@ export default function Equipe() {
 
     return (
         <DashboardLayout currentPage="team">
-            <section className="relative isolate overflow-hidden rounded-3xl border border-[#d5e4ff] bg-gradient-to-b from-[#edf5ff] via-[#f5f7ff] to-[#f6f2ff] p-4 sm:p-6 lg:p-10 dark:border-[#2d4353] dark:bg-none dark:bg-[#16232d]">
+            <section className="zoom-110 relative isolate overflow-hidden rounded-3xl border border-[#d5e4ff] bg-gradient-to-b from-[#edf5ff] via-[#f5f7ff] to-[#f6f2ff] p-4 sm:p-6 lg:p-10 dark:border-[#2d4353] dark:bg-none dark:bg-[#16232d]">
                 <div className="pointer-events-none absolute inset-0 opacity-60 [background-image:radial-gradient(circle_at_20%_20%,rgba(120,177,255,0.22),transparent_36%),radial-gradient(circle_at_80%_0%,rgba(118,128,255,0.2),transparent_32%),radial-gradient(circle_at_80%_80%,rgba(162,123,255,0.18),transparent_35%)] dark:opacity-30 dark:[background-image:radial-gradient(circle_at_20%_20%,rgba(67,127,170,0.18),transparent_38%),radial-gradient(circle_at_80%_0%,rgba(61,104,139,0.2),transparent_34%),radial-gradient(circle_at_80%_80%,rgba(49,86,117,0.2),transparent_38%)]" />
 
                 <header className="relative z-10 mb-8 text-center">

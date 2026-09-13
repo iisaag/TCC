@@ -11,7 +11,7 @@
     </script>
     @vite(['resources/css/app.css'])
 </head>
-<body class="min-h-screen bg-[#e7ebf3] px-4 py-6 text-slate-900 sm:px-6 sm:py-8 dark:bg-[#121b22] dark:text-[#e9f3fa]">
+<body class="zoom-110 min-h-screen bg-[#e7ebf3] px-4 py-6 text-slate-900 sm:px-6 sm:py-8 dark:bg-[#121b22] dark:text-[#e9f3fa]">
     @php
         $initials = collect(explode(' ', $user['name']))
             ->take(2)
