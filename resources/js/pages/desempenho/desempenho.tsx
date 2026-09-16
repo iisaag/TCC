@@ -19,8 +19,9 @@ import {
     YAxis,
 } from "recharts";
 import DashboardLayout from "@/layouts/DashboardLayout";
+import { downloadExcelFile  } from "@/lib/excelExport";
+import type {ExcelSheetDefinition} from "@/lib/excelExport";
 import { apiRoutes } from "@/lib/routes";
-import { downloadExcelFile, type ExcelSheetDefinition } from "@/lib/excelExport";
 
 type BoardStatus = "TO_DO" | "DOING" | "TESTE" | "APROVADO";
 
@@ -136,14 +137,18 @@ function parseDate(value?: string | null): Date | null {
 }
 
 function isTaskLate(task: TarefaApi, today: Date): boolean {
-    if (normalizeStatus(task.status_task) === "APROVADO") return false;
+    if (normalizeStatus(task.status_task) === "APROVADO") {
+return false;
+}
 
     if (task.sprint?.status_sprint === "ATIVA") {
         const sprintEnd = parseDate(task.sprint.data_fim);
+
         return sprintEnd !== null && sprintEnd < today;
     }
 
     const dueDate = parseDate(task.data_prevista_termino) ?? parseDate(task.prazo);
+
     return dueDate !== null && dueDate < today;
 }
 
@@ -750,7 +755,17 @@ export default function Desempenho() {
                                         <CartesianGrid strokeDasharray="3 3" stroke="#d6dbe1" />
                                         <XAxis dataKey="projeto" tick={{ fontSize: 12 }} />
                                         <YAxis tick={{ fontSize: 12 }} allowDecimals={false} />
-                                        <Tooltip formatter={(value) => `${formatNumericTooltip(value)} tarefas`} />
+                                        <Tooltip
+                                            formatter={(value) => `${formatNumericTooltip(value)} tarefas`}
+                                            cursor={false}
+                                            contentStyle={{
+                                                backgroundColor: "var(--cor-widgets)",
+                                                borderColor: "var(--cor-borda)",
+                                                color: "var(--cor-logo)",
+                                                borderRadius: "12px",
+                                            }}
+                                            labelStyle={{ color: "var(--cor-logo)" }}
+                                        />
                                         <Legend />
                                         <Bar dataKey="atrasadas" name="Atrasadas" fill="#e979a0" radius={[6, 6, 0, 0]} />
                                         <Bar dataKey="emDia" name="Em dia" fill="#7ca1cf" radius={[6, 6, 0, 0]} />
