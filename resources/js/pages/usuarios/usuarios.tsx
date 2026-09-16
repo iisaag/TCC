@@ -892,7 +892,7 @@ export default function UsuariosAdminPage() {
 
     return (
         <DashboardLayout currentPage="users-admin">
-            <div className="space-y-5">
+            <div className="space-y-8 pt-6 pb-12">
 
                 {/* Toasts */}
                 {success && (
@@ -1104,11 +1104,11 @@ export default function UsuariosAdminPage() {
                         <div className="p-8 text-center text-sm" style={{ color: "var(--cor-logo2)" }}>Nenhum usuário encontrado.</div>
                     ) : (
                         <div className="overflow-x-auto">
-                            <table className="w-full text-sm">
+                            <table className="w-full text-base">
                                 <thead>
                                     <tr className="border-b" style={{ borderColor: "var(--cor-borda)" }}>
                                         {["Nome", "Email", "Telefone", "Localização", "Cargo", "Nível", "Permissão", "Status", "Último Acesso", "Data de Criação", "Ações"].map((h) => (
-                                            <th key={h} className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--cor-logo2)" }}>
+                                            <th key={h} className="whitespace-nowrap px-5 py-4 text-left text-sm font-semibold uppercase tracking-wide" style={{ color: "var(--cor-logo2)" }}>
                                                 {h}
                                             </th>
                                         ))}
@@ -1119,19 +1119,19 @@ export default function UsuariosAdminPage() {
                                         const access = permissoes[(user.email ?? "").toLowerCase()] ?? "usuario";
                                         return (
                                             <tr key={user.id_usuario} className="border-b last:border-b-0 transition-all duration-200 hover:shadow-sm" style={{ borderColor: "var(--cor-borda)" }}>
-                                                <td className="px-4 py-3">
+                                                <td className="px-5 py-4">
                                                     <div className="flex items-center gap-2.5">
                                                         <Avatar nome={user.nome} foto={user.foto_perfil} />
                                                         <span className="whitespace-nowrap font-medium" style={{ color: "var(--cor-logo)" }}>{user.nome}</span>
                                                     </div>
                                                 </td>
-                                                <td className="px-4 py-3 text-xs" style={{ color: "var(--cor-logo2)" }}>{user.email ?? "—"}</td>
-                                                <td className="px-4 py-3 text-xs" style={{ color: "var(--cor-logo2)" }}>{(user as any).telefone ?? '—'}</td>
-                                                <td className="px-4 py-3 text-xs" style={{ color: "var(--cor-logo2)" }}>{(user as any).localizacao ?? '—'}</td>
-                                                <td className="px-4 py-3 whitespace-nowrap" style={{ color: "var(--cor-logo)" }}>{user.cargo ?? "—"}</td>
-                                                <td className="px-4 py-3 whitespace-nowrap" style={{ color: "var(--cor-logo)" }}>{user.nivel ?? "—"}</td>
-                                                <td className="px-4 py-3"><PermissionBadge access={access} /></td>
-                                                <td className="px-4 py-3">
+                                                <td className="px-5 py-4 text-sm" style={{ color: "var(--cor-logo2)" }}>{user.email ?? "—"}</td>
+                                                <td className="px-5 py-4 text-sm" style={{ color: "var(--cor-logo2)" }}>{(user as any).telefone ?? '—'}</td>
+                                                <td className="px-5 py-4 text-sm" style={{ color: "var(--cor-logo2)" }}>{(user as any).localizacao ?? '—'}</td>
+                                                <td className="px-5 py-4 whitespace-nowrap" style={{ color: "var(--cor-logo)" }}>{user.cargo ?? "—"}</td>
+                                                <td className="px-5 py-4 whitespace-nowrap" style={{ color: "var(--cor-logo)" }}>{user.nivel ?? "—"}</td>
+                                                <td className="px-5 py-4"><PermissionBadge access={access} /></td>
+                                                <td className="px-5 py-4">
                                                     <StatusBadge
                                                         user={user}
                                                         disabled={statusUpdatingId === user.id_usuario}
@@ -1141,14 +1141,14 @@ export default function UsuariosAdminPage() {
                                                         }}
                                                     />
                                                 </td>
-                                                <td className="px-4 py-3 whitespace-nowrap text-xs" style={{ color: "var(--cor-logo2)" }}>{formatDateTime(user.ultimo_acesso)}</td>
-                                                <td className="px-4 py-3 whitespace-nowrap text-xs" style={{ color: "var(--cor-logo2)" }}>{formatDateTime(user.data_criacao)}</td>
-                                                <td className="px-4 py-3">
+                                                <td className="px-5 py-4 whitespace-nowrap text-sm" style={{ color: "var(--cor-logo2)" }}>{formatDateTime(user.ultimo_acesso)}</td>
+                                                <td className="px-5 py-4 whitespace-nowrap text-sm" style={{ color: "var(--cor-logo2)" }}>{formatDateTime(user.data_criacao)}</td>
+                                                <td className="px-5 py-4">
                                                     <div className="flex items-center gap-2">
                                                         <button
                                                             type="button"
                                                             onClick={() => { setDeletingUser(user); setIsDeleteOpen(true); }}
-                                                            className="rounded-lg border px-2.5 py-1 text-xs font-medium transition-all duration-200 hover:shadow-md"
+                                                            className="rounded-lg border px-3 py-2 text-sm font-medium transition-all duration-200 hover:shadow-md"
                                                             style={{ borderColor: "#e2a0a0", color: "#a02020" }}
                                                         >
                                                             Excluir
@@ -1169,7 +1169,7 @@ export default function UsuariosAdminPage() {
 
                     {!loading && filteredUsers.length > 0 && (
                         <div className="flex flex-wrap items-center justify-between gap-3 border-t px-4 py-3" style={{ borderColor: "var(--cor-borda)" }}>
-                            <span className="text-xs" style={{ color: "var(--cor-logo2)" }}>
+                            <span className="text-sm" style={{ color: "var(--cor-logo2)" }}>
                                 Mostrando {pagedUsers.length} de {filteredUsers.length} resultado{filteredUsers.length !== 1 ? "s" : ""}
                             </span>
                             <div className="flex items-center gap-3">
@@ -1177,19 +1177,19 @@ export default function UsuariosAdminPage() {
                                     type="button"
                                     onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                                     disabled={safePage === 1}
-                                    className="rounded-lg border px-3 py-1.5 text-sm transition-all duration-200 hover:shadow-md active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
+                                    className="rounded-lg border px-3 py-2 text-sm transition-all duration-200 hover:shadow-md active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
                                     style={{ borderColor: "var(--cor-borda)", color: "var(--cor-logo)" }}
                                 >
                                     Anterior
                                 </button>
-                                <span className="text-sm font-medium" style={{ color: "var(--cor-logo)" }}>
+                                <span className="text-base font-medium" style={{ color: "var(--cor-logo)" }}>
                                     Página {safePage} de {totalPages}
                                 </span>
                                 <button
                                     type="button"
                                     onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                                     disabled={safePage === totalPages}
-                                    className="rounded-lg border px-3 py-1.5 text-sm transition-all duration-200 hover:shadow-md active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
+                                    className="rounded-lg border px-3 py-2 text-sm transition-all duration-200 hover:shadow-md active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
                                     style={{ borderColor: "var(--cor-borda)", color: "var(--cor-logo)" }}
                                 >
                                     Próxima

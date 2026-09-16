@@ -127,6 +127,14 @@ const PERIODO_OPTIONS = [
 
 const PROJECT_HEALTH_PAGE_SIZE = 8;
 const ALERTS_PAGE_SIZE = 8;
+const CHART_TOOLTIP_STYLE = {
+    borderRadius: 16,
+    border: "1px solid var(--cor-borda)",
+    backgroundColor: "var(--cor-widgets)",
+    color: "var(--cor-vetores)",
+    boxShadow: "0 18px 42px rgba(0,0,0,0.18)",
+    padding: "10px 12px",
+};
 
 // Paleta de cores para avatares gerados por nome
 const AVATAR_PALETTE = [
@@ -425,11 +433,11 @@ function SectionCard({ title, children, noPad }: { title?: string; children: Rea
     return (
         <div className="dashboard-print-card rounded-2xl shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg" style={{ background: "var(--cor-widgets)", border: "1px solid var(--cor-borda)" }}>
             {title && (
-                <div className="border-b px-6 py-4" style={{ borderColor: "var(--cor-borda)" }}>
-                    <h2 className="text-base font-bold" style={{ color: "var(--cor-logo)" }}>{title}</h2>
+                <div className="border-b px-7 py-5" style={{ borderColor: "var(--cor-borda)" }}>
+                    <h2 className="text-lg font-bold" style={{ color: "var(--cor-logo)" }}>{title}</h2>
                 </div>
             )}
-            <div className={noPad ? "" : "p-6"}>{children}</div>
+            <div className={noPad ? "" : "p-7"}>{children}</div>
         </div>
     );
 }
@@ -755,8 +763,8 @@ export default function Dashboard() {
 
     return (
         <DashboardLayout currentPage="dashboard">
-            <div className="dashboard-print-root min-h-full">
-                <div className="flex flex-col gap-6 pb-12">
+            <div className="dashboard-print-root min-h-full pt-6">
+                <div className="flex flex-col gap-8 pb-14">
 
                     {/* ── HEADER ── */}
                     <div className="flex flex-wrap items-start justify-between gap-3">
@@ -863,14 +871,14 @@ export default function Dashboard() {
                                     <p className="text-base" style={{ color: "var(--cor-logo2)" }}>Nenhum projeto ativo encontrado.</p>
                                 ) : (
                                     <div className="overflow-x-auto">
-                                        <table className="w-full text-base">
+                                        <table className="w-full text-[15px]">
                                             <thead>
                                                 <tr className="border-b text-left text-sm uppercase tracking-wide" style={{ borderColor: "var(--cor-borda)", color: "var(--cor-logo2)" }}>
-                                                    <th className="pb-3 font-semibold">Projeto</th>
-                                                    <th className="pb-3 font-semibold">Progresso</th>
-                                                    <th className="pb-3 font-semibold">Prazo</th>
-                                                    <th className="pb-3 font-semibold">Responsável</th>
-                                                    <th className="pb-3 font-semibold">Status</th>
+                                                    <th className="pb-4 font-semibold">Projeto</th>
+                                                    <th className="pb-4 font-semibold">Progresso</th>
+                                                    <th className="pb-4 font-semibold">Prazo</th>
+                                                    <th className="pb-4 font-semibold">Responsável</th>
+                                                    <th className="pb-4 font-semibold">Status</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -882,12 +890,12 @@ export default function Dashboard() {
                                                             className="border-b transition-colors duration-200 hover:bg-(--cor-fundo) last:border-0"
                                                             style={{ borderColor: "var(--cor-borda)" }}
                                                         >
-                                                            <td className="py-3 font-semibold" style={{ color: "var(--cor-logo)" }}>
+                                                            <td className="py-4 font-semibold" style={{ color: "var(--cor-logo)" }}>
                                                                 {p.nome}
                                                             </td>
-                                                            <td className="py-3">
+                                                            <td className="py-4">
                                                                 <div className="flex items-center gap-2">
-                                                                    <div className="h-2 w-28 overflow-hidden rounded-full" style={{ background: "var(--cor-borda)" }}>
+                                                                    <div className="h-2.5 w-36 overflow-hidden rounded-full" style={{ background: "var(--cor-borda)" }}>
                                                                         <div
                                                                             className="h-full rounded-full"
                                                                             style={{
@@ -896,18 +904,18 @@ export default function Dashboard() {
                                                                             }}
                                                                         />
                                                                     </div>
-                                                                    <span className="text-sm font-semibold" style={{ color: "var(--cor-logo)" }}>
+                                                                    <span className="text-base font-semibold" style={{ color: "var(--cor-logo)" }}>
                                                                         {p.progresso}%
                                                                     </span>
                                                                 </div>
                                                             </td>
-                                                            <td className="py-3" style={{ color: "var(--cor-logo)" }}>
+                                                            <td className="py-4" style={{ color: "var(--cor-logo)" }}>
                                                                 {formatDate(p.prazo)}
                                                             </td>
-                                                            <td className="py-3">
+                                                            <td className="py-4">
                                                                 {p.responsavel ? (
                                                                     <div className="flex items-center gap-2">
-                                                                        <Avatar name={p.responsavel} size={30} />
+                                                                        <Avatar name={p.responsavel} size={34} />
                                                                         <span style={{ color: "var(--cor-logo)" }}>
                                                                             {p.responsavel}
                                                                         </span>
@@ -916,9 +924,9 @@ export default function Dashboard() {
                                                                     <span style={{ color: "var(--cor-logo2)" }}>—</span>
                                                                 )}
                                                             </td>
-                                                            <td className="py-3">
+                                                            <td className="py-4">
                                                                 <span
-                                                                    className="flex w-fit items-center gap-1 rounded-full px-2.5 py-1 text-sm font-semibold"
+                                                                    className="flex w-fit items-center gap-1 rounded-full px-3 py-1.5 text-sm font-semibold"
                                                                     style={{ background: st.bg, color: st.color }}
                                                                 >
                                                                     {st.icon}
@@ -967,27 +975,27 @@ export default function Dashboard() {
                                         Evolução de Tarefas
                                     </h3>
                                     {isPrinting ? (
-                                        <ResponsiveContainer width="100%" height={240}>
+                                        <ResponsiveContainer width="100%" height={280}>
                                             <LineChart data={data.evolucao_semanal}>
                                                 <CartesianGrid strokeDasharray="3 3" stroke="var(--cor-borda)" />
-                                                <XAxis dataKey="semana" tick={{ fontSize: 11, fill: "var(--cor-logo2)" }} axisLine={false} tickLine={false} />
-                                                <YAxis tick={{ fontSize: 11, fill: "var(--cor-logo2)" }} axisLine={false} tickLine={false} />
-                                                <Tooltip contentStyle={{ borderRadius: 10, border: "1px solid var(--cor-borda)", backgroundColor: "var(--cor-widgets)", color: "var(--cor-vetores)", boxShadow: "0 4px 20px rgba(0,0,0,0.08)" }} />
-                                                <Legend wrapperStyle={{ fontSize: 11 }} />
-                                                <Line type="monotone" dataKey="concluidas" name="Concluídas" stroke="#7c3aed" strokeWidth={2.5} dot={{ r: 4, fill: "#7c3aed" }} activeDot={{ r: 6 }} />
-                                                <Line type="monotone" dataKey="criadas" name="Criadas" stroke="#a78bfa" strokeWidth={2} dot={{ r: 4, fill: "#a78bfa" }} strokeDasharray="4 2" />
+                                                <XAxis dataKey="semana" tick={{ fontSize: 12, fill: "var(--cor-logo2)" }} axisLine={false} tickLine={false} tickMargin={10} />
+                                                <YAxis tick={{ fontSize: 12, fill: "var(--cor-logo2)" }} axisLine={false} tickLine={false} width={40} />
+                                                <Tooltip cursor={false} contentStyle={CHART_TOOLTIP_STYLE} labelStyle={{ color: "var(--cor-logo)" }} />
+                                                <Legend wrapperStyle={{ fontSize: 12 }} />
+                                                <Line type="monotone" dataKey="concluidas" name="Concluídas" stroke="#7c3aed" strokeWidth={3} dot={{ r: 5, fill: "#7c3aed" }} activeDot={{ r: 7 }} />
+                                                <Line type="monotone" dataKey="criadas" name="Criadas" stroke="#a78bfa" strokeWidth={2.4} dot={{ r: 5, fill: "#a78bfa" }} strokeDasharray="4 2" />
                                             </LineChart>
                                         </ResponsiveContainer>
                                     ) : (
-                                        <ResponsiveContainer width="100%" height={220}>
+                                        <ResponsiveContainer width="100%" height={280}>
                                             <LineChart data={data.evolucao_semanal}>
                                                 <CartesianGrid strokeDasharray="3 3" stroke="var(--cor-borda)" />
-                                                <XAxis dataKey="semana" tick={{ fontSize: 11, fill: "var(--cor-logo2)" }} axisLine={false} tickLine={false} />
-                                                <YAxis tick={{ fontSize: 11, fill: "var(--cor-logo2)" }} axisLine={false} tickLine={false} />
-                                                <Tooltip contentStyle={{ borderRadius: 10, border: "1px solid var(--cor-borda)", backgroundColor: "var(--cor-widgets)", color: "var(--cor-vetores)", boxShadow: "0 4px 20px rgba(0,0,0,0.08)" }} />
-                                                <Legend wrapperStyle={{ fontSize: 11 }} />
-                                                <Line type="monotone" dataKey="concluidas" name="Concluídas" stroke="#7c3aed" strokeWidth={2.5} dot={{ r: 4, fill: "#7c3aed" }} activeDot={{ r: 6 }} />
-                                                <Line type="monotone" dataKey="criadas" name="Criadas" stroke="#a78bfa" strokeWidth={2} dot={{ r: 4, fill: "#a78bfa" }} strokeDasharray="4 2" />
+                                                <XAxis dataKey="semana" tick={{ fontSize: 12, fill: "var(--cor-logo2)" }} axisLine={false} tickLine={false} tickMargin={10} />
+                                                <YAxis tick={{ fontSize: 12, fill: "var(--cor-logo2)" }} axisLine={false} tickLine={false} width={40} />
+                                                <Tooltip cursor={false} contentStyle={CHART_TOOLTIP_STYLE} labelStyle={{ color: "var(--cor-logo)" }} />
+                                                <Legend wrapperStyle={{ fontSize: 12 }} />
+                                                <Line type="monotone" dataKey="concluidas" name="Concluídas" stroke="#7c3aed" strokeWidth={3} dot={{ r: 5, fill: "#7c3aed" }} activeDot={{ r: 7 }} />
+                                                <Line type="monotone" dataKey="criadas" name="Criadas" stroke="#a78bfa" strokeWidth={2.4} dot={{ r: 5, fill: "#a78bfa" }} strokeDasharray="4 2" />
                                             </LineChart>
                                         </ResponsiveContainer>
                                     )}
@@ -1002,22 +1010,22 @@ export default function Dashboard() {
                                         <p className="text-sm" style={{ color: "var(--cor-logo2)" }}>Sem dados de produtividade.</p>
                                     ) : (
                                         isPrinting ? (
-                                            <ResponsiveContainer width="100%" height={240}>
-                                                <BarChart data={data.produtividade_equipe} barSize={28}>
+                                            <ResponsiveContainer width="100%" height={300}>
+                                                <BarChart data={data.produtividade_equipe} barSize={36}>
                                                     <CartesianGrid strokeDasharray="3 3" stroke="var(--cor-borda)" />
-                                                    <XAxis dataKey="equipe" tick={{ fontSize: 10, fill: "var(--cor-logo2)" }} axisLine={false} tickLine={false} />
-                                                    <YAxis tick={{ fontSize: 11, fill: "var(--cor-logo2)" }} axisLine={false} tickLine={false} />
-                                                    <Tooltip contentStyle={{ borderRadius: 10, border: "1px solid var(--cor-borda)", backgroundColor: "var(--cor-widgets)", color: "var(--cor-vetores)", boxShadow: "0 4px 20px rgba(0,0,0,0.08)" }} />
+                                                    <XAxis dataKey="equipe" tick={{ fontSize: 12, fill: "var(--cor-logo2)" }} axisLine={false} tickLine={false} tickMargin={10} />
+                                                    <YAxis tick={{ fontSize: 12, fill: "var(--cor-logo2)" }} axisLine={false} tickLine={false} width={40} />
+                                                    <Tooltip cursor={false} contentStyle={CHART_TOOLTIP_STYLE} labelStyle={{ color: "var(--cor-logo)" }} />
                                                     <Bar dataKey="concluidas" name="Concluídas" fill="#f97316" radius={[6, 6, 0, 0]} />
                                                 </BarChart>
                                             </ResponsiveContainer>
                                         ) : (
-                                            <ResponsiveContainer width="100%" height={220}>
-                                                <BarChart data={data.produtividade_equipe} barSize={28}>
+                                            <ResponsiveContainer width="100%" height={300}>
+                                                <BarChart data={data.produtividade_equipe} barSize={36}>
                                                     <CartesianGrid strokeDasharray="3 3" stroke="var(--cor-borda)" />
-                                                    <XAxis dataKey="equipe" tick={{ fontSize: 10, fill: "var(--cor-logo2)" }} axisLine={false} tickLine={false} />
-                                                    <YAxis tick={{ fontSize: 11, fill: "var(--cor-logo2)" }} axisLine={false} tickLine={false} />
-                                                    <Tooltip contentStyle={{ borderRadius: 10, border: "1px solid var(--cor-borda)", backgroundColor: "var(--cor-widgets)", color: "var(--cor-vetores)", boxShadow: "0 4px 20px rgba(0,0,0,0.08)" }} />
+                                                    <XAxis dataKey="equipe" tick={{ fontSize: 12, fill: "var(--cor-logo2)" }} axisLine={false} tickLine={false} tickMargin={10} />
+                                                    <YAxis tick={{ fontSize: 12, fill: "var(--cor-logo2)" }} axisLine={false} tickLine={false} width={40} />
+                                                    <Tooltip cursor={false} contentStyle={CHART_TOOLTIP_STYLE} labelStyle={{ color: "var(--cor-logo)" }} />
                                                     <Bar dataKey="concluidas" name="Concluídas" fill="#f97316" radius={[6, 6, 0, 0]} />
                                                 </BarChart>
                                             </ResponsiveContainer>
@@ -1031,7 +1039,7 @@ export default function Dashboard() {
                                         Distribuição de Tarefas
                                     </h3>
                                     {isPrinting ? (
-                                        <PieChart width={720} height={280}>
+                                        <PieChart width={760} height={320}>
                                             <Pie
                                                 data={data.distribuicao_status}
                                                 dataKey="valor"
@@ -1046,7 +1054,7 @@ export default function Dashboard() {
                                                     <Cell key={idx} fill={DONUT_COLORS[idx % DONUT_COLORS.length]} />
                                                 ))}
                                             </Pie>
-                                            <Tooltip contentStyle={{ borderRadius: 10, border: "none", boxShadow: "0 4px 20px rgba(0,0,0,0.08)" }} />
+                                            <Tooltip cursor={false} contentStyle={CHART_TOOLTIP_STYLE} labelStyle={{ color: "var(--cor-logo)" }} />
                                             <Legend
                                                 wrapperStyle={{ fontSize: 11, paddingTop: 8 }}
                                                 formatter={(value) => (
@@ -1055,7 +1063,7 @@ export default function Dashboard() {
                                             />
                                         </PieChart>
                                     ) : (
-                                        <ResponsiveContainer width="100%" height={220}>
+                                        <ResponsiveContainer width="100%" height={280}>
                                             <PieChart>
                                                 <Pie
                                                     data={data.distribuicao_status}
@@ -1071,7 +1079,7 @@ export default function Dashboard() {
                                                         <Cell key={idx} fill={DONUT_COLORS[idx % DONUT_COLORS.length]} />
                                                     ))}
                                                 </Pie>
-                                                <Tooltip contentStyle={{ borderRadius: 10, border: "none", boxShadow: "0 4px 20px rgba(0,0,0,0.08)" }} />
+                                                <Tooltip cursor={false} contentStyle={CHART_TOOLTIP_STYLE} labelStyle={{ color: "var(--cor-logo)" }} />
                                                 <Legend
                                                     wrapperStyle={{ fontSize: 11, paddingTop: 8 }}
                                                     formatter={(value) => (

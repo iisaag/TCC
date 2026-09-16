@@ -56,6 +56,15 @@ interface ApiEnvelope<T> {
 }
 
 const MONTH_LABELS = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+const THEMED_TOOLTIP_STYLE = {
+    backgroundColor: "var(--cor-widgets)",
+    border: "1px solid var(--cor-borda)",
+    borderRadius: 16,
+    color: "var(--cor-logo)",
+    boxShadow: "0 18px 42px rgba(0,0,0,0.18)",
+    padding: "10px 12px",
+};
+const THEMED_AXIS_TICK = { fontSize: 13, fill: "var(--cor-logo2)" };
 
 function normalizeStatus(status?: string | null): BoardStatus {
     const value = (status ?? "").toUpperCase().trim();
@@ -286,14 +295,14 @@ function ChartCard({
 }) {
     return (
         <section
-            className={`rounded-2xl border p-4 shadow-sm ${className ?? ""}`}
+            className={`rounded-3xl border p-6 shadow-sm ${className ?? ""}`}
             style={{
                 borderColor: "var(--cor-borda)",
                 backgroundColor: "var(--cor-widgets)",
             }}
         >
             {title ? (
-                <h2 className="mb-2 text-center text-sm tracking-wide" style={{ color: "var(--cor-logo)" }}>
+                <h2 className="mb-4 text-center text-lg font-semibold tracking-wide" style={{ color: "var(--cor-logo)" }}>
                     {title}
                 </h2>
             ) : null}
@@ -494,6 +503,37 @@ export default function Desempenho() {
         return Array.from(grouped.values()).slice(0, 8);
     }, [tarefasFiltradas, selectedProjetoId, projetos, projetoFiltrado]);
 
+    const overviewStats = useMemo(() => {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const overdueCount = tarefasFiltradas.filter((task) => isTaskLate(task, today)).length;
+        const blockedCount = tarefasFiltradas.filter((task) => Boolean(task.bloqueada)).length;
+
+        return [
+            {
+                label: "Tarefas exibidas",
+                value: tarefasFiltradas.length,
+                detail: selectedProjetoId ? displayWithoutAccents(projetoFiltrado?.nome_projeto) : "Todos os projetos",
+            },
+            {
+                label: "Projetos na lista",
+                value: projetosOrdenados.length,
+                detail: searchTerm ? "Filtrados pela busca" : "Visíveis no momento",
+            },
+            {
+                label: "Atrasadas",
+                value: overdueCount,
+                detail: overdueCount > 0 ? "Exigem atenção" : "Nenhuma no momento",
+            },
+            {
+                label: "Bloqueadas",
+                value: blockedCount,
+                detail: blockedCount > 0 ? "Interrompem o fluxo" : "Fluxo livre",
+            },
+        ];
+    }, [projetoFiltrado?.nome_projeto, projetosOrdenados.length, searchTerm, selectedProjetoId, tarefasFiltradas]);
+
     const kpisExecutivos = useMemo(() => {
         const total = tarefasFiltradas.length;
         const today = new Date();
@@ -552,8 +592,8 @@ export default function Desempenho() {
 
     return (
         <DashboardLayout currentPage="performance">
-            <div className="space-y-4">
-                <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
+            <div className="space-y-6 pb-16 pt-6">
+                <div className="flex flex-col items-start justify-between gap-6 sm:flex-row sm:items-center">
                     <h1 className="text-4xl" style={{ color: "var(--cor-logo)" }}>
                         Desempenho
                     </h1>
@@ -678,37 +718,54 @@ export default function Desempenho() {
                     ))}
                 </div>
 
-                <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-                    <div className="space-y-4">
-                        <ChartCard title="Produtividade mensal por tipo de tarefa">
-                            <div className="h-[380px] w-full">
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <LineChart data={lineData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
-                                        <CartesianGrid strokeDasharray="3 3" stroke="#d6dbe1" />
-                                        <XAxis dataKey="mes" tick={{ fontSize: 12 }} />
-                                        <YAxis tick={{ fontSize: 12 }} allowDecimals={false} />
-                                        <Tooltip formatter={(value) => `${formatNumericTooltip(value)} tarefas`} />
-                                        <Line type="monotone" dataKey="total" name="Total" stroke="#4aa7ff" strokeWidth={3} dot={false} />
-                                        <Line type="monotone" dataKey="front" name="Front" stroke="#6fae5a" strokeWidth={2.3} dot={false} />
-                                        <Line type="monotone" dataKey="back" name="Back" stroke="#8f84d8" strokeWidth={2.3} dot={false} />
-                                        <Line type="monotone" dataKey="fullstack" name="Full Stack" stroke="#e56a63" strokeWidth={2.3} dot={false} />
-                                    </LineChart>
-                                </ResponsiveContainer>
-                            </div>
-                        </ChartCard>
+                <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+                    <ChartCard className="h-full" title="Produtividade mensal por tipo de tarefa">
+                        <div className="h-[380px] w-full">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <LineChart data={lineData} margin={{ top: 12, right: 28, left: 10, bottom: 0 }}>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="#d6dbe1" />
+                                    <XAxis dataKey="mes" tick={THEMED_AXIS_TICK} tickMargin={12} />
+                                    <YAxis tick={THEMED_AXIS_TICK} allowDecimals={false} width={44} />
+                                    <Tooltip cursor={false} contentStyle={THEMED_TOOLTIP_STYLE} labelStyle={{ color: "var(--cor-logo)" }} formatter={(value) => `${formatNumericTooltip(value)} tarefas`} />
+                                    <Line type="monotone" dataKey="total" name="Total" stroke="#4aa7ff" strokeWidth={3.2} dot={false} />
+                                    <Line type="monotone" dataKey="front" name="Front" stroke="#6fae5a" strokeWidth={2.5} dot={false} />
+                                    <Line type="monotone" dataKey="back" name="Back" stroke="#8f84d8" strokeWidth={2.5} dot={false} />
+                                    <Line type="monotone" dataKey="fullstack" name="Full Stack" stroke="#e56a63" strokeWidth={2.5} dot={false} />
+                                </LineChart>
+                            </ResponsiveContainer>
+                        </div>
+                    </ChartCard>
 
-                        <ChartCard className="w-full xl:max-w-md">
-                            <div className="h-[230px] w-full">
+                    <ChartCard className="h-full" title="Demanda mensal por prioridade">
+                        <div className="h-[380px] w-full">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <AreaChart data={areaData} margin={{ top: 12, right: 28, left: 10, bottom: 0 }}>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="#d6dbe1" />
+                                    <XAxis dataKey="mes" tick={THEMED_AXIS_TICK} tickMargin={12} />
+                                    <YAxis tick={THEMED_AXIS_TICK} allowDecimals={false} width={44} />
+                                    <Tooltip cursor={false} contentStyle={THEMED_TOOLTIP_STYLE} labelStyle={{ color: "var(--cor-logo)" }} formatter={(value) => `${formatNumericTooltip(value)} tarefas`} />
+                                    <Area type="monotone" dataKey="baixa" stackId="1" name="Baixa" stroke="#5aa7e2" fill="#5aa7e2" />
+                                    <Area type="monotone" dataKey="media" stackId="1" name="Media" stroke="#e4884d" fill="#e4884d" />
+                                    <Area type="monotone" dataKey="alta" stackId="1" name="Alta" stroke="#989898" fill="#989898" />
+                                    <Area type="monotone" dataKey="critica" stackId="1" name="Critica" stroke="#f2c11e" fill="#f2c11e" />
+                                </AreaChart>
+                            </ResponsiveContainer>
+                        </div>
+                    </ChartCard>
+
+                    <ChartCard className="h-full" title="Status geral das tarefas">
+                        <div className="flex h-[340px] w-full flex-col gap-3">
+                            <div className="flex-1">
                                 <ResponsiveContainer width="100%" height="100%">
                                     <PieChart>
                                         <Pie
                                             data={pieData}
                                             dataKey="valor"
                                             nameKey="nome"
-                                            cx="45%"
-                                            cy="50%"
-                                            outerRadius={68}
-                                            innerRadius={0}
+                                            cx="50%"
+                                            cy="48%"
+                                            outerRadius={110}
+                                            innerRadius={72}
                                             label={({ percent }) => `${Math.round((percent ?? 0) * 100)}%`}
                                             labelLine={false}
                                         >
@@ -716,64 +773,57 @@ export default function Desempenho() {
                                                 <Cell key={entry.nome} fill={entry.cor} />
                                             ))}
                                         </Pie>
-                                        <Legend
-                                            align="right"
-                                            verticalAlign="middle"
-                                            layout="vertical"
-                                            iconType="circle"
-                                            formatter={(value) => <span style={{ color: "var(--cor-logo)", fontSize: 12 }}>{value}</span>}
-                                        />
-                                        <Tooltip formatter={(value) => `${formatNumericTooltip(value)} tarefas`} />
+                                        <Tooltip cursor={false} contentStyle={THEMED_TOOLTIP_STYLE} labelStyle={{ color: "var(--cor-logo)" }} formatter={(value) => `${formatNumericTooltip(value)} tarefas`} />
                                     </PieChart>
                                 </ResponsiveContainer>
                             </div>
-                        </ChartCard>
-                    </div>
-
-                    <div className="space-y-4">
-                        <ChartCard title="Demanda mensal por prioridade">
-                            <div className="h-[320px] w-full">
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <AreaChart data={areaData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
-                                        <CartesianGrid strokeDasharray="3 3" stroke="#d6dbe1" />
-                                        <XAxis dataKey="mes" tick={{ fontSize: 12 }} />
-                                        <YAxis tick={{ fontSize: 12 }} allowDecimals={false} />
-                                        <Tooltip formatter={(value) => `${formatNumericTooltip(value)} tarefas`} />
-                                        <Area type="monotone" dataKey="baixa" stackId="1" name="Baixa" stroke="#5aa7e2" fill="#5aa7e2" />
-                                        <Area type="monotone" dataKey="media" stackId="1" name="Media" stroke="#e4884d" fill="#e4884d" />
-                                        <Area type="monotone" dataKey="alta" stackId="1" name="Alta" stroke="#989898" fill="#989898" />
-                                        <Area type="monotone" dataKey="critica" stackId="1" name="Critica" stroke="#f2c11e" fill="#f2c11e" />
-                                    </AreaChart>
-                                </ResponsiveContainer>
+                            <div className="flex flex-wrap justify-center gap-3 text-xs">
+                                {pieData.map((item) => (
+                                    <span key={item.nome} className="inline-flex items-center gap-2 rounded-full border px-3 py-1.5 font-semibold" style={{ borderColor: "var(--cor-borda)", color: "var(--cor-logo)", backgroundColor: "color-mix(in srgb, var(--cor-widgets) 70%, transparent)" }}>
+                                        <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: item.cor }} />
+                                        {item.nome}
+                                    </span>
+                                ))}
                             </div>
-                        </ChartCard>
+                        </div>
+                    </ChartCard>
 
-                        <ChartCard title="Atrasadas x em dia por projeto">
-                            <div className="h-[280px] w-full">
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <BarChart data={barData} barGap={24} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
-                                        <CartesianGrid strokeDasharray="3 3" stroke="#d6dbe1" />
-                                        <XAxis dataKey="projeto" tick={{ fontSize: 12 }} />
-                                        <YAxis tick={{ fontSize: 12 }} allowDecimals={false} />
-                                        <Tooltip
-                                            formatter={(value) => `${formatNumericTooltip(value)} tarefas`}
-                                            cursor={false}
-                                            contentStyle={{
-                                                backgroundColor: "var(--cor-widgets)",
-                                                borderColor: "var(--cor-borda)",
-                                                color: "var(--cor-logo)",
-                                                borderRadius: "12px",
-                                            }}
-                                            labelStyle={{ color: "var(--cor-logo)" }}
-                                        />
-                                        <Legend />
-                                        <Bar dataKey="atrasadas" name="Atrasadas" fill="#e979a0" radius={[6, 6, 0, 0]} />
-                                        <Bar dataKey="emDia" name="Em dia" fill="#7ca1cf" radius={[6, 6, 0, 0]} />
-                                    </BarChart>
-                                </ResponsiveContainer>
-                            </div>
+                    <ChartCard className="h-full" title="Atrasadas x em dia por projeto">
+                        <div className="h-[340px] w-full">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <BarChart data={barData} barGap={28} barSize={52} margin={{ top: 12, right: 28, left: 10, bottom: 8 }}>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="#d6dbe1" />
+                                    <XAxis dataKey="projeto" tick={THEMED_AXIS_TICK} tickMargin={12} interval={0} height={46} />
+                                    <YAxis tick={THEMED_AXIS_TICK} allowDecimals={false} width={44} />
+                                    <Tooltip
+                                        cursor={false}
+                                        formatter={(value) => `${formatNumericTooltip(value)} tarefas`}
+                                        contentStyle={THEMED_TOOLTIP_STYLE}
+                                        labelStyle={{ color: "var(--cor-logo)" }}
+                                    />
+                                    <Legend wrapperStyle={{ paddingTop: 10, fontSize: 13 }} />
+                                    <Bar dataKey="atrasadas" name="Atrasadas" fill="#e979a0" radius={[10, 10, 0, 0]} />
+                                    <Bar dataKey="emDia" name="Em dia" fill="#7ca1cf" radius={[10, 10, 0, 0]} />
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </div>
+                    </ChartCard>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+                    {overviewStats.map((item) => (
+                        <ChartCard key={item.label} className="h-full">
+                            <p className="text-sm font-medium uppercase tracking-wide" style={{ color: "var(--cor-logo2)" }}>
+                                {item.label}
+                            </p>
+                            <p className="mt-2 text-4xl font-bold leading-none" style={{ color: "var(--cor-logo)" }}>
+                                {item.value}
+                            </p>
+                            <p className="mt-2 text-sm" style={{ color: "var(--cor-logo2)" }}>
+                                {item.detail}
+                            </p>
                         </ChartCard>
-                    </div>
+                    ))}
                 </div>
             </div>
         </DashboardLayout>

@@ -935,7 +935,7 @@ export default function GestaoPage() {
         <DashboardLayout currentPage="gestao">
             <Head title="Gestão" />
 
-            <div className="space-y-6 pb-8">
+            <div className="space-y-8 pt-6 pb-12">
 
                 {/* Toasts */}
                 {success && (
@@ -1051,11 +1051,11 @@ export default function GestaoPage() {
                                     <EmptyState text="Nenhum usuário encontrado." />
                                 ) : (
                                     <div className="overflow-x-auto">
-                                        <table className="w-full text-sm">
+                                        <table className="w-full text-base">
                                             <thead>
                                                 <tr className="border-b" style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-fundo)" }}>
                                                     {["Nome", "Email", "Telefone", "Localização", "Cargo", "Nível", "Permissão", "Status", "Último Acesso", "Data de Criação", "Ações"].map((h) => (
-                                                        <th key={h} className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--cor-logo2)" }}>{h}</th>
+                                                        <th key={h} className="whitespace-nowrap px-5 py-4 text-left text-sm font-semibold uppercase tracking-wide" style={{ color: "var(--cor-logo2)" }}>{h}</th>
                                                     ))}
                                                 </tr>
                                             </thead>
@@ -1064,28 +1064,28 @@ export default function GestaoPage() {
                                                     const access = permissoes[(user.email ?? "").toLowerCase()] ?? "usuario";
                                                     return (
                                                         <tr key={user.id_usuario} className="border-b last:border-b-0 transition hover:-translate-y-px hover:shadow-sm" style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-widgets)" }}>
-                                                            <td className="px-4 py-3">
+                                                            <td className="px-5 py-4">
                                                                 <div className="flex items-center gap-2.5">
                                                                     <Avatar nome={user.nome} foto={user.foto_perfil} />
                                                                     <span className="whitespace-nowrap font-medium" style={{ color: "var(--cor-logo)" }}>{user.nome}</span>
                                                                 </div>
                                                             </td>
-                                                            <td className="px-4 py-3 text-xs" style={{ color: "var(--cor-logo2)" }}>{user.email ?? "—"}</td>
-                                                            <td className="px-4 py-3 text-xs" style={{ color: "var(--cor-logo2)" }}>{(user as any).telefone ?? "—"}</td>
-                                                            <td className="px-4 py-3 text-xs" style={{ color: "var(--cor-logo2)" }}>{(user as any).localizacao ?? "—"}</td>
-                                                            <td className="px-4 py-3 whitespace-nowrap" style={{ color: "var(--cor-logo)" }}>{user.cargo ?? "—"}</td>
-                                                            <td className="px-4 py-3 whitespace-nowrap" style={{ color: "var(--cor-logo)" }}>{user.nivel ?? "—"}</td>
-                                                            <td className="px-4 py-3"><PermissionBadge access={access} /></td>
-                                                            <td className="px-4 py-3">
+                                                            <td className="px-5 py-4 text-sm" style={{ color: "var(--cor-logo2)" }}>{user.email ?? "—"}</td>
+                                                            <td className="px-5 py-4 text-sm" style={{ color: "var(--cor-logo2)" }}>{(user as any).telefone ?? "—"}</td>
+                                                            <td className="px-5 py-4 text-sm" style={{ color: "var(--cor-logo2)" }}>{(user as any).localizacao ?? "—"}</td>
+                                                            <td className="px-5 py-4 whitespace-nowrap" style={{ color: "var(--cor-logo)" }}>{user.cargo ?? "—"}</td>
+                                                            <td className="px-5 py-4 whitespace-nowrap" style={{ color: "var(--cor-logo)" }}>{user.nivel ?? "—"}</td>
+                                                            <td className="px-5 py-4"><PermissionBadge access={access} /></td>
+                                                            <td className="px-5 py-4">
                                                                 <StatusBadge user={user} disabled={statusUpdatingId === user.id_usuario}
                                                                     onClick={() => { setStatusUser(user); setIsStatusConfirmOpen(true); }} />
                                                             </td>
-                                                            <td className="px-4 py-3 whitespace-nowrap text-xs" style={{ color: "var(--cor-logo2)" }}>{formatDateTime(user.ultimo_acesso)}</td>
-                                                            <td className="px-4 py-3 whitespace-nowrap text-xs" style={{ color: "var(--cor-logo2)" }}>{formatDateTime(user.data_criacao)}</td>
-                                                            <td className="px-4 py-3">
+                                                            <td className="px-5 py-4 whitespace-nowrap text-sm" style={{ color: "var(--cor-logo2)" }}>{formatDateTime(user.ultimo_acesso)}</td>
+                                                            <td className="px-5 py-4 whitespace-nowrap text-sm" style={{ color: "var(--cor-logo2)" }}>{formatDateTime(user.data_criacao)}</td>
+                                                            <td className="px-5 py-4">
                                                                 <div className="flex items-center gap-2">
                                                                     <button type="button" onClick={() => { setDeletingUser(user); setIsDeleteOpen(true); }}
-                                                                        className="inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-medium transition hover:-translate-y-0.5"
+                                                                        className="inline-flex items-center gap-1.5 rounded-xl border px-3.5 py-2 text-sm font-medium transition hover:-translate-y-0.5"
                                                                         style={{ borderColor: "#efb4b4", backgroundColor: "#fff4f4", color: "#b23b3b" }}>
                                                                         <Trash2 size={12} /> Excluir
                                                                     </button>
@@ -1104,16 +1104,16 @@ export default function GestaoPage() {
                             {/* Pagination */}
                             {filteredUsers.length > 0 && (
                                 <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-                                    <span className="text-xs" style={{ color: "var(--cor-logo2)" }}>
+                                            <span className="text-sm" style={{ color: "var(--cor-logo2)" }}>
                                         Mostrando {pagedUsers.length} de {filteredUsers.length} resultado{filteredUsers.length !== 1 ? "s" : ""}
                                     </span>
                                     <div className="flex items-center gap-3">
                                         <button type="button" onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} disabled={safePage === 1}
-                                            className="rounded-xl border px-4 py-2 text-sm font-medium transition hover:-translate-y-0.5 hover:shadow-md disabled:opacity-40"
+                                            className="rounded-xl border px-4 py-2.5 text-sm font-medium transition hover:-translate-y-0.5 hover:shadow-md disabled:opacity-40"
                                             style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-botao)", color: "var(--cor-logo)" }}>Anterior</button>
-                                        <span className="text-sm font-medium" style={{ color: "var(--cor-logo)" }}>Página {safePage} de {totalPages}</span>
+                                        <span className="text-base font-medium" style={{ color: "var(--cor-logo)" }}>Página {safePage} de {totalPages}</span>
                                         <button type="button" onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))} disabled={safePage === totalPages}
-                                            className="rounded-xl border px-4 py-2 text-sm font-medium transition hover:-translate-y-0.5 hover:shadow-md disabled:opacity-40"
+                                            className="rounded-xl border px-4 py-2.5 text-sm font-medium transition hover:-translate-y-0.5 hover:shadow-md disabled:opacity-40"
                                             style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-botao)", color: "var(--cor-logo)" }}>Próxima</button>
                                     </div>
                                 </div>
