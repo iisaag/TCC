@@ -31,12 +31,47 @@ class DashboardController extends Controller
 
     private function normalizedSearchColumn(string $column): string
     {
-        return "REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(LOWER({$column}),'á','a'),'à','a'),'â','a'),'ã','a'),'ä','a'),'é','e'),'è','e'),'ê','e'),'ë','e'),'í','i'),'ì','i'),'î','i'),'ï','i'),'ó','o'),'ò','o'),'ô','o'),'õ','o'),'ö','o'),'ú','u'),'ù','u'),'û','u'),'ü','u'),'ç','c')";
+        $expression = "LOWER({$column})";
+
+        foreach ([
+            'á' => 'a',
+            'à' => 'a',
+            'â' => 'a',
+            'ã' => 'a',
+            'ä' => 'a',
+            'é' => 'e',
+            'è' => 'e',
+            'ê' => 'e',
+            'ë' => 'e',
+            'í' => 'i',
+            'ì' => 'i',
+            'î' => 'i',
+            'ï' => 'i',
+            'ó' => 'o',
+            'ò' => 'o',
+            'ô' => 'o',
+            'õ' => 'o',
+            'ö' => 'o',
+            'ú' => 'u',
+            'ù' => 'u',
+            'û' => 'u',
+            'ü' => 'u',
+            'ç' => 'c',
+        ] as $from => $to) {
+            $expression = "REPLACE({$expression}, '{$from}', '{$to}')";
+        }
+
+        return $expression;
     }
 
     private function normalizedSearchLike(string $column): string
     {
         return $this->normalizedSearchColumn($column) . ' LIKE ?';
+    }
+
+    private function currentUserIsAdmin(Request $request): bool
+    {
+        return (bool) data_get($request->session()->get('auth.user'), 'permissions.total', false);
     }
 
     public function globalSearch(Request $request): JsonResponse
@@ -69,7 +104,7 @@ class DashboardController extends Controller
                         ->orWhereRaw($this->normalizedSearchLike('descricao'), [$like]);
                 })
                 ->orderBy('nome_projeto')
-                ->limit(6)
+                ->limit(10)
                 ->get(['id_projeto', 'nome_projeto', 'descricao']);
 
             foreach ($projetos as $projeto) {
@@ -78,7 +113,7 @@ class DashboardController extends Controller
                     'type' => 'projeto',
                     'title' => $projeto->nome_projeto,
                     'subtitle' => $projeto->descricao ?: 'Projeto',
-                    'url' => '/projetos',
+                    'url' => '/projetos?project=' . $projeto->id_projeto,
                 ];
             }
         }
@@ -98,9 +133,10 @@ class DashboardController extends Controller
                         ->orWhereRaw($this->normalizedSearchLike('projetos.nome_projeto'), [$like]);
                 })
                 ->orderBy('tarefas.id_tarefa', 'desc')
-                ->limit(8)
+                ->limit(12)
                 ->get([
                     'tarefas.id_tarefa',
+                    'tarefas.id_projeto',
                     'tarefas.titulo',
                     'projetos.nome_projeto as projeto_nome',
                 ]);
@@ -111,7 +147,7 @@ class DashboardController extends Controller
                     'type' => 'tarefa',
                     'title' => $tarefa->titulo,
                     'subtitle' => $tarefa->projeto_nome ? ('Projeto: ' . $tarefa->projeto_nome) : 'Card de tarefa',
-                    'url' => '/projetos',
+                    'url' => '/projetos?project=' . $tarefa->id_projeto . '&task=' . $tarefa->id_tarefa,
                 ];
             }
         }
@@ -131,9 +167,10 @@ class DashboardController extends Controller
                         ->orWhereRaw($this->normalizedSearchLike('metas.status_meta'), [$like]);
                 })
                 ->orderBy('metas.id_meta', 'desc')
-                ->limit(6)
+                ->limit(10)
                 ->get([
                     'metas.id_meta',
+                    'metas.id_projeto',
                     'metas.titulo_meta',
                     'projetos.nome_projeto as projeto_nome',
                 ]);
@@ -144,10 +181,12 @@ class DashboardController extends Controller
                     'type' => 'meta',
                     'title' => $meta->titulo_meta,
                     'subtitle' => $meta->projeto_nome ? ('Projeto: ' . $meta->projeto_nome) : 'Meta',
-                    'url' => '/desempenho',
+                    'url' => '/desempenho?project=' . $meta->id_projeto,
                 ];
             }
         }
+
+        $currentUserIsAdmin = $this->currentUserIsAdmin($request);
 
         if (Schema::hasTable('usuarios')) {
             $usuarios = Usuario::query()
@@ -158,8 +197,8 @@ class DashboardController extends Controller
                         ->orWhereRaw($this->normalizedSearchLike('cargo'), [$like]);
                 })
                 ->orderBy('nome')
-                ->limit(8)
-                ->get(['id_usuario', 'nome', 'email', 'cargo']);
+            ->limit(10)
+                ->get(['id_usuario', 'id_equipe', 'nome', 'email', 'cargo']);
 
             foreach ($usuarios as $usuario) {
                 $results[] = [
@@ -167,7 +206,9 @@ class DashboardController extends Controller
                     'type' => 'usuario',
                     'title' => $usuario->nome,
                     'subtitle' => $usuario->email ?: ($usuario->cargo ?: 'Pessoa'),
-                    'url' => '/equipe',
+                    'url' => $currentUserIsAdmin
+                        ? '/gestao?tab=usuarios&user=' . $usuario->id_usuario
+                        : '/equipe?user=' . $usuario->id_usuario . ($usuario->id_equipe ? '&team=' . $usuario->id_equipe : ''),
                 ];
             }
         }
@@ -180,7 +221,7 @@ class DashboardController extends Controller
                         ->orWhereRaw($this->normalizedSearchLike('tipo'), [$like]);
                 })
                 ->orderBy('nome')
-                ->limit(6)
+                ->limit(10)
                 ->get(['id_equipe', 'nome', 'tipo']);
 
             foreach ($equipes as $equipe) {
@@ -189,7 +230,7 @@ class DashboardController extends Controller
                     'type' => 'equipe',
                     'title' => $equipe->nome,
                     'subtitle' => $equipe->tipo ?: 'Equipe',
-                    'url' => '/equipe',
+                    'url' => '/equipe?team=' . $equipe->id_equipe,
                 ];
             }
         }

@@ -148,9 +148,12 @@ function formatDate(raw?: string | null): string {
     return parsed.toLocaleDateString("pt-BR");
 }
 
-function TeamTreeCard({ team, subteams }: { team: TeamRecord; subteams: TeamRecord[] }) {
+function TeamTreeCard({ team, subteams, highlighted = false }: { team: TeamRecord; subteams: TeamRecord[]; highlighted?: boolean }) {
     return (
-        <article className="rounded-2xl border border-[#d7e4f0] bg-white/95 p-5 shadow-[0_12px_30px_rgba(28,76,130,0.1)] dark:border-[#2d4353] dark:bg-[#1c2a35]/95">
+        <article
+            id={`team-${team.id_equipe}`}
+            className={`rounded-2xl border bg-white/95 p-5 shadow-[0_12px_30px_rgba(28,76,130,0.1)] dark:bg-[#1c2a35]/95 ${highlighted ? "border-sky-400 ring-2 ring-sky-300 dark:border-sky-300 dark:ring-sky-500/40" : "border-[#d7e4f0] dark:border-[#2d4353]"}`}
+        >
             <div className="flex items-start justify-between gap-3">
                 <div>
                     <div className="flex flex-wrap items-center gap-2">
@@ -206,7 +209,7 @@ function TeamTreeCard({ team, subteams }: { team: TeamRecord; subteams: TeamReco
     );
 }
 
-function MemberCard({ member, compact = false, isLeader = false }: { member: TeamMember; compact?: boolean; isLeader?: boolean }) {
+function MemberCard({ member, compact = false, isLeader = false, highlighted = false }: { member: TeamMember; compact?: boolean; isLeader?: boolean; highlighted?: boolean }) {
     const initials = member.name
         .split(" ")
         .slice(0, 2)
@@ -215,7 +218,10 @@ function MemberCard({ member, compact = false, isLeader = false }: { member: Tea
         .toUpperCase();
 
     return (
-        <article className="group relative w-full rounded-2xl border border-[#d8e7ff] bg-white/90 p-5 shadow-[0_10px_30px_rgba(22,84,186,0.12)] backdrop-blur transition-all duration-500 ease-out hover:-translate-y-1 hover:shadow-[0_18px_40px_rgba(45,87,196,0.2)] dark:border-[#2d4353] dark:bg-[#1c2a35]/95 dark:shadow-[0_10px_28px_rgba(0,0,0,0.35)] dark:hover:shadow-[0_18px_36px_rgba(0,0,0,0.48)]">
+        <article
+            id={`member-${member.id}`}
+            className={`group relative w-full rounded-2xl border bg-white/90 p-5 shadow-[0_10px_30px_rgba(22,84,186,0.12)] backdrop-blur transition-all duration-500 ease-out hover:-translate-y-1 hover:shadow-[0_18px_40px_rgba(45,87,196,0.2)] dark:bg-[#1c2a35]/95 dark:shadow-[0_10px_28px_rgba(0,0,0,0.35)] dark:hover:shadow-[0_18px_36px_rgba(0,0,0,0.48)] ${highlighted ? "border-sky-400 ring-2 ring-sky-300 dark:border-sky-300 dark:ring-sky-500/40" : "border-[#d8e7ff] dark:border-[#2d4353]"}`}
+        >
             {isLeader && (
                 <div className="absolute -top-2.5 left-1/2 -translate-x-1/2">
                     <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
@@ -257,6 +263,9 @@ function MemberCard({ member, compact = false, isLeader = false }: { member: Tea
 
 export default function Equipe() {
     const page = usePage<TeamPageProps>();
+    const searchParams = new URLSearchParams(window.location.search);
+    const userParam = searchParams.get("user");
+    const teamParam = searchParams.get("team");
     const [users, setUsers] = useState<TeamUser[]>(page.props.projectUsers ?? []);
     const [equipes, setEquipes] = useState<TeamRecord[]>([]);
     const [loadingTeams, setLoadingTeams] = useState(true);
@@ -281,6 +290,28 @@ export default function Equipe() {
         void loadTeams();
         return () => { isMounted = false; };
     }, []);
+
+    useEffect(() => {
+        const highlightSelector = userParam
+            ? `#member-${userParam}`
+            : teamParam
+                ? `#team-${teamParam}`
+                : null;
+
+        if (!highlightSelector || loadingTeams) {
+            return;
+        }
+
+        const element = document.querySelector(highlightSelector) as HTMLElement | null;
+
+        if (!element) {
+            return;
+        }
+
+        window.requestAnimationFrame(() => {
+            element.scrollIntoView({ behavior: "smooth", block: "center" });
+        });
+    }, [loadingTeams, teamParam, userParam, users, equipes]);
 
     useEffect(() => {
         let isMounted = true;
@@ -335,7 +366,7 @@ export default function Equipe() {
                     {/* ── CEO ───────────────────────────────────────────── */}
                     {ceo && (
                         <div className="mx-auto max-w-sm animate-[fadeIn_600ms_ease-out_forwards] opacity-0 [animation-delay:80ms]">
-                            <MemberCard member={ceo} compact />
+                            <MemberCard member={ceo} compact highlighted={userParam === String(ceo.id)} />
                         </div>
                     )}
 
@@ -368,7 +399,7 @@ export default function Equipe() {
                                         </div>
 
                                         {/* Leader card */}
-                                        <MemberCard member={team.leader} compact isLeader />
+                                        <MemberCard member={team.leader} compact isLeader highlighted={userParam === String(team.leader.id)} />
 
                                         {/* Leader → members drop line */}
                                         {team.members.length > 0 && (
@@ -383,7 +414,7 @@ export default function Equipe() {
                                                     className="animate-[fadeIn_600ms_ease-out_forwards] opacity-0"
                                                     style={{ animationDelay: `${260 + teamIdx * 80 + memberIdx * 60}ms` }}
                                                 >
-                                                    <MemberCard member={member} compact />
+                                                    <MemberCard member={member} compact highlighted={userParam === String(member.id)} />
                                                 </div>
                                             ))}
                                         </div>
@@ -409,7 +440,7 @@ export default function Equipe() {
                                         className="animate-[fadeIn_600ms_ease-out_forwards] opacity-0"
                                         style={{ animationDelay: `${320 + idx * 50}ms` }}
                                     >
-                                        <MemberCard member={member} compact />
+                                        <MemberCard member={member} compact highlighted={userParam === String(member.id)} />
                                     </div>
                                 ))}
                             </div>
@@ -440,6 +471,7 @@ export default function Equipe() {
                                         key={team.id_equipe}
                                         team={team}
                                         subteams={teamsByParent.get(team.id_equipe) ?? []}
+                                        highlighted={teamParam === String(team.id_equipe)}
                                     />
                                 ))
                             ) : (

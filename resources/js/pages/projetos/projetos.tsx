@@ -568,6 +568,11 @@ function AvatarPill({ usuario, size = 30 }: { usuario: Usuario; size?: number })
 export default function Projetos() {
 	const page = usePage<PageProps>();
 	const me = page.props.auth?.user;
+	const searchParams = new URLSearchParams(window.location.search);
+	const projectParam = searchParams.get("project");
+	const taskParam = searchParams.get("task");
+	const deepLinkKey = `${projectParam ?? ""}:${taskParam ?? ""}`;
+	const appliedDeepLinkRef = useRef<string>("");
 	const isAdmin = Boolean(me?.permissions?.total);
 	const [tarefas, setTarefas] = useState<TarefaApi[]>([]);
 	const [usuarios, setUsuarios] = useState<Usuario[]>([]);
@@ -673,6 +678,40 @@ export default function Projetos() {
 	useEffect(() => {
 		void fetchBoard();
 	}, []);
+
+	useEffect(() => {
+		if (!projectParam && !taskParam) {
+			appliedDeepLinkRef.current = "";
+			return;
+		}
+
+		const projectId = projectParam ? Number(projectParam) : null;
+		const taskId = taskParam ? Number(taskParam) : null;
+
+		if (Number.isFinite(projectId) && selectedProjectId !== projectId) {
+			setSelectedProjectId(projectId);
+			return;
+		}
+
+		if (projectId !== null && selectedProjectId !== projectId) {
+			return;
+		}
+
+		if (taskId !== null) {
+			const targetTask = tarefas.find((task) => task.id_tarefa === taskId);
+
+			if (targetTask && appliedDeepLinkRef.current !== deepLinkKey) {
+				openTaskDetails(targetTask);
+				appliedDeepLinkRef.current = deepLinkKey;
+			}
+
+			return;
+		}
+
+		if (appliedDeepLinkRef.current !== deepLinkKey) {
+			appliedDeepLinkRef.current = deepLinkKey;
+		}
+	}, [deepLinkKey, projectParam, selectedProjectId, taskParam, tarefas]);
 
 	useEffect(() => {
 		if (!successMessage) {

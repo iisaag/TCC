@@ -407,6 +407,10 @@ function EmptyState({ text }: { text: string }) {
 
 export default function GestaoPage() {
     const page = usePage<PageProps>();
+    const searchParams = new URLSearchParams(window.location.search);
+    const deepLinkTab = searchParams.get("tab");
+    const deepLinkUserId = searchParams.get("user");
+    const appliedDeepLinkRef = useRef<string>("");
     const isAdmin = Boolean(page.props.auth?.user?.permissions?.total);
 
     // ── Tab ──────────────────────────────────────────────────────
@@ -513,6 +517,38 @@ export default function GestaoPage() {
     };
 
     useEffect(() => { if (isAdmin) void fetchData(); }, [isAdmin]);
+
+    useEffect(() => {
+        if (!isAdmin || !deepLinkUserId) {
+            appliedDeepLinkRef.current = "";
+            return;
+        }
+
+        const deepLinkKey = `user:${deepLinkUserId}:tab:${deepLinkTab ?? ""}`;
+        const targetUserId = Number(deepLinkUserId);
+
+        if (!Number.isFinite(targetUserId)) {
+            return;
+        }
+
+        if (deepLinkTab === "usuarios" && activeTab !== "usuarios") {
+            setActiveTab("usuarios");
+            return;
+        }
+
+        if (appliedDeepLinkRef.current === deepLinkKey) {
+            return;
+        }
+
+        const targetUser = usuarios.find((user) => user.id_usuario === targetUserId);
+
+        if (!targetUser) {
+            return;
+        }
+
+        openEdit(targetUser);
+        appliedDeepLinkRef.current = deepLinkKey;
+    }, [activeTab, deepLinkTab, deepLinkUserId, isAdmin, usuarios]);
 
     useEffect(() => {
         if (!success) return;

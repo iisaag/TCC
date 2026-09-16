@@ -298,6 +298,8 @@ function ChartCard({
 }
 
 export default function Desempenho() {
+    const searchParams = new URLSearchParams(window.location.search);
+    const projectParam = searchParams.get("project");
     const [tarefas, setTarefas] = useState<TarefaApi[]>([]);
     const [projetos, setProjetos] = useState<ProjetoApi[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -337,6 +339,20 @@ export default function Desempenho() {
 
         void fetchDashboardData();
     }, []);
+
+    useEffect(() => {
+        if (!projectParam) {
+            return;
+        }
+
+        const projectId = Number(projectParam);
+
+        if (!Number.isFinite(projectId) || selectedProjetoId === projectId) {
+            return;
+        }
+
+        setSelectedProjetoId(projectId);
+    }, [projectParam, selectedProjetoId]);
 
     const tarefasFiltradas = useMemo(() => {
         if (!selectedProjetoId) {

@@ -166,11 +166,15 @@ export default function Header({ user }: HeaderProps) {
     useEffect(() => {
         const query = searchQuery.trim();
 
-        if (query.length < 2) {
+        if (query.length < 1) {
             setSearchResults([]);
             setIsSearching(false);
+            setIsSearchOpen(false);
+
             return;
         }
+
+        setIsSearchOpen(true);
 
         const controller = new AbortController();
         const timer = window.setTimeout(async () => {
@@ -195,7 +199,7 @@ export default function Header({ user }: HeaderProps) {
             } finally {
                 setIsSearching(false);
             }
-        }, 250);
+        }, 150);
 
         return () => {
             controller.abort();
@@ -261,6 +265,7 @@ export default function Header({ user }: HeaderProps) {
         }
 
         const date = new Date(isoDate);
+
         if (Number.isNaN(date.getTime())) {
             return "Agora";
         }
@@ -277,18 +282,23 @@ export default function Header({ user }: HeaderProps) {
         }
 
         const diffHours = Math.floor(diffMin / 60);
+
         if (diffHours < 24) {
             return `Ha ${diffHours} h`;
         }
 
         const diffDays = Math.floor(diffHours / 24);
+
         return `Ha ${diffDays} d`;
     };
 
     const goToResult = (item: SearchResultItem) => {
         setIsSearchOpen(false);
         setSearchQuery("");
-        router.get(item.url);
+        router.get(item.url, {}, {
+            preserveScroll: false,
+            preserveState: false,
+        });
     };
 
     const typeLabel: Record<SearchResultItem["type"], string> = {
@@ -350,7 +360,7 @@ export default function Header({ user }: HeaderProps) {
                             setSearchQuery(event.target.value);
                         }}
                         onFocus={() => {
-                            if (searchQuery.trim().length >= 2) {
+                            if (searchQuery.trim().length >= 1) {
                                 setIsSearchOpen(true);
                             }
                         }}
@@ -439,9 +449,11 @@ export default function Header({ user }: HeaderProps) {
                         onClick={() => {
                             setIsNotificationsOpen((prev) => {
                                 const next = !prev;
+
                                 if (next) {
                                     setNotificationsPage(1);
                                 }
+
                                 return next;
                             });
                             setIsUserMenuOpen(false);
