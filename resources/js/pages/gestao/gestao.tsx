@@ -53,6 +53,7 @@ interface Usuario {
     status_atual?: string | null;
     data_criacao?: string | null;
     ultimo_acesso?: string | null;
+    online_agora?: boolean;
     id_equipe?: number | null;
     equipe_relation?: { id_equipe: number; nome: string; tipo?: string | null } | null;
 }
@@ -117,6 +118,8 @@ interface UserForm {
     status_atual: string;
 }
 
+type PresenceStatusValue = "online" | "ausente" | "ocupado" | "não perturbe" | "offline";
+
 // ─────────────────────────── Constants ───────────────────────────
 
 const EMPTY_USER_FORM: UserForm = {
@@ -129,8 +132,16 @@ const EMPTY_USER_FORM: UserForm = {
     nivel_acesso: "usuario",
     telefone: "",
     localizacao: "",
-    status_atual: "Ativo",
+    status_atual: "offline",
 };
+
+const PRESENCE_STATUS_OPTIONS: { value: PresenceStatusValue; label: string }[] = [
+    { value: "online", label: "Online" },
+    { value: "ausente", label: "Ausente" },
+    { value: "ocupado", label: "Ocupado" },
+    { value: "não perturbe", label: "Não perturbe" },
+    { value: "offline", label: "Offline" },
+];
 
 const EMPTY_CARGO = { nome_cargo: "" };
 const EMPTY_EQUIPE = { nome: "", equipe_pai: "", tipo: "SUBEQUIPE", id_lider: "", membros: [] as number[] };
@@ -141,6 +152,20 @@ const PAGE_SIZE = 10;
 function toAccessLevel(raw?: string | null): AccessLevel {
     const n = (raw ?? "").toLowerCase();
     return ["adm", "admin", "administrador", "total", "geral"].includes(n) ? "admin" : "usuario";
+}
+
+function normalizePresenceStatus(status?: string | null): PresenceStatusValue {
+    const normalized = (status ?? "").trim().toLowerCase();
+
+    if (normalized === "online" || normalized === "ausente" || normalized === "ocupado" || normalized === "não perturbe" || normalized === "offline") {
+        return normalized;
+    }
+
+    if (normalized === "ativo") {
+        return "online";
+    }
+
+    return "offline";
 }
 
 function getInitials(nome: string): string {
@@ -186,20 +211,76 @@ function getRemainingDaysLabel(expiraEm?: string | null): string {
     return `expira em ${days} dia${days === 1 ? "" : "s"}`;
 }
 
+function resolveAvatarUrl(foto?: string | null): string | null {
+    const value = (foto ?? "").trim();
+
+    if (!value) {
+        return null;
+    }
+
+    if (value.startsWith("data:image/")) {
+        return value;
+    }
+
+    const normalized = value.replace(/\\/g, "/");
+
+    if (/^https?:\/\//i.test(normalized)) {
+        return normalized;
+    }
+
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+
+    if (normalized.startsWith("/")) {
+        return `${origin}${normalized}`;
+    }
+
+    if (normalized.startsWith("storage/")) {
+        return `${origin}/${normalized}`;
+    }
+
+    if (normalized.startsWith("public/")) {
+        return `${origin}/${normalized.replace(/^public\//, "")}`;
+    }
+
+    return `${origin}/storage/${normalized}`;
+}
+
+type PresenceState = "ONLINE" | "AUSENTE" | "OCUPADO" | "NAO_PERTURBE" | "OFFLINE";
+
 const ACTIVE_PRESENCE_WINDOW_MS = 45 * 1000;
 
 function hasRecentAccess(ultimoAcesso?: string | null): boolean {
     if (!ultimoAcesso) return false;
-    const timestamp = new Date(ultimoAcesso).getTime();
+    const parsed = new Date(ultimoAcesso).getTime();
+    const fallback = new Date(ultimoAcesso.replace(" ", "T")).getTime();
+    const timestamp = Number.isNaN(parsed) ? fallback : parsed;
     if (Number.isNaN(timestamp)) return false;
     return Date.now() - timestamp <= ACTIVE_PRESENCE_WINDOW_MS;
 }
 
+function getPresenceState(usuario: Usuario): PresenceState {
+    const normalized = normalizePresenceStatus(usuario.status_atual);
+
+    if (normalized === "offline") return "OFFLINE";
+    if (usuario.online_agora === false) return "OFFLINE";
+    if (usuario.online_agora === true) {
+        if (normalized === "online") return "ONLINE";
+        if (normalized === "ausente") return "AUSENTE";
+        if (normalized === "ocupado") return "OCUPADO";
+        if (normalized === "não perturbe") return "NAO_PERTURBE";
+        return "OFFLINE";
+    }
+    if (!hasRecentAccess(usuario.ultimo_acesso)) return "OFFLINE";
+
+    if (normalized === "online") return "ONLINE";
+    if (normalized === "ausente") return "AUSENTE";
+    if (normalized === "ocupado") return "OCUPADO";
+    if (normalized === "não perturbe") return "NAO_PERTURBE";
+    return "OFFLINE";
+}
+
 function isUsuarioAtivo(usuario: Usuario): boolean {
-    const status = usuario.status_atual?.trim().toLowerCase();
-    if (status === "inativo") return false;
-    if (hasRecentAccess(usuario.ultimo_acesso)) return true;
-    return !status || status === "ativo";
+    return getPresenceState(usuario) !== "OFFLINE";
 }
 
 async function readApiMessage(response: Response, fallback: string): Promise<string> {
@@ -223,12 +304,17 @@ function readApiMessageSync(payload: unknown, fallback: string): string {
 
 function Avatar({ nome, foto }: { nome: string; foto?: string | null }) {
     const color = getAvatarColor(nome);
+    const url = resolveAvatarUrl(foto);
+    const [imageError, setImageError] = useState(false);
+
     return (
         <span
             className="inline-flex items-center justify-center overflow-hidden rounded-full text-xs font-semibold transition-all duration-200 hover:shadow-md"
             style={{ width: 32, height: 32, backgroundColor: color.bg, color: color.text, flexShrink: 0 }}
         >
-            {foto ? <img src={foto} alt={nome} className="h-full w-full object-cover" /> : getInitials(nome)}
+            {url && !imageError ? (
+                <img src={url} alt={nome} className="h-full w-full object-cover" onError={() => setImageError(true)} />
+            ) : getInitials(nome)}
         </span>
     );
 }
@@ -249,23 +335,31 @@ function PermissionBadge({ access }: { access: AccessLevel }) {
 }
 
 function StatusBadge({ user, onClick, disabled }: { user: Usuario; onClick?: () => void; disabled?: boolean }) {
-    const isAtivo = isUsuarioAtivo(user);
-    const st = isAtivo
-        ? { borderColor: "#4caf85", color: "#1d6a45" }
-        : { borderColor: "#e07070", color: "#a02020" };
+    const presence = getPresenceState(user);
+    const badge = presence === "ONLINE"
+        ? { borderColor: "#4caf85", color: "#1d6a45", label: "Online" }
+        : presence === "AUSENTE"
+            ? { borderColor: "#b8a363", color: "#7f6320", label: "Ausente" }
+            : presence === "OCUPADO"
+                ? { borderColor: "#e07070", color: "#a02020", label: "Ocupado" }
+                : presence === "NAO_PERTURBE"
+                    ? { borderColor: "#7d67b0", color: "#4b2f8a", label: "Não perturbe" }
+                : { borderColor: "#9ea6b2", color: "#5b6470", label: "Offline" };
+
     if (onClick) {
         return (
             <button type="button" onClick={onClick} disabled={disabled}
                 className="inline-flex rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-all duration-200 hover:shadow-md disabled:opacity-60"
-                style={st}
+                style={{ borderColor: badge.borderColor, color: badge.color }}
             >
-                {isAtivo ? "Ativo" : "Inativo"}
+                {badge.label}
             </button>
         );
     }
+
     return (
-        <span className="inline-flex rounded-full border px-2.5 py-0.5 text-xs font-semibold" style={st}>
-            {isAtivo ? "Ativo" : "Inativo"}
+        <span className="inline-flex rounded-full border px-2.5 py-0.5 text-xs font-semibold" style={{ borderColor: badge.borderColor, color: badge.color }}>
+            {badge.label}
         </span>
     );
 }
@@ -530,6 +624,7 @@ export default function GestaoPage() {
     const [editingUser, setEditingUser] = useState<Usuario | null>(null);
     const [deletingUser, setDeletingUser] = useState<Usuario | null>(null);
     const [statusUser, setStatusUser] = useState<Usuario | null>(null);
+    const [statusDraft, setStatusDraft] = useState<PresenceStatusValue>("offline");
     const [statusUpdatingId, setStatusUpdatingId] = useState<number | null>(null);
     const [deletedHistory, setDeletedHistory] = useState<UsuarioExcluido[]>([]);
     const [historyLoading, setHistoryLoading] = useState(false);
@@ -565,9 +660,11 @@ export default function GestaoPage() {
 
     // ── Fetch ─────────────────────────────────────────────────────
 
-    const fetchData = async () => {
-        setLoading(true);
-        setError(null);
+    const fetchData = async (silent = false) => {
+        if (!silent) {
+            setLoading(true);
+            setError(null);
+        }
         try {
             const [usuariosRes, cargosRes, equipesRes] = await Promise.all([
                 fetch(apiRoutes.usuarios, { headers: { Accept: "application/json" } }),
@@ -579,7 +676,40 @@ export default function GestaoPage() {
             const cPayload = (await cargosRes.json().catch(() => ({}))) as ApiEnvelope<{ cargos?: CargoItem[] }>;
             const ePayload = (await equipesRes.json().catch(() => ({}))) as ApiEnvelope<{ equipes?: EquipeItem[] }>;
 
-            setUsuarios(uPayload.data?.usuarios ?? []);
+            let users = uPayload.data?.usuarios ?? [];
+
+            try {
+                const presenceRes = await fetch("/presence/users", { headers: { Accept: "application/json" } });
+
+                if (presenceRes.ok) {
+                    const presencePayload = (await presenceRes.json()) as ApiEnvelope<{ users?: Array<{ id: number; status?: string | null }> }>;
+                    const presenceUsers = presencePayload.data?.users ?? [];
+                    const statusById = new Map<number, string>();
+
+                    presenceUsers.forEach((item) => {
+                        const status = normalizePresenceStatus(item.status ?? "offline");
+                        statusById.set(item.id, status);
+                    });
+
+                    users = users.map((user) => {
+                        const status = statusById.get(user.id_usuario);
+
+                        if (!status) {
+                            return user;
+                        }
+
+                        return {
+                            ...user,
+                            status_atual: status,
+                            online_agora: status !== "offline",
+                        };
+                    });
+                }
+            } catch {
+                // If presence endpoint fails, keep the API users payload.
+            }
+
+            setUsuarios(users);
             setCargos(cPayload.data?.cargos ?? []);
             setEquipes(ePayload.data?.equipes ?? []);
 
@@ -600,13 +730,29 @@ export default function GestaoPage() {
                 }
             } catch { /* permissoes e projetos são opcionais */ }
         } catch {
-            setError("Não foi possível carregar os dados.");
+            if (!silent) {
+                setError("Não foi possível carregar os dados.");
+            }
         } finally {
-            setLoading(false);
+            if (!silent) {
+                setLoading(false);
+            }
         }
     };
 
     useEffect(() => { if (isAdmin) void fetchData(); }, [isAdmin]);
+
+    useEffect(() => {
+        if (!isAdmin) {
+            return;
+        }
+
+        const interval = window.setInterval(() => {
+            void fetchData(true);
+        }, 5000);
+
+        return () => window.clearInterval(interval);
+    }, [isAdmin]);
 
     useEffect(() => {
         if (!isAdmin || !deepLinkUserId) {
@@ -679,9 +825,13 @@ export default function GestaoPage() {
             if (filterCargo && u.cargo !== filterCargo) return false;
             if (filterNivel && u.nivel !== filterNivel) return false;
             if (filterStatus) {
-                const isAtivo = isUsuarioAtivo(u);
-                if (filterStatus === "ativo" && !isAtivo) return false;
-                if (filterStatus === "inativo" && isAtivo) return false;
+                const presence = getPresenceState(u);
+
+                if (filterStatus === "online" && presence !== "ONLINE") return false;
+                if (filterStatus === "ausente" && presence !== "AUSENTE") return false;
+                if (filterStatus === "ocupado" && presence !== "OCUPADO") return false;
+                if (filterStatus === "não perturbe" && presence !== "NAO_PERTURBE") return false;
+                if (filterStatus === "offline" && presence !== "OFFLINE") return false;
             }
             if (filterPermissao) {
                 const access = permissoes[(u.email ?? "").toLowerCase()] ?? "usuario";
@@ -725,7 +875,7 @@ export default function GestaoPage() {
             localizacao: (user as any).localizacao ?? "",
             senha: "",
             nivel_acesso: permissoes[(user.email ?? "").toLowerCase()] ?? "usuario",
-            status_atual: user.status_atual ?? "Ativo",
+            status_atual: normalizePresenceStatus(user.status_atual),
         });
         setIsEditOpen(true);
     };
@@ -839,19 +989,19 @@ export default function GestaoPage() {
         }
     };
 
-    const onToggleStatus = async () => {
+    const onSaveStatus = async () => {
         if (!statusUser) return;
-        const nextStatus = isUsuarioAtivo(statusUser) ? "Inativo" : "Ativo";
         setStatusUpdatingId(statusUser.id_usuario);
         setError(null);
         try {
             const res = await fetch(`${apiRoutes.usuarios}/${statusUser.id_usuario}/status`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json", ...authHeaders },
-                body: JSON.stringify({ status_atual: nextStatus }),
+                body: JSON.stringify({ status_atual: statusDraft }),
             });
             if (!res.ok) throw new Error(await readApiMessage(res, "Não foi possível alterar o status."));
-            setSuccess(`Funcionário marcado como ${nextStatus.toLowerCase()} com sucesso.`);
+            const statusLabel = PRESENCE_STATUS_OPTIONS.find((option) => option.value === statusDraft)?.label ?? statusDraft;
+            setSuccess(`Status de ${statusUser.nome} atualizado para ${statusLabel.toLowerCase()} com sucesso.`);
             setIsStatusConfirmOpen(false);
             setStatusUser(null);
             await fetchData();
@@ -1169,7 +1319,12 @@ export default function GestaoPage() {
                                 </div>
                                 <SelectFilter value={filterCargo} onChange={setFilterCargo} placeholder="Todos os cargos" options={cargosUnicos.map((c) => ({ label: c, value: c }))} />
                                 <SelectFilter value={filterNivel} onChange={setFilterNivel} placeholder="Todos os níveis" options={niveisUnicos.map((n) => ({ label: n, value: n }))} />
-                                <SelectFilter value={filterStatus} onChange={setFilterStatus} placeholder="Todas" options={[{ label: "Ativo", value: "ativo" }, { label: "Inativo", value: "inativo" }]} />
+                                <SelectFilter
+                                    value={filterStatus}
+                                    onChange={setFilterStatus}
+                                    placeholder="Todos status"
+                                    options={PRESENCE_STATUS_OPTIONS}
+                                />
                                 <SelectFilter value={filterPermissao} onChange={setFilterPermissao} placeholder="Todos" options={[{ label: "Administrador", value: "admin" }, { label: "Usuário", value: "usuario" }]} />
                             </div>
 
@@ -1206,7 +1361,11 @@ export default function GestaoPage() {
                                                             <td className="px-5 py-4"><PermissionBadge access={access} /></td>
                                                             <td className="px-5 py-4">
                                                                 <StatusBadge user={user} disabled={statusUpdatingId === user.id_usuario}
-                                                                    onClick={() => { setStatusUser(user); setIsStatusConfirmOpen(true); }} />
+                                                                    onClick={() => {
+                                                                        setStatusUser(user);
+                                                                        setStatusDraft(normalizePresenceStatus(user.status_atual));
+                                                                        setIsStatusConfirmOpen(true);
+                                                                    }} />
                                                             </td>
                                                             <td className="px-5 py-4 whitespace-nowrap text-sm" style={{ color: "var(--cor-logo2)" }}>{formatDateTime(user.ultimo_acesso)}</td>
                                                             <td className="px-5 py-4 whitespace-nowrap text-sm" style={{ color: "var(--cor-logo2)" }}>{formatDateTime(user.data_criacao)}</td>
@@ -1434,10 +1593,7 @@ export default function GestaoPage() {
                                     <CardSelect
                                         value={userForm.status_atual}
                                         onChange={(value) => setUserForm((form) => ({ ...form, status_atual: value }))}
-                                        options={[
-                                            { value: "Ativo", label: "Ativo" },
-                                            { value: "Inativo", label: "Inativo" },
-                                        ]}
+                                        options={PRESENCE_STATUS_OPTIONS}
                                     />
                                 </label>
 
@@ -1670,16 +1826,22 @@ export default function GestaoPage() {
                                 </button>
                             </div>
                             <p className="mb-5 text-sm" style={{ color: "var(--cor-logo)" }}>
-                                Deseja marcar <strong>{statusUser.nome}</strong> como{" "}
-                                <strong>{isUsuarioAtivo(statusUser) ? "inativo" : "ativo"}</strong>?
+                                Selecione o novo status de <strong>{statusUser.nome}</strong>.
                             </p>
+                            <div className="mb-5">
+                                <CardSelect
+                                    value={statusDraft}
+                                    onChange={(value) => setStatusDraft(value as PresenceStatusValue)}
+                                    options={PRESENCE_STATUS_OPTIONS}
+                                />
+                            </div>
                             <div className="flex justify-end gap-2">
                                 <button type="button" onClick={() => { setIsStatusConfirmOpen(false); setStatusUser(null); }}
                                     className="rounded-xl border px-4 py-2 text-sm"
                                     style={{ borderColor: "var(--cor-borda)", color: "var(--cor-logo)" }}>Cancelar</button>
-                                <button type="button" onClick={() => void onToggleStatus()} disabled={statusUpdatingId === statusUser.id_usuario}
+                                <button type="button" onClick={() => void onSaveStatus()} disabled={statusUpdatingId === statusUser.id_usuario}
                                     className="rounded-xl px-4 py-2 text-sm font-medium text-white dark:text-(--cor-fundo) transition hover:shadow-lg disabled:opacity-60 bg-[#1a1a2e] dark:bg-(--cor-accentII)">
-                                    {statusUpdatingId === statusUser.id_usuario ? "Salvando..." : "Confirmar"}
+                                    {statusUpdatingId === statusUser.id_usuario ? "Salvando..." : "Salvar status"}
                                 </button>
                             </div>
                         </div>

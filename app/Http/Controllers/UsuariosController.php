@@ -15,10 +15,25 @@ use Illuminate\Support\Facades\Schema;
 class UsuariosController extends Controller
 {
     private const DELETION_RETENTION_DAYS = 7;
+    private const ALLOWED_MANUAL_STATUS = ['online', 'ausente', 'ocupado', 'não perturbe', 'offline'];
 
     private function normalizarStatusAtual(?string $status): string
     {
-        return mb_strtolower(trim((string) $status)) === 'inativo' ? 'Inativo' : 'Ativo';
+        $normalized = mb_strtolower(trim((string) $status));
+
+        if (in_array($normalized, self::ALLOWED_MANUAL_STATUS, true)) {
+            return $normalized;
+        }
+
+        if ($normalized === 'ativo') {
+            return 'online';
+        }
+
+        if ($normalized === 'inativo') {
+            return 'offline';
+        }
+
+        return 'offline';
     }
 
     private function usuariosTemStatusAtual(): bool
@@ -53,10 +68,15 @@ class UsuariosController extends Controller
 
         $cargoRelation = $usuario->cargoRelation;
         $equipeRelation = $usuario->equipeRelation;
+        $presenceThreshold = now()->subSeconds(45);
 
-        $ultimoAcesso = Schema::hasTable('user_presences')
+        $ultimoAcessoRaw = Schema::hasTable('user_presences')
             ? UserPresence::where('user_id', $usuario->id_usuario)->max('last_seen')
             : null;
+        $ultimoAcesso = $ultimoAcessoRaw ? Carbon::parse((string) $ultimoAcessoRaw)->toIso8601String() : null;
+        $onlineAgora = Schema::hasTable('user_presences')
+            ? UserPresence::where('user_id', $usuario->id_usuario)->where('last_seen', '>=', $presenceThreshold)->exists()
+            : false;
 
         $response = [
             'id_usuario'    => $usuario->id_usuario,
@@ -78,6 +98,7 @@ class UsuariosController extends Controller
             'status_atual'  => $usuario->status_atual,
             'data_criacao'  => $usuario->data_criacao,
             'ultimo_acesso' => $ultimoAcesso,
+            'online_agora'  => $onlineAgora,
         ];
 
         if ($includeSensitiveData) {
@@ -148,7 +169,7 @@ class UsuariosController extends Controller
             ],
             'cargo'       => 'nullable|string|exists:cargos,nome_cargo',
             'nivel'       => 'nullable|string',
-            'status_atual' => 'nullable|string|max:40',
+            'status_atual' => 'nullable|string|in:online,ausente,ocupado,offline,não perturbe,Ativo,Inativo',
             'id_equipe'   => 'nullable|integer|exists:equipes,id_equipe',
             'telefone'    => 'nullable|string|max:30',
             'localizacao' => 'nullable|string|max:120',
@@ -168,7 +189,7 @@ class UsuariosController extends Controller
             ];
 
             if ($this->usuariosTemStatusAtual()) {
-                $dadosUsuario['status_atual'] = $validated['status_atual'] ?? 'Ativo';
+                $dadosUsuario['status_atual'] = $this->normalizarStatusAtual($validated['status_atual'] ?? null);
             }
 
             if ($this->usuariosTemEquipe()) {
@@ -217,6 +238,7 @@ class UsuariosController extends Controller
             ],
             'cargo'       => 'nullable|string|exists:cargos,nome_cargo',
             'nivel'       => 'nullable|string',
+            'status_atual' => 'nullable|string|in:online,ausente,ocupado,offline,não perturbe,Ativo,Inativo',
             'id_equipe'   => 'nullable|integer|exists:equipes,id_equipe',
             'telefone'    => 'nullable|string|max:30',
             'localizacao' => 'nullable|string|max:120',
@@ -235,6 +257,10 @@ class UsuariosController extends Controller
 
         if ($this->usuariosTemEquipe()) {
             $updateData['id_equipe'] = $validated['id_equipe'] ?? null;
+        }
+
+        if ($this->usuariosTemStatusAtual()) {
+            $updateData['status_atual'] = $this->normalizarStatusAtual($validated['status_atual'] ?? null);
         }
 
         $usuario->update($updateData);
@@ -483,7 +509,7 @@ class UsuariosController extends Controller
         }
 
         $validated = $request->validate([
-            'status_atual' => 'required|string|in:Ativo,Inativo',
+            'status_atual' => 'required|string|in:online,ausente,ocupado,offline,não perturbe,Ativo,Inativo',
         ]);
 
         $usuario->update([

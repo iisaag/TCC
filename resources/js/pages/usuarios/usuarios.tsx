@@ -57,6 +57,7 @@ interface Usuario {
     status_atual?: string | null;
     data_criacao?: string | null;
     ultimo_acesso?: string | null;
+    online_agora?: boolean;
     id_equipe?: number | null;
     equipe_relation?: {
         id_equipe: number;
@@ -126,6 +127,8 @@ interface UserForm {
     status_atual: string;
 }
 
+type PresenceStatusValue = "online" | "ausente" | "ocupado" | "não perturbe" | "offline";
+
 const EMPTY_FORM: UserForm = {
     nome: "",
     email: "",
@@ -136,8 +139,16 @@ const EMPTY_FORM: UserForm = {
     nivel_acesso: "usuario",
     telefone: "",
     localizacao: "",
-    status_atual: "Ativo",
+    status_atual: "offline",
 };
+
+const PRESENCE_STATUS_OPTIONS: { value: PresenceStatusValue; label: string }[] = [
+    { value: "online", label: "Online" },
+    { value: "ausente", label: "Ausente" },
+    { value: "ocupado", label: "Ocupado" },
+    { value: "não perturbe", label: "Não perturbe" },
+    { value: "offline", label: "Offline" },
+];
 
 const PAGE_SIZE = 10;
 
@@ -157,6 +168,20 @@ function toAccessLevel(raw?: string | null): AccessLevel {
     return ["adm", "admin", "administrador", "total", "geral"].includes(n) ? "admin" : "usuario";
 }
 
+function normalizePresenceStatus(status?: string | null): PresenceStatusValue {
+    const normalized = (status ?? "").trim().toLowerCase();
+
+    if (normalized === "online" || normalized === "ausente" || normalized === "ocupado" || normalized === "não perturbe" || normalized === "offline") {
+        return normalized;
+    }
+
+    if (normalized === "ativo") {
+        return "online";
+    }
+
+    return "offline";
+}
+
 function getInitials(nome: string): string {
     const parts = nome.trim().split(/\s+/);
     if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
@@ -166,12 +191,11 @@ function getInitials(nome: string): string {
 const AVATAR_COLORS = [
     { bg: "#e8e4f9", text: "#5b4fcf" },
     { bg: "#d6f0fb", text: "#1a78a8" },
-    { bg: "#fde8d8", text: "#b5520a" },
     { bg: "#d4f5e2", text: "#1a7a45" },
     { bg: "#fde4f0", text: "#a03070" },
     { bg: "#e4f0fd", text: "#2256a8" },
     { bg: "#f5f0d4", text: "#7a6010" },
-];
+}
 
 function getAvatarColor(nome: string): { bg: string; text: string } {
     let hash = 0;
@@ -211,6 +235,42 @@ function getRemainingDaysLabel(expiraEm?: string | null): string {
     return `expira em ${days} dia${days === 1 ? "" : "s"}`;
 }
 
+function resolveAvatarUrl(foto?: string | null): string | null {
+    const value = (foto ?? "").trim();
+
+    if (!value) {
+        return null;
+    }
+
+    if (value.startsWith("data:image/")) {
+        return value;
+    }
+
+    const normalized = value.replace(/\\/g, "/");
+
+    if (/^https?:\/\//i.test(normalized)) {
+        return normalized;
+    }
+
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+
+    if (normalized.startsWith("/")) {
+        return `${origin}${normalized}`;
+    }
+
+    if (normalized.startsWith("storage/")) {
+        return `${origin}/${normalized}`;
+    }
+
+    if (normalized.startsWith("public/")) {
+        return `${origin}/${normalized.replace(/^public\//, "")}`;
+    }
+
+    return `${origin}/storage/${normalized}`;
+}
+
+type PresenceState = "ONLINE" | "AUSENTE" | "OCUPADO" | "NAO_PERTURBE" | "OFFLINE";
+
 const ACTIVE_PRESENCE_WINDOW_MS = 45 * 1000;
 
 function hasRecentAccess(ultimoAcesso?: string | null): boolean {
@@ -218,7 +278,9 @@ function hasRecentAccess(ultimoAcesso?: string | null): boolean {
         return false;
     }
 
-    const timestamp = new Date(ultimoAcesso).getTime();
+    const parsed = new Date(ultimoAcesso).getTime();
+    const fallback = new Date(ultimoAcesso.replace(" ", "T")).getTime();
+    const timestamp = Number.isNaN(parsed) ? fallback : parsed;
 
     if (Number.isNaN(timestamp)) {
         return false;
@@ -227,34 +289,49 @@ function hasRecentAccess(ultimoAcesso?: string | null): boolean {
     return Date.now() - timestamp <= ACTIVE_PRESENCE_WINDOW_MS;
 }
 
+function getPresenceState(usuario: Usuario): PresenceState {
+    const normalized = normalizePresenceStatus(usuario.status_atual);
+
+    if (normalized === "offline") return "OFFLINE";
+    if (usuario.online_agora === false) return "OFFLINE";
+    if (usuario.online_agora === true) {
+        if (normalized === "online") return "ONLINE";
+        if (normalized === "ausente") return "AUSENTE";
+        if (normalized === "ocupado") return "OCUPADO";
+        if (normalized === "não perturbe") return "NAO_PERTURBE";
+        return "OFFLINE";
+    }
+    if (!hasRecentAccess(usuario.ultimo_acesso)) return "OFFLINE";
+
+    if (normalized === "online") return "ONLINE";
+    if (normalized === "ausente") return "AUSENTE";
+    if (normalized === "ocupado") return "OCUPADO";
+    if (normalized === "não perturbe") return "NAO_PERTURBE";
+    return "OFFLINE";
+}
+
 function isUsuarioAtivo(usuario: Usuario): boolean {
-    const status = usuario.status_atual?.trim().toLowerCase();
-
-    if (status === "inativo") {
-        return false;
-    }
-
-    if (hasRecentAccess(usuario.ultimo_acesso)) {
-        return true;
-    }
-
-    return !status || status === "ativo";
+    return getPresenceState(usuario) !== "OFFLINE";
 }
 
 // ─────────────────────────── Sub-components ───────────────────────────
 
 function Avatar({ nome, foto }: { nome: string; foto?: string | null }) {
     const color = getAvatarColor(nome);
+    const url = resolveAvatarUrl(foto);
+    const [imageError, setImageError] = useState(false);
+
     return (
         <span
             className="inline-flex items-center justify-center overflow-hidden rounded-full text-xs font-semibold transition-all duration-200 hover:shadow-md"
             style={{ width: 32, height: 32, backgroundColor: color.bg, color: color.text, flexShrink: 0 }}
         >
-            {foto ? (
+            {url && !imageError ? (
                 <img
-                    src={foto}
+                    src={url}
                     alt={nome}
                     className="h-full w-full object-cover"
+                    onError={() => setImageError(true)}
                 />
             ) : (
                 getInitials(nome)
@@ -280,8 +357,16 @@ function PermissionBadge({ access }: { access: AccessLevel }) {
 }
 
 function StatusBadge({ user, onClick, disabled }: { user: Usuario; onClick?: () => void; disabled?: boolean }) {
-    const isAtivo = isUsuarioAtivo(user);
-    const baseStyle = isAtivo ? { borderColor: "#4caf85", color: "#1d6a45" } : { borderColor: "#e07070", color: "#a02020" };
+    const presence = getPresenceState(user);
+    const badge = presence === "ONLINE"
+        ? { borderColor: "#4caf85", color: "#1d6a45", label: "Online" }
+        : presence === "AUSENTE"
+            ? { borderColor: "#b8a363", color: "#7f6320", label: "Ausente" }
+            : presence === "OCUPADO"
+                ? { borderColor: "#e07070", color: "#a02020", label: "Ocupado" }
+                : presence === "NAO_PERTURBE"
+                    ? { borderColor: "#7d67b0", color: "#4b2f8a", label: "Não perturbe" }
+                : { borderColor: "#9ea6b2", color: "#5b6470", label: "Offline" };
 
     if (onClick) {
         return (
@@ -290,9 +375,9 @@ function StatusBadge({ user, onClick, disabled }: { user: Usuario; onClick?: () 
                 onClick={onClick}
                 disabled={disabled}
                 className="inline-flex rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-all duration-200 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60"
-                style={baseStyle}
+                style={{ borderColor: badge.borderColor, color: badge.color }}
             >
-                {isAtivo ? "Ativo" : "Inativo"}
+                {badge.label}
             </button>
         );
     }
@@ -300,9 +385,9 @@ function StatusBadge({ user, onClick, disabled }: { user: Usuario; onClick?: () 
     return (
         <span
             className="inline-flex rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-all duration-200 hover:shadow-md"
-            style={baseStyle}
+            style={{ borderColor: badge.borderColor, color: badge.color }}
         >
-            {isAtivo ? "Ativo" : "Inativo"}
+            {badge.label}
         </span>
     );
 }
@@ -434,6 +519,7 @@ export default function UsuariosAdminPage() {
     const [editingUser, setEditingUser] = useState<Usuario | null>(null);
     const [deletingUser, setDeletingUser] = useState<Usuario | null>(null);
     const [statusUser, setStatusUser] = useState<Usuario | null>(null);
+    const [statusDraft, setStatusDraft] = useState<PresenceStatusValue>("offline");
     const [statusUpdatingId, setStatusUpdatingId] = useState<number | null>(null);
     const [deletedUsersHistory, setDeletedUsersHistory] = useState<UsuarioExcluido[]>([]);
     const [historyLoading, setHistoryLoading] = useState(false);
@@ -452,16 +538,49 @@ export default function UsuariosAdminPage() {
         [],
     );
 
-    const fetchData = async () => {
-        setLoading(true);
-        setError(null);
+    const fetchData = async (silent = false) => {
+        if (!silent) {
+            setLoading(true);
+            setError(null);
+        }
         try {
             const usuariosRes = await fetch(apiRoutes.usuarios, { headers: { Accept: "application/json" } });
 
             if (!usuariosRes.ok) throw new Error("usuarios");
 
             const uPayload = (await usuariosRes.json()) as ApiEnvelope<{ usuarios?: Usuario[] }>;
-            const users = uPayload.data?.usuarios ?? [];
+            let users = uPayload.data?.usuarios ?? [];
+
+            try {
+                const presenceRes = await fetch("/presence/users", { headers: { Accept: "application/json" } });
+
+                if (presenceRes.ok) {
+                    const presencePayload = (await presenceRes.json()) as ApiEnvelope<{ users?: Array<{ id: number; status?: string | null }> }>;
+                    const presenceUsers = presencePayload.data?.users ?? [];
+                    const statusById = new Map<number, string>();
+
+                    presenceUsers.forEach((item) => {
+                        const status = normalizePresenceStatus(item.status ?? "offline");
+                        statusById.set(item.id, status);
+                    });
+
+                    users = users.map((user) => {
+                        const status = statusById.get(user.id_usuario);
+
+                        if (!status) {
+                            return user;
+                        }
+
+                        return {
+                            ...user,
+                            status_atual: status,
+                            online_agora: status !== "offline",
+                        };
+                    });
+                }
+            } catch {
+                // If presence endpoint fails, keep the API users payload.
+            }
 
             let regs: SenhaRegistro[] = [];
             let cargoList: CargoItem[] = [];
@@ -516,13 +635,25 @@ export default function UsuariosAdminPage() {
             setProjetos(projectList);
             setEquipes(teamList);
         } catch {
-            setError("Não foi possível carregar a lista de usuários.");
+            if (!silent) {
+                setError("Não foi possível carregar a lista de usuários.");
+            }
         } finally {
-            setLoading(false);
+            if (!silent) {
+                setLoading(false);
+            }
         }
     };
 
     useEffect(() => { void fetchData(); }, []);
+
+    useEffect(() => {
+        const interval = window.setInterval(() => {
+            void fetchData(true);
+        }, 5000);
+
+        return () => window.clearInterval(interval);
+    }, []);
 
     useEffect(() => {
         if (!success) return;
@@ -561,9 +692,13 @@ export default function UsuariosAdminPage() {
             if (filterCargo && u.cargo !== filterCargo) return false;
             if (filterNivel && u.nivel !== filterNivel) return false;
             if (filterStatus) {
-                const isAtivo = isUsuarioAtivo(u);
-                if (filterStatus === "ativo" && !isAtivo) return false;
-                if (filterStatus === "inativo" && isAtivo) return false;
+                const presence = getPresenceState(u);
+
+                if (filterStatus === "online" && presence !== "ONLINE") return false;
+                if (filterStatus === "ausente" && presence !== "AUSENTE") return false;
+                if (filterStatus === "ocupado" && presence !== "OCUPADO") return false;
+                if (filterStatus === "não perturbe" && presence !== "NAO_PERTURBE") return false;
+                if (filterStatus === "offline" && presence !== "OFFLINE") return false;
             }
             if (filterPermissao) {
                 const access = permissoes[(u.email ?? "").toLowerCase()] ?? "usuario";
@@ -593,7 +728,7 @@ export default function UsuariosAdminPage() {
             localizacao: (user as any).localizacao ?? "",
             senha: "",
             nivel_acesso: permissoes[(user.email ?? "").toLowerCase()] ?? "usuario",
-            status_atual: user.status_atual ?? "Ativo",
+            status_atual: normalizePresenceStatus(user.status_atual),
         });
         setIsEditOpen(true);
     };
@@ -735,10 +870,8 @@ export default function UsuariosAdminPage() {
         }
     };
 
-    const onToggleStatus = async () => {
+    const onSaveStatus = async () => {
         if (!statusUser) return;
-
-        const nextStatus = isUsuarioAtivo(statusUser) ? "Inativo" : "Ativo";
 
         setStatusUpdatingId(statusUser.id_usuario);
         setError(null);
@@ -752,14 +885,15 @@ export default function UsuariosAdminPage() {
                     "X-Requested-With": "XMLHttpRequest",
                     "X-CSRF-TOKEN": csrfToken,
                 },
-                body: JSON.stringify({ status_atual: nextStatus }),
+                body: JSON.stringify({ status_atual: statusDraft }),
             });
 
             if (!response.ok) {
                 throw new Error(await readApiMessage(response, "Não foi possível alterar o status do funcionário."));
             }
 
-            setSuccess(`Funcionário marcado como ${nextStatus.toLowerCase()} com sucesso.`);
+            const statusLabel = PRESENCE_STATUS_OPTIONS.find((option) => option.value === statusDraft)?.label ?? statusDraft;
+            setSuccess(`Status de ${statusUser.nome} atualizado para ${statusLabel.toLowerCase()} com sucesso.`);
             setIsStatusConfirmOpen(false);
             setStatusUser(null);
             await fetchData();
@@ -1095,7 +1229,12 @@ export default function UsuariosAdminPage() {
                         </div>
                         <SelectFilter value={filterCargo} onChange={setFilterCargo} placeholder="Todos os cargos" options={cargosUnicos.map((c) => ({ label: c, value: c }))} />
                         <SelectFilter value={filterNivel} onChange={setFilterNivel} placeholder="Todos os níveis" options={niveisUnicos.map((n) => ({ label: n, value: n }))} />
-                        <SelectFilter value={filterStatus} onChange={setFilterStatus} placeholder="Todas" options={[{ label: "Ativo", value: "ativo" }, { label: "Inativo", value: "inativo" }]} />
+                        <SelectFilter
+                            value={filterStatus}
+                            onChange={setFilterStatus}
+                            placeholder="Todos status"
+                            options={PRESENCE_STATUS_OPTIONS}
+                        />
                         <SelectFilter value={filterPermissao} onChange={setFilterPermissao} placeholder="Todos" options={[{ label: "Administrador", value: "admin" }, { label: "Usuário", value: "usuario" }]} />
                     </div>
 
@@ -1138,6 +1277,7 @@ export default function UsuariosAdminPage() {
                                                         disabled={statusUpdatingId === user.id_usuario}
                                                         onClick={() => {
                                                             setStatusUser(user);
+                                                            setStatusDraft(normalizePresenceStatus(user.status_atual));
                                                             setIsStatusConfirmOpen(true);
                                                         }}
                                                     />
@@ -1395,8 +1535,11 @@ export default function UsuariosAdminPage() {
                                             <SelectValue />
                                         </SelectTrigger>
                                         <SelectContent className="border" style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-widgets)", color: "var(--cor-logo)" }}>
-                                            <SelectItem value="Ativo" style={{ color: "var(--cor-logo)" }}>Ativo</SelectItem>
-                                            <SelectItem value="Inativo" style={{ color: "var(--cor-logo)" }}>Inativo</SelectItem>
+                                            {PRESENCE_STATUS_OPTIONS.map((status) => (
+                                                <SelectItem key={status.value} value={status.value} style={{ color: "var(--cor-logo)" }}>
+                                                    {status.label}
+                                                </SelectItem>
+                                            ))}
                                         </SelectContent>
                                     </Select>
                                 </label>
@@ -1541,13 +1684,30 @@ export default function UsuariosAdminPage() {
                             <div className="mb-4 flex items-center gap-3">
                                 <Avatar nome={statusUser.nome} foto={statusUser.foto_perfil} />
                                 <h3 className="text-base font-semibold" style={{ color: "var(--cor-logo)" }}>
-                                    Confirmar alteração de status
+                                    Alterar status
                                 </h3>
                             </div>
                             <p className="text-sm" style={{ color: "var(--cor-logo2)" }}>
-                                Tem certeza que deseja marcar <strong style={{ color: "var(--cor-logo)" }}>{statusUser.nome}</strong> como{" "}
-                                <strong style={{ color: "var(--cor-logo)" }}>{isUsuarioAtivo(statusUser) ? "inativo" : "ativo"}</strong>?
+                                Selecione o novo status de <strong style={{ color: "var(--cor-logo)" }}>{statusUser.nome}</strong>.
                             </p>
+
+                            <div className="mt-4">
+                                <Select value={statusDraft} onValueChange={(value) => setStatusDraft(value as PresenceStatusValue)}>
+                                    <SelectTrigger
+                                        className="w-full rounded-xl border text-sm"
+                                        style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-fundo)", color: "var(--cor-logo)" }}
+                                    >
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent className="border" style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-widgets)", color: "var(--cor-logo)" }}>
+                                        {PRESENCE_STATUS_OPTIONS.map((status) => (
+                                            <SelectItem key={status.value} value={status.value} style={{ color: "var(--cor-logo)" }}>
+                                                {status.label}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
 
                             <div className="mt-6 flex justify-end gap-2">
                                 <button
@@ -1560,16 +1720,12 @@ export default function UsuariosAdminPage() {
                                 </button>
                                 <button
                                     type="button"
-                                    onClick={() => void onToggleStatus()}
+                                    onClick={() => void onSaveStatus()}
                                     disabled={statusUpdatingId === statusUser.id_usuario}
                                     className="rounded-xl px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
-                                    style={{ backgroundColor: isUsuarioAtivo(statusUser) ? "#c0392b" : "#1d6a45" }}
+                                    style={{ backgroundColor: "#1d6a45" }}
                                 >
-                                    {statusUpdatingId === statusUser.id_usuario
-                                        ? "Salvando..."
-                                        : isUsuarioAtivo(statusUser)
-                                            ? "Confirmar inativação"
-                                            : "Confirmar ativação"}
+                                    {statusUpdatingId === statusUser.id_usuario ? "Salvando..." : "Salvar status"}
                                 </button>
                             </div>
                         </div>

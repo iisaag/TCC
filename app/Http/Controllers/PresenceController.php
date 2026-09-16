@@ -11,7 +11,22 @@ use Illuminate\Http\Request;
 
 class PresenceController extends Controller
 {
-    private const ALLOWED_STATUS = ['online', 'ocupado', 'ausente', 'não perturbe'];
+    private const ALLOWED_STATUS = ['online', 'ocupado', 'ausente', 'não perturbe', 'offline'];
+
+    private function normalizeStatus(?string $status): string
+    {
+        $normalized = mb_strtolower(trim((string) $status));
+
+        if (in_array($normalized, self::ALLOWED_STATUS, true)) {
+            return $normalized;
+        }
+
+        if ($normalized === 'ativo') {
+            return 'online';
+        }
+
+        return 'offline';
+    }
 
     private function authUserId(Request $request): ?int
     {
@@ -72,9 +87,7 @@ class PresenceController extends Controller
         $users = Usuario::with('equipeRelation')->orderBy('nome', 'asc')->get()->map(function (Usuario $usuario) use ($onlineIds, $nivelAcessoPorEmail) {
             $cargoTexto = $usuario->getRawOriginal('cargo');
             $isOnline = in_array((int) $usuario->id_usuario, $onlineIds, true);
-            $customStatus = is_string($usuario->status_atual) && in_array($usuario->status_atual, self::ALLOWED_STATUS, true)
-                ? $usuario->status_atual
-                : 'online';
+            $customStatus = $this->normalizeStatus($usuario->status_atual);
             $nivelAcesso = $nivelAcessoPorEmail[strtolower((string) $usuario->email)] ?? '';
             $isAdmin = in_array($nivelAcesso, ['adm'], true);
             $equipeRelation = $usuario->equipeRelation;
@@ -89,7 +102,7 @@ class PresenceController extends Controller
                 'profileTags' => $usuario->perfil_tags,
                 'profileBio' => $usuario->perfil_sobre,
                 'avatar' => $usuario->foto_perfil ?: null,
-                'status' => $isOnline ? $customStatus : 'offline',
+                'status' => ($isOnline && $customStatus !== 'offline') ? $customStatus : 'offline',
                 'is_admin' => $isAdmin,
                 'id_equipe' => $usuario->id_equipe,
                 'equipe_relation' => $equipeRelation ? [
@@ -118,7 +131,7 @@ class PresenceController extends Controller
         }
 
         $validated = $request->validate([
-            'status' => ['required', 'string', 'in:online,ocupado,ausente,não perturbe'],
+            'status' => ['required', 'string', 'in:online,ocupado,ausente,offline,não perturbe,Ativo,Inativo'],
         ]);
 
         $usuario = Usuario::find($userId);
@@ -127,7 +140,7 @@ class PresenceController extends Controller
             return response()->json(['success' => false], 404);
         }
 
-        $usuario->status_atual = $validated['status'];
+        $usuario->status_atual = $this->normalizeStatus($validated['status']);
         $usuario->save();
 
         return response()->json([
