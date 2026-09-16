@@ -13,6 +13,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 
 class DashboardController extends Controller
 {
@@ -22,6 +23,21 @@ class DashboardController extends Controller
     /** Status de projeto considerados ativos (não encerrados) */
     private const PROJ_EXCLUIDOS = ['Concluído', 'Concluida', 'Cancelado', 'Cancelada'];
     private const TEMP_DELETED_STATUS = '__EXCLUIDO_TEMP__';
+
+    private function normalizeSearchQuery(string $value): string
+    {
+        return Str::ascii(mb_strtolower(trim($value)));
+    }
+
+    private function normalizedSearchColumn(string $column): string
+    {
+        return "REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(LOWER({$column}),'á','a'),'à','a'),'â','a'),'ã','a'),'ä','a'),'é','e'),'è','e'),'ê','e'),'ë','e'),'í','i'),'ì','i'),'î','i'),'ï','i'),'ó','o'),'ò','o'),'ô','o'),'õ','o'),'ö','o'),'ú','u'),'ù','u'),'û','u'),'ü','u'),'ç','c')";
+    }
+
+    private function normalizedSearchLike(string $column): string
+    {
+        return $this->normalizedSearchColumn($column) . ' LIKE ?';
+    }
 
     public function globalSearch(Request $request): JsonResponse
     {
@@ -37,7 +53,7 @@ class DashboardController extends Controller
             ]);
         }
 
-        $like = '%' . str_replace(['%', '_'], ['\\%', '\\_'], $query) . '%';
+        $like = '%' . str_replace(['%', '_'], ['\\%', '\\_'], $this->normalizeSearchQuery($query)) . '%';
         $results = [];
 
         if (Schema::hasTable('projetos')) {
@@ -49,8 +65,8 @@ class DashboardController extends Controller
                 })
                 ->where(function ($builder) use ($like): void {
                     $builder
-                        ->where('nome_projeto', 'like', $like)
-                        ->orWhere('descricao', 'like', $like);
+                        ->whereRaw($this->normalizedSearchLike('nome_projeto'), [$like])
+                        ->orWhereRaw($this->normalizedSearchLike('descricao'), [$like]);
                 })
                 ->orderBy('nome_projeto')
                 ->limit(6)
@@ -77,9 +93,9 @@ class DashboardController extends Controller
                 })
                 ->where(function ($builder) use ($like): void {
                     $builder
-                        ->where('tarefas.titulo', 'like', $like)
-                        ->orWhere('tarefas.descricao', 'like', $like)
-                        ->orWhere('projetos.nome_projeto', 'like', $like);
+                        ->whereRaw($this->normalizedSearchLike('tarefas.titulo'), [$like])
+                        ->orWhereRaw($this->normalizedSearchLike('tarefas.descricao'), [$like])
+                        ->orWhereRaw($this->normalizedSearchLike('projetos.nome_projeto'), [$like]);
                 })
                 ->orderBy('tarefas.id_tarefa', 'desc')
                 ->limit(8)
@@ -110,9 +126,9 @@ class DashboardController extends Controller
                 })
                 ->where(function ($builder) use ($like): void {
                     $builder
-                        ->where('metas.titulo_meta', 'like', $like)
-                        ->orWhere('projetos.nome_projeto', 'like', $like)
-                        ->orWhere('metas.status_meta', 'like', $like);
+                        ->whereRaw($this->normalizedSearchLike('metas.titulo_meta'), [$like])
+                        ->orWhereRaw($this->normalizedSearchLike('projetos.nome_projeto'), [$like])
+                        ->orWhereRaw($this->normalizedSearchLike('metas.status_meta'), [$like]);
                 })
                 ->orderBy('metas.id_meta', 'desc')
                 ->limit(6)
@@ -137,9 +153,9 @@ class DashboardController extends Controller
             $usuarios = Usuario::query()
                 ->where(function ($builder) use ($like): void {
                     $builder
-                        ->where('nome', 'like', $like)
-                        ->orWhere('email', 'like', $like)
-                        ->orWhere('cargo', 'like', $like);
+                        ->whereRaw($this->normalizedSearchLike('nome'), [$like])
+                        ->orWhereRaw($this->normalizedSearchLike('email'), [$like])
+                        ->orWhereRaw($this->normalizedSearchLike('cargo'), [$like]);
                 })
                 ->orderBy('nome')
                 ->limit(8)
@@ -160,8 +176,8 @@ class DashboardController extends Controller
             $equipes = Equipe::query()
                 ->where(function ($builder) use ($like): void {
                     $builder
-                        ->where('nome', 'like', $like)
-                        ->orWhere('tipo', 'like', $like);
+                        ->whereRaw($this->normalizedSearchLike('nome'), [$like])
+                        ->orWhereRaw($this->normalizedSearchLike('tipo'), [$like]);
                 })
                 ->orderBy('nome')
                 ->limit(6)
@@ -295,9 +311,13 @@ class DashboardController extends Controller
                     if ($sprintAtiva) {
                         $sprintFim = Carbon::parse($sprintAtiva->data_fim)->endOfDay();
                         $pendentes = Tarefa::where('id_sprint', $sprintAtiva->id_sprint)
-                            ->whereNotIn(DB::raw('UPPER(status_task)'), self::CONCLUIDOS)
-                            ->where('em_historico', false)
-                            ->count();
+                            ->whereNotIn(DB::raw('UPPER(status_task)'), self::CONCLUIDOS);
+
+                        if (Schema::hasColumn('tarefas', 'em_historico')) {
+                            $pendentes->where('em_historico', false);
+                        }
+
+                        $pendentes = $pendentes->count();
 
                         if ($hoje->gt($sprintFim) && $pendentes > 0) {
                             $status = 'ATRASADO';

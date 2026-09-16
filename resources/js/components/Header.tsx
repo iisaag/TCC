@@ -370,17 +370,17 @@ export default function Header({ user }: HeaderProps) {
                             text-sm
                             bg-(--cor-widgets) rounded-full
                             border border-(--cor-borda)
-                            focus:outline-none focus:border-[--cor-accentII]/40 focus:bg-(--cor-borda)
+                            focus:outline-none focus:border-[--cor-accentII]/40 focus:bg-(--cor-fundo)
                             transition-colors duration-200
-                            placeholder:text-(--cor-textoII)/50
+                            placeholder:text-(--cor-textoII)/60
                         "
                         style={{ color: "var(--cor-vetores)" }}
                     />
 
                     {isSearchOpen && (
                         <div
-                            className="absolute left-0 right-0 top-[calc(100%+8px)] z-50 overflow-hidden rounded-2xl border bg-white shadow-2xl"
-                            style={{ borderColor: "var(--cor-borda)" }}
+                            className="absolute left-0 right-0 top-[calc(100%+8px)] z-50 overflow-hidden rounded-2xl border shadow-2xl"
+                            style={{ backgroundColor: "var(--cor-widgets)", borderColor: "var(--cor-borda)" }}
                         >
                             <div className="max-h-80 overflow-y-auto p-2">
                                 {isSearching ? (
@@ -397,13 +397,20 @@ export default function Header({ user }: HeaderProps) {
                                             key={item.id}
                                             type="button"
                                             onClick={() => goToResult(item)}
-                                            className="flex w-full items-start justify-between gap-3 rounded-xl px-3 py-2 text-left transition-colors hover:bg-[#eef5fb]"
+                                            className="flex w-full items-start justify-between gap-3 rounded-xl px-3 py-2 text-left transition-colors"
+                                            style={{ color: "var(--cor-vetores)" }}
+                                            onMouseEnter={(event) => {
+                                                event.currentTarget.style.backgroundColor = "var(--cor-fundo)";
+                                            }}
+                                            onMouseLeave={(event) => {
+                                                event.currentTarget.style.backgroundColor = "transparent";
+                                            }}
                                         >
                                             <div className="min-w-0">
-                                                <p className="truncate text-sm font-semibold text-slate-800">{item.title}</p>
-                                                <p className="truncate text-xs text-slate-500">{item.subtitle}</p>
+                                                <p className="truncate text-sm font-semibold" style={{ color: "var(--cor-logo)" }}>{item.title}</p>
+                                                <p className="truncate text-xs" style={{ color: "var(--cor-logo2)" }}>{item.subtitle}</p>
                                             </div>
-                                            <span className="shrink-0 rounded-lg bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-600">
+                                            <span className="shrink-0 rounded-lg px-2 py-1 text-[11px] font-semibold" style={{ backgroundColor: "color-mix(in srgb, var(--cor-logo) 14%, transparent)", color: "var(--cor-logo)" }}>
                                                 {typeLabel[item.type]}
                                             </span>
                                         </button>

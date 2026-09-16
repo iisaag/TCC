@@ -332,7 +332,7 @@ function ActionMenu({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => 
 
 function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: number }) {
     return (
-        <div className="rounded-2xl border p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md" style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-widgets)" }}>
+        <div className="rounded-2xl border p-4 shadow-sm backdrop-blur transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md" style={{ borderColor: "var(--cor-borda)", backgroundColor: "color-mix(in srgb, var(--cor-widgets) 88%, transparent)" }}>
             <div className="flex items-center gap-2 text-sm font-medium" style={{ color: "var(--cor-logo2)" }}>
                 {icon} {label}
             </div>
@@ -358,7 +358,7 @@ function TabButton({ active, label, onClick }: { active: boolean; label: string;
 function SectionHeader({ icon, title, subtitle }: { icon: React.ReactNode; title: string; subtitle: string }) {
     return (
         <div className="flex items-start gap-3">
-            <div className="mt-0.5 rounded-xl border p-2" style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-fundo)", color: "var(--cor-logo)" }}>
+            <div className="mt-0.5 rounded-xl border p-2" style={{ borderColor: "var(--cor-borda)", backgroundColor: "color-mix(in srgb, var(--cor-logo) 10%, var(--cor-widgets))", color: "var(--cor-logo)" }}>
                 {icon}
             </div>
             <div>
@@ -386,9 +386,9 @@ function IconButton({ children, onClick, title, danger = false, disabled = false
         <button type="button" onClick={onClick} title={title} disabled={disabled}
             className="inline-flex h-9 w-9 items-center justify-center rounded-xl border transition hover:-translate-y-0.5 disabled:opacity-60"
             style={{
-                borderColor: danger ? "rgba(176, 58, 58, 0.4)" : "var(--cor-borda)",
-                backgroundColor: danger ? "rgba(176, 58, 58, 0.1)" : "var(--cor-fundo)",
-                color: danger ? "#c55" : "var(--cor-logo)",
+                borderColor: danger ? "color-mix(in srgb, var(--cor-atrasoI) 40%, var(--cor-borda))" : "var(--cor-borda)",
+                backgroundColor: danger ? "color-mix(in srgb, var(--cor-atrasoI) 12%, var(--cor-widgets))" : "var(--cor-widgets)",
+                color: danger ? "var(--cor-atrasoI)" : "var(--cor-logo)",
             }}>
             {children}
         </button>
@@ -918,7 +918,7 @@ export default function GestaoPage() {
                     <div className="absolute inset-y-0 right-0 hidden w-2/5 bg-[radial-gradient(circle_at_center,rgba(92,127,168,0.16),transparent_70%)] md:block" />
                     <div className="relative flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
                         <div className="max-w-2xl space-y-3">
-                            <div className="inline-flex items-center gap-2 rounded-full border bg-white/80 px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em]" style={{ borderColor: "#d4e0eb", color: "var(--cor-logo2)" }}>
+                            <div className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em]" style={{ borderColor: "var(--cor-borda)", backgroundColor: "color-mix(in srgb, var(--cor-widgets) 80%, transparent)", color: "var(--cor-logo2)" }}>
                                 <Shield size={14} />
                                 Gestão da empresa
                             </div>
@@ -1128,12 +1128,12 @@ export default function GestaoPage() {
                                         <div className="flex flex-wrap items-center gap-2">
                                             <button type="button" onClick={() => { setEditingCargo(cargo); setCargoForm({ nome_cargo: cargo.nome_cargo }); }}
                                                 className="inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-medium transition hover:-translate-y-0.5"
-                                                style={{ borderColor: "#cfe0ef", backgroundColor: "#eef5fb", color: "var(--cor-logo)" }}>
+                                                style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-fundo)", color: "var(--cor-logo)" }}>
                                                 <Pencil size={14} /> Editar
                                             </button>
                                             <button type="button" onClick={() => void removeCargo(cargo.id_cargo)} disabled={deletingCargoId === cargo.id_cargo}
                                                 className="inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-medium transition hover:-translate-y-0.5 disabled:opacity-60"
-                                                style={{ borderColor: "#efb4b4", backgroundColor: "#fff4f4", color: "#b23b3b" }}>
+                                                style={{ borderColor: "color-mix(in srgb, var(--cor-atrasoI) 40%, var(--cor-borda))", backgroundColor: "color-mix(in srgb, var(--cor-atrasoI) 12%, var(--cor-widgets))", color: "var(--cor-atrasoI)" }}>
                                                 {deletingCargoId === cargo.id_cargo ? <RefreshCw size={14} className="animate-spin" /> : <Trash2 size={14} />}
                                                 {deletingCargoId === cargo.id_cargo ? "Excluindo..." : "Excluir"}
                                             </button>
@@ -1168,73 +1168,27 @@ export default function GestaoPage() {
                                     </select>
                                 </FieldLabel>
 
-                                {/* Row 2: Equipe pai (linha própria) */}
-                                <div className="md:col-span-2">
-                                    <FieldLabel label="Equipe pai" description="Opcional — selecione caso seja uma subequipe de outra.">
-                                        <select value={equipeForm.equipe_pai} onChange={(e) => setEquipeForm((c) => ({ ...c, equipe_pai: e.target.value }))}
-                                            className="w-full rounded-xl border px-4 py-3 text-sm shadow-sm outline-none transition"
-                                            style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-fundo)", color: "var(--cor-logo)" }}>
-                                            <option value="">Nenhuma</option>
-                                            {equipes.map((e) => <option key={e.id_equipe} value={e.id_equipe}>{e.nome}</option>)}
-                                        </select>
-                                    </FieldLabel>
-                                </div>
+                                <FieldLabel label="Equipe pai" description="Opcional para subequipes.">
+                                    <select value={equipeForm.equipe_pai} onChange={(e) => setEquipeForm((c) => ({ ...c, equipe_pai: e.target.value }))}
+                                        className="w-full rounded-xl border px-4 py-3 text-sm shadow-sm outline-none transition"
+                                        style={{ borderColor: "var(--cor-borda)" }}>
+                                        <option value="">Nenhuma</option>
+                                        {equipes.map((e) => <option key={e.id_equipe} value={e.id_equipe}>{e.nome}</option>)}
+                                    </select>
+                                </FieldLabel>
 
-                                {/* Row 3: Líder (linha própria) */}
-                                <div className="md:col-span-2">
-                                    <FieldLabel label="Líder" description="O usuário selecionado receberá acesso de administrador automaticamente.">
-                                        <select value={equipeForm.id_lider} onChange={(e) => setEquipeForm((c) => ({ ...c, id_lider: e.target.value }))}
-                                            className="w-full rounded-xl border px-4 py-3 text-sm shadow-sm outline-none transition"
-                                            style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-fundo)", color: "var(--cor-logo)" }}>
-                                            <option value="">Sem líder</option>
-                                            {usuarios.map((u) => (
-                                                <option key={u.id_usuario} value={u.id_usuario}>
-                                                    {u.nome}{permissoes[(u.email ?? "").toLowerCase()] === "admin" ? " ★" : ""}
-                                                </option>
-                                            ))}
-                                        </select>
-                                    </FieldLabel>
-                                </div>
-
-                                {/* Row 4: Membros */}
-                                <div className="md:col-span-2">
-                                    <FieldLabel label="Membros da equipe" description="Selecione os usuários que farão parte desta equipe.">
-                                        <div className="overflow-hidden rounded-xl border" style={{ borderColor: "var(--cor-borda)" }}>
-                                            <div className="border-b px-2 py-2" style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-fundo)" }}>
-                                                <input
-                                                    type="text"
-                                                    placeholder="Buscar usuário..."
-                                                    value={membrosSearch}
-                                                    onChange={(e) => setMembrosSearch(e.target.value)}
-                                                    className="w-full rounded-lg border px-3 py-1.5 text-sm outline-none transition"
-                                                    style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-widgets)", color: "var(--cor-logo)" }}
-                                                />
-                                            </div>
-                                            <div className="max-h-40 divide-y overflow-y-auto" style={{ backgroundColor: "var(--cor-widgets)" }}>
-                                                {(membrosSearch.trim()
-                                                    ? usuarios.filter((u) => u.nome.toLowerCase().includes(membrosSearch.toLowerCase()))
-                                                    : usuarios
-                                                ).map((u) => (
-                                                    <label key={u.id_usuario} className="flex cursor-pointer items-center gap-3 px-4 py-2.5 transition hover:opacity-75">
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={equipeForm.membros.includes(u.id_usuario)}
-                                                            onChange={() => toggleMembro(u.id_usuario)}
-                                                            className="h-4 w-4 rounded accent-[var(--cor-accent)]"
-                                                        />
-                                                        <span className="flex-1 text-sm" style={{ color: "var(--cor-logo)" }}>{u.nome}</span>
-                                                        {u.cargo && <span className="text-xs" style={{ color: "var(--cor-logo2)" }}>{u.cargo}</span>}
-                                                    </label>
-                                                ))}
-                                            </div>
-                                            {equipeForm.membros.length > 0 && (
-                                                <div className="border-t px-4 py-2 text-xs" style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-fundo)", color: "var(--cor-logo2)" }}>
-                                                    {equipeForm.membros.length} {equipeForm.membros.length === 1 ? "membro selecionado" : "membros selecionados"}
-                                                </div>
-                                            )}
-                                        </div>
-                                    </FieldLabel>
-                                </div>
+                                <FieldLabel label="Líder" description="O usuário selecionado receberá acesso de administrador automaticamente.">
+                                    <select value={equipeForm.id_lider} onChange={(e) => setEquipeForm((c) => ({ ...c, id_lider: e.target.value }))}
+                                        className="w-full rounded-xl border px-4 py-3 text-sm shadow-sm outline-none transition"
+                                        style={{ borderColor: "var(--cor-borda)" }}>
+                                        <option value="">Sem líder</option>
+                                        {usuarios.map((u) => (
+                                            <option key={u.id_usuario} value={u.id_usuario}>
+                                                {u.nome}{permissoes[(u.email ?? "").toLowerCase()] === "admin" ? " ★" : ""}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </FieldLabel>
 
                                 <div className="md:col-span-2 flex flex-wrap gap-3">
                                     <button type="submit" disabled={savingEquipe}

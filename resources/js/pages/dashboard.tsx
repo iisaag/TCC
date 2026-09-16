@@ -1,4 +1,3 @@
-import DashboardLayout from "@/layouts/DashboardLayout";
 import {
     AlertTriangle,
     CalendarClock,
@@ -28,6 +27,8 @@ import {
     XAxis,
     YAxis,
 } from "recharts";
+import DashboardLayout from "@/layouts/DashboardLayout";
+import { downloadExcelFile, type ExcelSheetDefinition } from "@/lib/excelExport";
 
 // ---------------------------------------------------------------------------
 // TYPES
@@ -226,6 +227,126 @@ function hypotheticalDaysForAlert(alerta: Alerta, index: number): number {
 
 function normalizeAlertMessage(message: string, fallbackDays: number): string {
     return message.replace(/\?\s*dias?/gi, `${fallbackDays} dias`);
+}
+
+function formatExportDateTime(date: Date): string {
+    return date.toLocaleString("pt-BR");
+}
+
+function buildDashboardExcelSheets(dashboard: DashboardData, dias: number): ExcelSheetDefinition[] {
+    const generatedAt = formatExportDateTime(new Date());
+
+    return [
+        {
+            name: "Resumo",
+            rows: [
+                { Secao: "Metadados", Item: "Gerado em", Valor: generatedAt },
+                { Secao: "Metadados", Item: "Período analisado", Valor: `${dias} dias` },
+                { Secao: "KPIs", Item: "Projetos Ativos", Valor: dashboard.kpis.projetos_ativos },
+                { Secao: "KPIs", Item: "Projetos em Risco", Valor: dashboard.kpis.projetos_em_risco },
+                { Secao: "KPIs", Item: "Tarefas Pendentes", Valor: dashboard.kpis.tarefas_pendentes },
+                { Secao: "KPIs", Item: "Tarefas Atrasadas", Valor: dashboard.kpis.tarefas_atrasadas },
+                { Secao: "KPIs", Item: "Tarefas Concluídas", Valor: dashboard.kpis.tarefas_concluidas },
+                { Secao: "KPIs", Item: "Progresso Médio", Valor: `${dashboard.kpis.progresso_medio}%` },
+                { Secao: "Operacional", Item: "Resumo pendentes", Valor: dashboard.resumo_operacional.pendentes.length },
+                { Secao: "Operacional", Item: "Resumo concluídas", Valor: dashboard.resumo_operacional.concluidas.length },
+                { Secao: "Operacional", Item: "Resumo atrasadas", Valor: dashboard.resumo_operacional.atrasadas.length },
+                { Secao: "Operacional", Item: "Vencendo em 7 dias", Valor: dashboard.resumo_operacional.vencendo_7dias.length },
+                { Secao: "Operacional", Item: "Sem responsável", Valor: dashboard.resumo_operacional.sem_responsavel.length },
+            ],
+        },
+        {
+            name: "Saude Projetos",
+            rows: dashboard.saude_projetos.map((projeto) => ({
+                ID: projeto.id,
+                Projeto: projeto.nome,
+                Progresso: `${projeto.progresso}%`,
+                Prazo: projeto.prazo ?? "-",
+                Responsavel: projeto.responsavel ?? "-",
+                Status: projeto.status,
+            })),
+        },
+        {
+            name: "Evolucao Tarefas",
+            rows: dashboard.evolucao_semanal.map((ponto) => ({
+                Semana: ponto.semana,
+                Concluidas: ponto.concluidas,
+                Criadas: ponto.criadas,
+            })),
+        },
+        {
+            name: "Produtividade Equipe",
+            rows: dashboard.produtividade_equipe.map((ponto) => ({
+                Equipe: ponto.equipe,
+                Concluidas: ponto.concluidas,
+            })),
+        },
+        {
+            name: "Distribuicao Status",
+            rows: dashboard.distribuicao_status.map((item) => ({
+                Status: item.status,
+                Valor: item.valor,
+            })),
+        },
+        {
+            name: "Alertas",
+            rows: dashboard.alertas.map((alerta, index) => ({
+                Ordem: index + 1,
+                Nivel: alerta.nivel,
+                Tipo: alerta.tipo,
+                Titulo: alerta.titulo,
+                Mensagem: alerta.mensagem,
+            })),
+        },
+        {
+            name: "Pendentes",
+            rows: dashboard.resumo_operacional.pendentes.map((item, index) => ({
+                Ordem: index + 1,
+                Titulo: item.titulo,
+                Projeto: item.projeto,
+                Responsavel: item.responsavel ?? "-",
+                Prazo: item.prazo ?? "-",
+            })),
+        },
+        {
+            name: "Concluidas",
+            rows: dashboard.resumo_operacional.concluidas.map((item, index) => ({
+                Ordem: index + 1,
+                Titulo: item.titulo,
+                Projeto: item.projeto,
+                Responsavel: item.responsavel ?? "-",
+                Prazo: item.prazo ?? "-",
+            })),
+        },
+        {
+            name: "Atrasadas",
+            rows: dashboard.resumo_operacional.atrasadas.map((item, index) => ({
+                Ordem: index + 1,
+                Titulo: item.titulo,
+                Projeto: item.projeto,
+                Responsavel: item.responsavel ?? "-",
+                Prazo: item.prazo ?? "-",
+            })),
+        },
+        {
+            name: "Vencendo 7 dias",
+            rows: dashboard.resumo_operacional.vencendo_7dias.map((item, index) => ({
+                Ordem: index + 1,
+                Titulo: item.titulo,
+                Projeto: item.projeto,
+                Responsavel: item.responsavel ?? "-",
+                Prazo: item.prazo ?? "-",
+            })),
+        },
+        {
+            name: "Sem Responsavel",
+            rows: dashboard.resumo_operacional.sem_responsavel.map((item, index) => ({
+                Ordem: index + 1,
+                Titulo: item.titulo,
+                Projeto: item.projeto,
+            })),
+        },
+    ];
 }
 
 // ---------------------------------------------------------------------------
@@ -512,15 +633,13 @@ export default function Dashboard() {
         setAlertsPage((prev) => Math.min(prev, totalPages));
     }, [data?.alertas.length]);
 
-    const handleExportPdf = () => {
-        setIsPrinting(true);
+    const handleExportExcel = () => {
+        if (!data) {
+            return;
+        }
 
-        requestAnimationFrame(() => {
-            requestAnimationFrame(() => {
-                window.dispatchEvent(new Event("resize"));
-                window.print();
-            });
-        });
+        const fileName = `dashboard_${new Date().toISOString().slice(0, 10)}.xlsx`;
+        downloadExcelFile(fileName, buildDashboardExcelSheets(data, dias));
     };
 
     const getKpiModalData = (kpiKey: KpiKey, dashboard: DashboardData) => {
@@ -650,10 +769,10 @@ export default function Dashboard() {
                             <button
                                 className="flex h-10 items-center gap-2 rounded-xl border px-4 text-base font-semibold shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md hover:opacity-95"
                                 style={{ background: "var(--cor-botao)", borderColor: "var(--cor-borda)", color: "var(--cor-logo)" }}
-                                onClick={handleExportPdf}
+                                onClick={handleExportExcel}
                             >
                                 <Download size={16} />
-                                Exportar dados
+                                Exportar Excel
                             </button>
                             <SelectFilter
                                 icon={<CalendarClock size={16} style={{ color: "var(--cor-logo2)" }} />}
@@ -760,7 +879,7 @@ export default function Dashboard() {
                                                     return (
                                                         <tr
                                                             key={p.id}
-                                                            className="border-b transition-colors duration-200 hover:bg-white/60 last:border-0"
+                                                            className="border-b transition-colors duration-200 hover:bg-(--cor-fundo) last:border-0"
                                                             style={{ borderColor: "var(--cor-borda)" }}
                                                         >
                                                             <td className="py-3 font-semibold" style={{ color: "var(--cor-logo)" }}>
@@ -848,22 +967,24 @@ export default function Dashboard() {
                                         Evolução de Tarefas
                                     </h3>
                                     {isPrinting ? (
-                                        <LineChart width={720} height={260} data={data.evolucao_semanal}>
-                                            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                                            <XAxis dataKey="semana" tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
-                                            <YAxis tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
-                                            <Tooltip contentStyle={{ borderRadius: 10, border: "none", boxShadow: "0 4px 20px rgba(0,0,0,0.08)" }} />
-                                            <Legend wrapperStyle={{ fontSize: 11 }} />
-                                            <Line type="monotone" dataKey="concluidas" name="Concluídas" stroke="#7c3aed" strokeWidth={2.5} dot={{ r: 4, fill: "#7c3aed" }} activeDot={{ r: 6 }} />
-                                            <Line type="monotone" dataKey="criadas" name="Criadas" stroke="#a78bfa" strokeWidth={2} dot={{ r: 4, fill: "#a78bfa" }} strokeDasharray="4 2" />
-                                        </LineChart>
+                                        <ResponsiveContainer width="100%" height={240}>
+                                            <LineChart data={data.evolucao_semanal}>
+                                                <CartesianGrid strokeDasharray="3 3" stroke="var(--cor-borda)" />
+                                                <XAxis dataKey="semana" tick={{ fontSize: 11, fill: "var(--cor-logo2)" }} axisLine={false} tickLine={false} />
+                                                <YAxis tick={{ fontSize: 11, fill: "var(--cor-logo2)" }} axisLine={false} tickLine={false} />
+                                                <Tooltip contentStyle={{ borderRadius: 10, border: "1px solid var(--cor-borda)", backgroundColor: "var(--cor-widgets)", color: "var(--cor-vetores)", boxShadow: "0 4px 20px rgba(0,0,0,0.08)" }} />
+                                                <Legend wrapperStyle={{ fontSize: 11 }} />
+                                                <Line type="monotone" dataKey="concluidas" name="Concluídas" stroke="#7c3aed" strokeWidth={2.5} dot={{ r: 4, fill: "#7c3aed" }} activeDot={{ r: 6 }} />
+                                                <Line type="monotone" dataKey="criadas" name="Criadas" stroke="#a78bfa" strokeWidth={2} dot={{ r: 4, fill: "#a78bfa" }} strokeDasharray="4 2" />
+                                            </LineChart>
+                                        </ResponsiveContainer>
                                     ) : (
                                         <ResponsiveContainer width="100%" height={220}>
                                             <LineChart data={data.evolucao_semanal}>
-                                                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                                                <XAxis dataKey="semana" tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
-                                                <YAxis tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
-                                                <Tooltip contentStyle={{ borderRadius: 10, border: "none", boxShadow: "0 4px 20px rgba(0,0,0,0.08)" }} />
+                                                <CartesianGrid strokeDasharray="3 3" stroke="var(--cor-borda)" />
+                                                <XAxis dataKey="semana" tick={{ fontSize: 11, fill: "var(--cor-logo2)" }} axisLine={false} tickLine={false} />
+                                                <YAxis tick={{ fontSize: 11, fill: "var(--cor-logo2)" }} axisLine={false} tickLine={false} />
+                                                <Tooltip contentStyle={{ borderRadius: 10, border: "1px solid var(--cor-borda)", backgroundColor: "var(--cor-widgets)", color: "var(--cor-vetores)", boxShadow: "0 4px 20px rgba(0,0,0,0.08)" }} />
                                                 <Legend wrapperStyle={{ fontSize: 11 }} />
                                                 <Line type="monotone" dataKey="concluidas" name="Concluídas" stroke="#7c3aed" strokeWidth={2.5} dot={{ r: 4, fill: "#7c3aed" }} activeDot={{ r: 6 }} />
                                                 <Line type="monotone" dataKey="criadas" name="Criadas" stroke="#a78bfa" strokeWidth={2} dot={{ r: 4, fill: "#a78bfa" }} strokeDasharray="4 2" />
@@ -881,20 +1002,22 @@ export default function Dashboard() {
                                         <p className="text-sm" style={{ color: "var(--cor-logo2)" }}>Sem dados de produtividade.</p>
                                     ) : (
                                         isPrinting ? (
-                                            <BarChart width={720} height={260} data={data.produtividade_equipe} barSize={28}>
-                                                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                                                <XAxis dataKey="equipe" tick={{ fontSize: 10, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
-                                                <YAxis tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
-                                                <Tooltip contentStyle={{ borderRadius: 10, border: "none", boxShadow: "0 4px 20px rgba(0,0,0,0.08)" }} />
-                                                <Bar dataKey="concluidas" name="Concluídas" fill="#f97316" radius={[6, 6, 0, 0]} />
-                                            </BarChart>
+                                            <ResponsiveContainer width="100%" height={240}>
+                                                <BarChart data={data.produtividade_equipe} barSize={28}>
+                                                    <CartesianGrid strokeDasharray="3 3" stroke="var(--cor-borda)" />
+                                                    <XAxis dataKey="equipe" tick={{ fontSize: 10, fill: "var(--cor-logo2)" }} axisLine={false} tickLine={false} />
+                                                    <YAxis tick={{ fontSize: 11, fill: "var(--cor-logo2)" }} axisLine={false} tickLine={false} />
+                                                    <Tooltip contentStyle={{ borderRadius: 10, border: "1px solid var(--cor-borda)", backgroundColor: "var(--cor-widgets)", color: "var(--cor-vetores)", boxShadow: "0 4px 20px rgba(0,0,0,0.08)" }} />
+                                                    <Bar dataKey="concluidas" name="Concluídas" fill="#f97316" radius={[6, 6, 0, 0]} />
+                                                </BarChart>
+                                            </ResponsiveContainer>
                                         ) : (
                                             <ResponsiveContainer width="100%" height={220}>
                                                 <BarChart data={data.produtividade_equipe} barSize={28}>
-                                                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                                                    <XAxis dataKey="equipe" tick={{ fontSize: 10, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
-                                                    <YAxis tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
-                                                    <Tooltip contentStyle={{ borderRadius: 10, border: "none", boxShadow: "0 4px 20px rgba(0,0,0,0.08)" }} />
+                                                    <CartesianGrid strokeDasharray="3 3" stroke="var(--cor-borda)" />
+                                                    <XAxis dataKey="equipe" tick={{ fontSize: 10, fill: "var(--cor-logo2)" }} axisLine={false} tickLine={false} />
+                                                    <YAxis tick={{ fontSize: 11, fill: "var(--cor-logo2)" }} axisLine={false} tickLine={false} />
+                                                    <Tooltip contentStyle={{ borderRadius: 10, border: "1px solid var(--cor-borda)", backgroundColor: "var(--cor-widgets)", color: "var(--cor-vetores)", boxShadow: "0 4px 20px rgba(0,0,0,0.08)" }} />
                                                     <Bar dataKey="concluidas" name="Concluídas" fill="#f97316" radius={[6, 6, 0, 0]} />
                                                 </BarChart>
                                             </ResponsiveContainer>
@@ -927,7 +1050,7 @@ export default function Dashboard() {
                                             <Legend
                                                 wrapperStyle={{ fontSize: 11, paddingTop: 8 }}
                                                 formatter={(value) => (
-                                                    <span style={{ fontSize: 11, color: "#475569" }}>{value}</span>
+                                                    <span style={{ fontSize: 11, color: "var(--cor-logo2)" }}>{value}</span>
                                                 )}
                                             />
                                         </PieChart>
@@ -952,7 +1075,7 @@ export default function Dashboard() {
                                                 <Legend
                                                     wrapperStyle={{ fontSize: 11, paddingTop: 8 }}
                                                     formatter={(value) => (
-                                                        <span style={{ fontSize: 11, color: "#475569" }}>{value}</span>
+                                                        <span style={{ fontSize: 11, color: "var(--cor-logo2)" }}>{value}</span>
                                                     )}
                                                 />
                                             </PieChart>
@@ -1102,7 +1225,7 @@ export default function Dashboard() {
                                 <div
                                     className="dashboard-print-card rounded-3xl p-6 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg"
                                     style={{
-                                        background: "rgba(255, 255, 255, 0.9)",
+                                        background: "var(--cor-widgets)",
                                         border: "1px solid var(--cor-borda)",
                                     }}
                                 >

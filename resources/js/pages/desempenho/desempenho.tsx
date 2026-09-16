@@ -20,6 +20,7 @@ import {
 } from "recharts";
 import DashboardLayout from "@/layouts/DashboardLayout";
 import { apiRoutes } from "@/lib/routes";
+import { downloadExcelFile, type ExcelSheetDefinition } from "@/lib/excelExport";
 
 type BoardStatus = "TO_DO" | "DOING" | "TESTE" | "APROVADO";
 
@@ -167,6 +168,106 @@ function formatNumericTooltip(
     const coerced = Number(value);
 
     return Number.isFinite(coerced) ? coerced.toLocaleString(locale) : "0";
+}
+
+function formatExportDateTime(date: Date): string {
+    return date.toLocaleString("pt-BR");
+}
+
+interface PerformanceExportContext {
+    tarefasFiltradas: TarefaApi[];
+    projetosOrdenados: ProjetoApi[];
+    lineData: Array<{ mes: string; total: number; front: number; back: number; fullstack: number }>;
+    areaData: Array<{ mes: string; baixa: number; media: number; alta: number; critica: number }>;
+    pieData: Array<{ nome: string; valor: number; cor: string }>;
+    barData: Array<{ projeto: string; atrasadas: number; emDia: number }>;
+    kpisExecutivos: Array<{ titulo: string; valor: string; apoio: string }>;
+    projetoFiltrado?: ProjetoApi;
+    selectedProjetoId: number | null;
+    searchTerm: string;
+}
+
+function buildPerformanceExcelSheets(context: PerformanceExportContext): ExcelSheetDefinition[] {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    return [
+        {
+            name: "Resumo",
+            rows: [
+                { Secao: "Metadados", Item: "Gerado em", Valor: formatExportDateTime(new Date()) },
+                { Secao: "Metadados", Item: "Filtro de projeto", Valor: context.projetoFiltrado?.nome_projeto ?? "Todos os projetos" },
+                { Secao: "Metadados", Item: "Projeto selecionado", Valor: context.selectedProjetoId ?? "Todos" },
+                { Secao: "Metadados", Item: "Termo da busca", Valor: context.searchTerm || "-" },
+                { Secao: "Metadados", Item: "Tarefas exibidas", Valor: context.tarefasFiltradas.length },
+                ...context.kpisExecutivos.map((kpi) => ({
+                    Secao: "KPI",
+                    Item: kpi.titulo,
+                    Valor: kpi.valor,
+                    Apoio: kpi.apoio,
+                })),
+            ],
+        },
+        {
+            name: "Projetos",
+            rows: context.projetosOrdenados.map((projeto) => ({
+                ID: projeto.id_projeto,
+                Projeto: projeto.nome_projeto,
+            })),
+        },
+        {
+            name: "Produtividade Tipo",
+            rows: context.lineData.map((item) => ({
+                Mes: item.mes,
+                Total: item.total,
+                Front: item.front,
+                Back: item.back,
+                Fullstack: item.fullstack,
+            })),
+        },
+        {
+            name: "Prioridade Mensal",
+            rows: context.areaData.map((item) => ({
+                Mes: item.mes,
+                Baixa: item.baixa,
+                Media: item.media,
+                Alta: item.alta,
+                Critica: item.critica,
+            })),
+        },
+        {
+            name: "Status por Projeto",
+            rows: context.barData.map((item) => ({
+                Projeto: item.projeto,
+                Atrasadas: item.atrasadas,
+                EmDia: item.emDia,
+            })),
+        },
+        {
+            name: "Status Geral",
+            rows: context.pieData.map((item) => ({
+                Status: item.nome,
+                Valor: item.valor,
+            })),
+        },
+        {
+            name: "Tarefas",
+            rows: context.tarefasFiltradas.map((task) => ({
+                ID: task.id_tarefa,
+                Projeto: context.projetosOrdenados.find((projeto) => projeto.id_projeto === task.id_projeto)?.nome_projeto ?? "Sem projeto",
+                Sprint: task.sprint?.status_sprint ?? "-",
+                Prioridade: displayWithoutAccents(task.prioridade_task),
+                Tipo: displayWithoutAccents(task.tipo_task),
+                Inicio: task.data_inicio ?? "-",
+                PrazoPrevisto: task.data_prevista_termino ?? "-",
+                Prazo: task.prazo ?? "-",
+                Progresso: task.progresso ?? 0,
+                Bloqueada: task.bloqueada ? "Sim" : "Nao",
+                Status: task.status_task ?? "-",
+                Atrasada: isTaskLate(task, today) ? "Sim" : "Nao",
+            })),
+        },
+    ];
 }
 
 function ChartCard({
@@ -412,6 +513,22 @@ export default function Desempenho() {
         ];
     }, [tarefasFiltradas]);
 
+    const handleExportExcel = () => {
+        const fileName = `desempenho_${new Date().toISOString().slice(0, 10)}.xlsx`;
+        downloadExcelFile(fileName, buildPerformanceExcelSheets({
+            tarefasFiltradas,
+            projetosOrdenados,
+            lineData,
+            areaData,
+            pieData,
+            barData,
+            kpisExecutivos,
+            projetoFiltrado,
+            selectedProjetoId,
+            searchTerm,
+        }));
+    };
+
     return (
         <DashboardLayout currentPage="performance">
             <div className="space-y-4">
@@ -429,9 +546,10 @@ export default function Desempenho() {
                                 color: "var(--cor-logo)",
                             }}
                             type="button"
+                            onClick={handleExportExcel}
                         >
                             <Download size={18} />
-                            Exportar dados
+                            Exportar Excel
                         </button>
 
                         <div className="relative w-full sm:w-64">
