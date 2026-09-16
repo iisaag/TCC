@@ -21,8 +21,7 @@ import {
 } from "lucide-react";
 import type { FormEvent } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import DashboardLayout from "@/layouts/DashboardLayout";
-import { apiRoutes } from "@/lib/routes";
+import RequiredMark from "@/components/ui/required-mark";
 import {
     Select,
     SelectContent,
@@ -30,6 +29,8 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+import DashboardLayout from "@/layouts/DashboardLayout";
+import { apiRoutes } from "@/lib/routes";
 
 // ─────────────────────────── Types ───────────────────────────
 
@@ -1309,7 +1310,7 @@ export default function GestaoPage() {
                                     { label: "Nível", field: "nivel" as const, type: "text", required: false, placeholder: "Ex: Pleno" },
                                 ]).map(({ label, field, type, required, placeholder }) => (
                                     <label key={field} className="flex flex-col gap-1.5 text-sm font-medium" style={{ color: "var(--cor-logo)" }}>
-                                        {label}
+                                        <span className="inline-flex items-center">{label}{required ? <RequiredMark /> : null}</span>
                                         <input type={type} required={required} value={userForm[field]} placeholder={placeholder}
                                             onChange={(e) => setUserForm((f) => ({ ...f, [field]: e.target.value }))}
                                             className="rounded-xl border px-3 py-2 text-sm outline-none transition-all duration-200"
@@ -1359,7 +1360,7 @@ export default function GestaoPage() {
 
                                 {isCreateOpen && (
                                     <label className="flex flex-col gap-1.5 text-sm font-medium" style={{ color: "var(--cor-logo)" }}>
-                                        Senha
+                                        <span className="inline-flex items-center">Senha<RequiredMark /></span>
                                         <input type="password" required value={userForm.senha} placeholder="Senha de acesso"
                                             onChange={(e) => setUserForm((f) => ({ ...f, senha: e.target.value }))}
                                             className="rounded-xl border px-3 py-2 text-sm outline-none transition-all duration-200"
@@ -1422,8 +1423,8 @@ export default function GestaoPage() {
                                     className="rounded-xl border px-4 py-2 text-sm"
                                     style={{ borderColor: "var(--cor-borda)", color: "var(--cor-logo)" }}>Cancelar</button>
                                 <button type="button" onClick={() => void onDeleteUser()} disabled={deletingUserId === deletingUser.id_usuario}
-                                    className="rounded-xl px-4 py-2 text-sm font-medium text-white transition hover:shadow-lg disabled:opacity-60"
-                                    style={{ backgroundColor: "#c0392b" }}>
+                                    className="rounded-xl border px-4 py-2 text-sm font-semibold text-white transition-all duration-200 hover:-translate-y-px hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60"
+                                    style={{ borderColor: "#9f2a21", background: "linear-gradient(140deg, #c43a2f 0%, #a42c22 100%)" }}>
                                     {deletingUserId === deletingUser.id_usuario ? "Excluindo..." : "Confirmar exclusão"}
                                 </button>
                             </div>

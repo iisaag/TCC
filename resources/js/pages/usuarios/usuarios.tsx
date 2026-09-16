@@ -17,10 +17,7 @@ import {
 } from "lucide-react";
 import type { FormEvent } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
-
-// HMR trigger comment - no functional change
-import DashboardLayout from "@/layouts/DashboardLayout";
-import { apiRoutes } from "@/lib/routes";
+import RequiredMark from "@/components/ui/required-mark";
 import {
     Select,
     SelectContent,
@@ -28,6 +25,10 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+
+// HMR trigger comment - no functional change
+import DashboardLayout from "@/layouts/DashboardLayout";
+import { apiRoutes } from "@/lib/routes";
 
 // ─────────────────────────── Types ───────────────────────────
 
@@ -1279,7 +1280,7 @@ export default function UsuariosAdminPage() {
                                     ] as const
                                 ).map(({ label, field, type, required, placeholder }) => (
                                     <label key={field} className="flex flex-col gap-1.5 text-sm font-medium" style={{ color: "var(--cor-logo)" }}>
-                                        {label}
+                                        <span className="inline-flex items-center">{label}{required ? <RequiredMark /> : null}</span>
                                         <input
                                             type={type}
                                             required={required}
@@ -1401,7 +1402,10 @@ export default function UsuariosAdminPage() {
                                 </label>
 
                                 <label className="flex flex-col gap-1.5 text-sm font-medium md:col-span-2" style={{ color: "var(--cor-logo)" }}>
-                                    {isCreateOpen ? "Senha" : "Nova senha (opcional)"}
+                                    <span className="inline-flex items-center">
+                                        {isCreateOpen ? "Senha" : "Nova senha (opcional)"}
+                                        {isCreateOpen ? <RequiredMark /> : null}
+                                    </span>
                                     <input
                                         type="password"
                                         required={isCreateOpen}
@@ -1515,8 +1519,8 @@ export default function UsuariosAdminPage() {
                                     type="button"
                                     onClick={() => void onDelete()}
                                     disabled={deletingId === deletingUser.id_usuario}
-                                    className="rounded-xl px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
-                                    style={{ backgroundColor: "#c0392b" }}
+                                    className="rounded-xl border px-4 py-2 text-sm font-semibold text-white transition-all duration-200 hover:-translate-y-px hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60"
+                                    style={{ borderColor: "#9f2a21", background: "linear-gradient(140deg, #c43a2f 0%, #a42c22 100%)" }}
                                 >
                                     {deletingId === deletingUser.id_usuario ? "Excluindo..." : "Excluir"}
                                 </button>

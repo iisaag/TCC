@@ -1,26 +1,24 @@
 ﻿import { Head, Link, usePage, useForm } from "@inertiajs/react";
 import type { FormEvent } from "react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import RequiredMark from "@/components/ui/required-mark";
 
 const REMEMBERED_EMAIL_KEY = "aivypm_remembered_email";
 
 export default function Login() {
 	const [showPassword, setShowPassword] = useState(false);
-	const [manterConectado, setManterConectado] = useState(false);
+	const [rememberedEmail] = useState(() => (
+		typeof window !== "undefined"
+			? (window.localStorage.getItem(REMEMBERED_EMAIL_KEY) ?? "")
+			: ""
+	));
+	const [manterConectado, setManterConectado] = useState(Boolean(rememberedEmail));
 	const { props } = usePage<{ flash?: { success?: string | null } }>();
 
 	const { data, setData, post, processing, errors } = useForm({
-		email: "",
+		email: rememberedEmail,
 		senha: "",
 	});
-
-	useEffect(() => {
-		const rememberedEmail = window.localStorage.getItem(REMEMBERED_EMAIL_KEY);
-		if (rememberedEmail) {
-			setData("email", rememberedEmail);
-			setManterConectado(true);
-		}
-	}, []);
 
 	const submit = (event: FormEvent<HTMLFormElement>) => {
 		event.preventDefault();
@@ -108,10 +106,11 @@ export default function Login() {
 
 							<form className="mt-12 space-y-7" onSubmit={submit}>
 								<div>
-									<label className="mb-2 block text-sm font-semibold text-[#3d4b66]" htmlFor="email">Email</label>
+									<label className="mb-2 flex items-center text-sm font-semibold text-[#3d4b66]" htmlFor="email">Email<RequiredMark /></label>
 									<input
 										id="email"
 										type="email"
+										required
 										value={data.email}
 										onChange={(event) => setData("email", event.target.value)}
 										className="h-14 w-full rounded-2xl border border-[#d8dde8] bg-[#eef1f7] px-5 text-base text-[#1b2b4a] outline-none transition focus:border-[#8ca9e6] focus:bg-white"
@@ -121,13 +120,14 @@ export default function Login() {
 
 								<div>
 									<div className="mb-2 flex items-center justify-between">
-										<label className="block text-sm font-semibold text-[#3d4b66]" htmlFor="senha">Senha</label>
+										<label className="flex items-center text-sm font-semibold text-[#3d4b66]" htmlFor="senha">Senha<RequiredMark /></label>
 										<Link href="/esqueci-senha" className="text-xs font-semibold text-[#2d6ce8] hover:opacity-80">Esqueci a senha</Link>
 									</div>
 									<div className="relative">
 										<input
 											id="senha"
 											type={showPassword ? "text" : "password"}
+											required
 											value={data.senha}
 											onChange={(event) => setData("senha", event.target.value)}
 											className="h-14 w-full rounded-2xl border border-[#d8dde8] bg-[#eef1f7] px-5 pr-12 text-base text-[#1b2b4a] outline-none transition focus:border-[#8ca9e6] focus:bg-white"

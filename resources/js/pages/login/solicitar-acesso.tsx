@@ -1,5 +1,6 @@
 import { Head, Link, useForm } from "@inertiajs/react";
 import type { FormEvent } from "react";
+import RequiredMark from "@/components/ui/required-mark";
 
 export default function SolicitarAcesso() {
 	const { data, setData, post, processing, errors } = useForm({
@@ -25,10 +26,11 @@ export default function SolicitarAcesso() {
 
 					<form className="mt-8 space-y-6" onSubmit={submit}>
 						<div>
-							<label className="mb-2 block text-sm font-semibold text-[#3d4b66]" htmlFor="email">Seu email</label>
+							<label className="mb-2 flex items-center text-sm font-semibold text-[#3d4b66]" htmlFor="email">Seu email<RequiredMark /></label>
 							<input
 								id="email"
 								type="email"
+								required
 								value={data.email}
 								onChange={(event) => setData("email", event.target.value)}
 								className="h-14 w-full rounded-2xl border border-[#d8dde8] bg-[#eef1f7] px-5 text-base text-[#1b2b4a] outline-none transition focus:border-[#8ca9e6] focus:bg-white"

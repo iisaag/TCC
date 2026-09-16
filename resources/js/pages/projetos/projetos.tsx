@@ -2,6 +2,7 @@ import { usePage } from "@inertiajs/react";
 import { ArrowLeft, ChevronDown, GripVertical, History, MoreVertical, Pencil, Plus, RotateCcw, Search, Trash2 } from "lucide-react";
 import type { FormEvent} from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import RequiredMark from "@/components/ui/required-mark";
 import DashboardLayout from "@/layouts/DashboardLayout";
 import { apiRoutes } from "@/lib/routes";
 
@@ -234,6 +235,7 @@ function formatDateTime(raw?: string | null): string {
 	}
 
 	const date = new Date(raw);
+
 	if (Number.isNaN(date.getTime())) {
 		return "-";
 	}
@@ -247,6 +249,7 @@ function getRemainingDaysLabel(expiraEm?: string | null): string {
 	}
 
 	const expiration = new Date(expiraEm).getTime();
+
 	if (Number.isNaN(expiration)) {
 		return "tempo restante indisponivel";
 	}
@@ -259,6 +262,7 @@ function getRemainingDaysLabel(expiraEm?: string | null): string {
 	}
 
 	const days = Math.ceil(remainingMs / dayMs);
+
 	return `expira em ${days} dia${days === 1 ? "" : "s"}`;
 }
 
@@ -469,42 +473,49 @@ setOpen(false);
 				type="button"
 				disabled={disabled}
 				onClick={() => !disabled && setOpen((v) => !v)}
-				className="w-full rounded-xl border px-4 py-2.5 text-base text-left flex items-center justify-between outline-none transition"
+				className="flex w-full items-center justify-between rounded-2xl border px-4 py-3 text-left text-base font-medium outline-none transition-all duration-200 hover:-translate-y-px hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60"
 				style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-widgets)", color: "var(--cor-logo)" }}
 			>
 				<span>{selected?.label ?? placeholder}</span>
 				<ChevronDown
 					size={20}
-					style={{ transition: "transform 0.2s ease", transform: open ? "rotate(180deg)" : "rotate(0deg)", color: "var(--cor-logo2)", flexShrink: 0 }}
+					style={{ transition: "transform 0.24s ease", transform: open ? "rotate(180deg)" : "rotate(0deg)", color: "var(--cor-logo2)", flexShrink: 0 }}
 				/>
 			</button>
 			{open ? (
 				<div
-					className="absolute z-[200] w-full mt-1 rounded-xl border shadow-xl overflow-hidden animate-dropdown"
-					style={{ backgroundColor: "var(--cor-widgets)", borderColor: "var(--cor-borda)" }}
+					className="animate-dropdown absolute z-[200] mt-2 w-full rounded-2xl border p-1.5 shadow-2xl"
+					style={{
+						backgroundColor: "var(--cor-widgets)",
+						borderColor: "var(--cor-borda)",
+						boxShadow: "0 18px 44px rgba(5, 18, 32, 0.28)",
+					}}
 				>
 					{options.map((option) => (
 						<button
 							key={option.value}
 							type="button"
 							onClick={() => {
- onChange(option.value); setOpen(false); 
-}}
-							className="w-full px-4 py-2.5 text-base text-left transition-colors"
+								onChange(option.value);
+								setOpen(false);
+							}}
+							className="w-full rounded-xl px-4 py-2.5 text-left text-[15px] font-medium transition-colors"
 							style={{
 								color: "var(--cor-logo)",
-								backgroundColor: value === option.value ? "var(--cor-botao)" : "transparent",
+								backgroundColor: value === option.value
+									? "color-mix(in srgb, var(--cor-botao) 78%, var(--cor-fundo))"
+									: "transparent",
 							}}
 							onMouseEnter={(e) => {
- if (value !== option.value) {
-(e.currentTarget as HTMLButtonElement).style.backgroundColor = "var(--cor-fundo)";
-} 
-}}
+								if (value !== option.value) {
+									(e.currentTarget as HTMLButtonElement).style.backgroundColor = "var(--cor-fundo)";
+								}
+							}}
 							onMouseLeave={(e) => {
- if (value !== option.value) {
-(e.currentTarget as HTMLButtonElement).style.backgroundColor = "transparent";
-} 
-}}
+								if (value !== option.value) {
+									(e.currentTarget as HTMLButtonElement).style.backgroundColor = "transparent";
+								}
+							}}
 						>
 							{option.label}
 						</button>
@@ -512,30 +523,6 @@ setOpen(false);
 				</div>
 			) : null}
 		</div>
-	);
-}
-
-function RequiredMark() {
-	return (
-		<span className="group relative ml-1 inline-flex align-middle">
-			<span
-				className="flex h-4 w-4 items-center justify-center rounded-full text-[11px] font-bold leading-none"
-				style={{ backgroundColor: "var(--cor-perigo)", color: "#fff" }}
-			>
-				*
-			</span>
-			<span
-				role="tooltip"
-				className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 w-max max-w-[170px] -translate-x-1/2 translate-y-1 scale-95 rounded-lg px-2.5 py-1.5 text-xs font-normal text-white opacity-0 shadow-lg transition-all duration-150 ease-out group-hover:translate-y-0 group-hover:scale-100 group-hover:opacity-100"
-				style={{ backgroundColor: "var(--cor-primaria)" }}
-			>
-				Campo obrigatorio
-				<span
-					className="absolute left-1/2 top-full -translate-x-1/2 border-4 border-transparent"
-					style={{ borderTopColor: "var(--cor-primaria)" }}
-				/>
-			</span>
-		</span>
 	);
 }
 
@@ -682,6 +669,7 @@ export default function Projetos() {
 	useEffect(() => {
 		if (!projectParam && !taskParam) {
 			appliedDeepLinkRef.current = "";
+
 			return;
 		}
 
@@ -690,6 +678,7 @@ export default function Projetos() {
 
 		if (Number.isFinite(projectId) && selectedProjectId !== projectId) {
 			setSelectedProjectId(projectId);
+
 			return;
 		}
 
@@ -751,6 +740,7 @@ export default function Projetos() {
 		if (selectedProjectId === null) {
 			setSprints([]);
 			setIsSprintModalOpen(false);
+
 			return;
 		}
 
@@ -837,18 +827,22 @@ export default function Projetos() {
 			}
 
 			const normalizedStatus = normalizeSearchText(projeto.status_projeto);
+
 			if (projectStatusFilter === "PLANEJAMENTO" && !normalizedStatus.includes("planejamento")) {
 				return false;
 			}
+
 			if (projectStatusFilter === "EM_ANDAMENTO" && !normalizedStatus.includes("andamento")) {
 				return false;
 			}
+
 			if (projectStatusFilter === "CONCLUIDO" && !normalizedStatus.includes("concluido")) {
 				return false;
 			}
 
 			if (projectPriorityFilter !== "TODAS") {
 				const normalizedPriority = normalizeProjectPriorityValue(projeto.prioridade_proj);
+
 				if (normalizedPriority !== projectPriorityFilter) {
 					return false;
 				}
@@ -889,11 +883,13 @@ export default function Projetos() {
 		tasksOfSelectedProject.forEach((tarefa) => {
 			if (tarefa.em_historico) {
 				base.HISTORY.push(tarefa);
+
 				return;
 			}
 
 			if (!activeSprint || Number(tarefa.id_sprint) !== Number(activeSprint.id_sprint)) {
 				base.BACKLOG.push(tarefa);
+
 				return;
 			}
 
@@ -921,6 +917,7 @@ export default function Projetos() {
 		(Object.keys(grouped) as BoardColumnKey[]).forEach((status) => {
 			base[status] = grouped[status].filter((item) => {
 				const title = normalizeSearchText(item.titulo);
+
 				return title.includes(term);
 			});
 		});
@@ -1032,6 +1029,7 @@ export default function Projetos() {
 
 			if (!response.ok) {
 				const payloadError = (await response.json().catch(() => null)) as { message?: string } | null;
+
 				throw new Error(payloadError?.message ?? "Erro ao salvar tarefa");
 			}
 
@@ -1058,6 +1056,7 @@ export default function Projetos() {
 	const onEditProject = (projeto: Projeto) => {
 		if (!isAdmin) {
 			setError("Apenas administradores podem editar projetos.");
+
 			return;
 		}
 
@@ -1075,6 +1074,7 @@ export default function Projetos() {
 	const onDeleteProject = async () => {
 		if (!isAdmin) {
 			setError("Apenas administradores podem excluir projetos.");
+
 			return;
 		}
 
@@ -1096,6 +1096,7 @@ export default function Projetos() {
 
 			if (!response.ok) {
 				const payloadError = (await response.json().catch(() => null)) as { message?: string } | null;
+
 				throw new Error(payloadError?.message ?? "Erro ao excluir projeto");
 			}
 
@@ -1129,6 +1130,7 @@ export default function Projetos() {
 
 			if (!response.ok) {
 				const payloadError = (await response.json().catch(() => null)) as { message?: string } | null;
+
 				throw new Error(payloadError?.message ?? "Erro ao carregar historico de projetos excluidos");
 			}
 
@@ -1148,6 +1150,7 @@ export default function Projetos() {
 	const restoreDeletedProject = async (registro: ProjetoExcluido) => {
 		if (!isAdmin) {
 			setError("Apenas administradores podem restaurar projetos.");
+
 			return;
 		}
 
@@ -1163,6 +1166,7 @@ export default function Projetos() {
 
 			if (!response.ok) {
 				const payloadError = (await response.json().catch(() => null)) as { message?: string } | null;
+
 				throw new Error(payloadError?.message ?? "Erro ao restaurar projeto");
 			}
 
@@ -1208,6 +1212,7 @@ export default function Projetos() {
 
 			if (!response.ok) {
 				const payloadError = (await response.json().catch(() => null)) as { message?: string } | null;
+
 				throw new Error(payloadError?.message ?? "Erro ao criar sprint");
 			}
 
@@ -1238,6 +1243,7 @@ export default function Projetos() {
 
 			if (!response.ok) {
 				const payloadError = (await response.json().catch(() => null)) as { message?: string } | null;
+
 				throw new Error(payloadError?.message ?? "Erro ao encerrar sprint");
 			}
 
@@ -1258,6 +1264,7 @@ export default function Projetos() {
 
 		if (!isAdmin) {
 			setError("Apenas administradores podem criar ou editar projetos.");
+
 			return;
 		}
 
@@ -1291,6 +1298,7 @@ export default function Projetos() {
 
 			if (!response.ok) {
 				const payloadError = (await response.json().catch(() => null)) as { message?: string } | null;
+
 				throw new Error(payloadError?.message ?? "Erro ao salvar projeto");
 			}
 
@@ -1452,6 +1460,7 @@ export default function Projetos() {
 
 		if (nextStatus !== "BACKLOG" && !activeSprint) {
 			setError("Crie uma sprint ativa para mover cards para o fluxo da sprint.");
+
 			return;
 		}
 
@@ -1472,10 +1481,8 @@ export default function Projetos() {
 
 		if (nextStatus === "BACKLOG") {
 			patchPayload.id_sprint = null;
-			patchPayload.em_historico = false;
 		} else {
 			patchPayload.id_sprint = activeSprint?.id_sprint ?? null;
-			patchPayload.em_historico = false;
 			patchPayload.status_task = denormalizeStatus(nextStatus as BoardStatus);
 			patchPayload.progresso = STATUS_PROGRESS[nextStatus as BoardStatus];
 		}
@@ -1935,6 +1942,7 @@ export default function Projetos() {
 										onDragStart={(event) => {
 											if (tarefa.em_historico) {
 												event.preventDefault();
+
 												return;
 											}
 
@@ -2076,8 +2084,11 @@ export default function Projetos() {
 											type="button"
 											onClick={() => void onCloseActiveSprint()}
 											disabled={isClosingSprint}
-											className="rounded-xl border px-4 py-2 text-sm transition disabled:cursor-not-allowed disabled:opacity-60"
-											style={{ borderColor: "var(--cor-perigo-borda)", color: "var(--cor-perigo)", backgroundColor: "var(--cor-perigo-fundo)" }}
+											className="rounded-xl border px-4 py-2.5 text-sm font-semibold text-white transition-all duration-200 hover:-translate-y-px hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60"
+											style={{
+												borderColor: "#9f2a21",
+												background: "linear-gradient(140deg, #c43a2f 0%, #a42c22 100%)",
+											}}
 										>
 											{isClosingSprint ? "Encerrando..." : "Encerrar sprint ativa"}
 										</button>
@@ -2254,8 +2265,11 @@ export default function Projetos() {
 										type="button"
 										onClick={() => void onDeleteProject()}
 										disabled={isDeletingProject === projectToDelete.id_projeto}
-										className="rounded-xl px-5 py-2 text-sm text-white transition hover:opacity-90"
-										style={{ backgroundColor: "#c0392b" }}
+										className="rounded-xl border px-5 py-2 text-sm font-semibold text-white transition-all duration-200 hover:-translate-y-px hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60"
+										style={{
+											borderColor: "#9f2a21",
+											background: "linear-gradient(140deg, #c43a2f 0%, #a42c22 100%)",
+										}}
 									>
 										{isDeletingProject === projectToDelete.id_projeto ? "Excluindo..." : "Excluir projeto"}
 									</button>
@@ -2758,8 +2772,11 @@ export default function Projetos() {
 												type="button"
 												onClick={onDeleteSelectedTask}
 												disabled={isDeleting}
-												className="rounded-xl px-5 py-2 text-sm text-white transition hover:opacity-90"
-												style={{ backgroundColor: "#c0392b" }}
+												className="rounded-xl border px-5 py-2 text-sm font-semibold text-white transition-all duration-200 hover:-translate-y-px hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60"
+												style={{
+													borderColor: "#9f2a21",
+													background: "linear-gradient(140deg, #c43a2f 0%, #a42c22 100%)",
+												}}
 											>
 												{isDeleting ? "Excluindo..." : "Excluir card"}
 											</button>

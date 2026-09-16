@@ -1,6 +1,7 @@
 import { Head, Link, useForm } from "@inertiajs/react";
 import type { FormEvent } from "react";
 import { useState } from "react";
+import RequiredMark from "@/components/ui/required-mark";
 
 export default function EsqueciSenha() {
 	const [showSenha, setShowSenha] = useState(false);
@@ -31,10 +32,11 @@ export default function EsqueciSenha() {
 
 					<form className="mt-8 space-y-6" onSubmit={submit}>
 						<div>
-							<label className="mb-2 block text-sm font-semibold text-[#3d4b66]" htmlFor="email">Email</label>
+								<label className="mb-2 flex items-center text-sm font-semibold text-[#3d4b66]" htmlFor="email">Email<RequiredMark /></label>
 							<input
 								id="email"
 								type="email"
+									required
 								value={data.email}
 								onChange={(event) => setData("email", event.target.value)}
 								className="h-14 w-full rounded-2xl border border-[#d8dde8] bg-[#eef1f7] px-5 text-base text-[#1b2b4a] outline-none transition focus:border-[#8ca9e6] focus:bg-white"
@@ -43,11 +45,12 @@ export default function EsqueciSenha() {
 						</div>
 
 						<div>
-							<label className="mb-2 block text-sm font-semibold text-[#3d4b66]" htmlFor="senha">Nova senha</label>
+								<label className="mb-2 flex items-center text-sm font-semibold text-[#3d4b66]" htmlFor="senha">Nova senha<RequiredMark /></label>
 							<div className="relative">
 								<input
 									id="senha"
 									type={showSenha ? "text" : "password"}
+										required
 									value={data.senha}
 									onChange={(event) => setData("senha", event.target.value)}
 									className="h-14 w-full rounded-2xl border border-[#d8dde8] bg-[#eef1f7] px-5 pr-12 text-base text-[#1b2b4a] outline-none transition focus:border-[#8ca9e6] focus:bg-white"
@@ -77,11 +80,12 @@ export default function EsqueciSenha() {
 						</div>
 
 						<div>
-							<label className="mb-2 block text-sm font-semibold text-[#3d4b66]" htmlFor="senha_confirmation">Confirmar nova senha</label>
+								<label className="mb-2 flex items-center text-sm font-semibold text-[#3d4b66]" htmlFor="senha_confirmation">Confirmar nova senha<RequiredMark /></label>
 							<div className="relative">
 								<input
 									id="senha_confirmation"
 									type={showSenhaConfirmation ? "text" : "password"}
+										required
 									value={data.senha_confirmation}
 									onChange={(event) => setData("senha_confirmation", event.target.value)}
 									className="h-14 w-full rounded-2xl border border-[#d8dde8] bg-[#eef1f7] px-5 pr-12 text-base text-[#1b2b4a] outline-none transition focus:border-[#8ca9e6] focus:bg-white"

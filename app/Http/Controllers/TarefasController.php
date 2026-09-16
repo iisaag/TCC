@@ -17,6 +17,11 @@ class TarefasController extends Controller
         return Schema::hasTable('sprints');
     }
 
+    private function hasHistoricoColumn(): bool
+    {
+        return Schema::hasColumn('tarefas', 'em_historico');
+    }
+
     private function tarefaRelations(): array
     {
         $relations = ['projeto', 'responsavel', 'relacionados'];
@@ -54,7 +59,7 @@ class TarefasController extends Controller
 
     private function archiveApprovedTask(Tarefa $tarefa): void
     {
-        if ($this->isArchiveStatus((string) $tarefa->status_task)) {
+        if ($this->hasHistoricoColumn() && $this->isArchiveStatus((string) $tarefa->status_task)) {
             $tarefa->update([
                 'em_historico' => true,
                 'id_sprint' => null,
@@ -160,11 +165,15 @@ class TarefasController extends Controller
             $validated['prazo'] = $validated['data_prevista_termino'];
         }
 
-        if ($this->isArchiveStatus($validated['status_task'] ?? null)) {
+        if ($this->isArchiveStatus($validated['status_task'] ?? null) && $this->hasHistoricoColumn()) {
             $validated['em_historico'] = true;
             $validated['id_sprint'] = null;
-        } elseif (array_key_exists('id_sprint', $validated) && $validated['id_sprint']) {
+        } elseif ($this->hasHistoricoColumn() && array_key_exists('id_sprint', $validated) && $validated['id_sprint']) {
             $validated['em_historico'] = false;
+        }
+
+        if (!$this->hasHistoricoColumn()) {
+            unset($validated['em_historico']);
         }
 
         $tarefa = Tarefa::create($validated);
@@ -225,8 +234,12 @@ class TarefasController extends Controller
             $validated['prazo'] = $validated['data_prevista_termino'];
         }
 
-        if (array_key_exists('id_sprint', $validated) && $validated['id_sprint']) {
+        if ($this->hasHistoricoColumn() && array_key_exists('id_sprint', $validated) && $validated['id_sprint']) {
             $validated['em_historico'] = false;
+        }
+
+        if (!$this->hasHistoricoColumn()) {
+            unset($validated['em_historico']);
         }
 
         $tarefa->update($validated);
