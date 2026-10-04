@@ -2,7 +2,6 @@
 import {
     Briefcase,
     History,
-    MoreVertical,
     Pencil,
     Plus,
     Search,
@@ -16,7 +15,7 @@ import {
     X,
 } from "lucide-react";
 import type { FormEvent } from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import RequiredMark from "@/components/ui/required-mark";
 import {
     Select,
@@ -195,7 +194,7 @@ const AVATAR_COLORS = [
     { bg: "#fde4f0", text: "#a03070" },
     { bg: "#e4f0fd", text: "#2256a8" },
     { bg: "#f5f0d4", text: "#7a6010" },
-}
+];
 
 function getAvatarColor(nome: string): { bg: string; text: string } {
     let hash = 0;
@@ -431,52 +430,33 @@ function SelectFilter({
     );
 }
 
-function ActionMenu({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => void }) {
-    const [open, setOpen] = useState(false);
-    const ref = useRef<HTMLDivElement>(null);
-
-    useEffect(() => {
-        if (!open) return;
-        const handler = (e: MouseEvent) => {
-            if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-        };
-        document.addEventListener("mousedown", handler);
-        return () => document.removeEventListener("mousedown", handler);
-    }, [open]);
-
+function ConfirmDeleteModal({ title, message, onCancel, onConfirm, loading }: {
+    title: string; message: React.ReactNode; onCancel: () => void; onConfirm: () => void; loading: boolean;
+}) {
     return (
-        <div ref={ref} className="relative">
-            <button
-                type="button"
-                onClick={() => setOpen((v) => !v)}
-                className="flex items-center justify-center rounded-lg border p-1.5 transition-all duration-200 hover:shadow-md active:scale-95"
-                style={{ borderColor: "var(--cor-borda)", color: "var(--cor-logo2)" }}
-            >
-                <MoreVertical size={15} />
-            </button>
-            {open && (
-                <div
-                    className="absolute right-0 top-8 z-30 min-w-[130px] rounded-xl border py-1 shadow-lg animate-in zoom-in-95 fade-in duration-150"
-                    style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-widgets)" }}
-                >
-                    <button
-                        type="button"
-                        className="w-full px-4 py-2 text-left text-sm transition-all duration-150 hover:bg-opacity-5"
-                        style={{ color: "var(--cor-logo)" }}
-                        onClick={() => { setOpen(false); onEdit(); }}
-                    >
-                        Editar
-                    </button>
-                    <button
-                        type="button"
-                        className="w-full px-4 py-2 text-left text-sm transition-all duration-150 hover:bg-opacity-5"
-                        style={{ color: "#c0392b" }}
-                        onClick={() => { setOpen(false); onDelete(); }}
-                    >
-                        Excluir
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-[2px] animate-fade-in">
+            <div className="w-full max-w-md rounded-2xl border p-6 shadow-2xl animate-pop-in"
+                style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-widgets)" }}>
+                <div className="mb-4 flex items-center justify-between">
+                    <h2 className="text-lg font-semibold" style={{ color: "#9f2f2f" }}>{title}</h2>
+                    <button type="button" onClick={onCancel}
+                        className="rounded-lg border p-1.5 transition hover:shadow-md"
+                        style={{ borderColor: "var(--cor-borda)" }}>
+                        <X size={14} style={{ color: "var(--cor-logo2)" }} />
                     </button>
                 </div>
-            )}
+                <p className="mb-5 text-sm" style={{ color: "var(--cor-logo)" }}>{message}</p>
+                <div className="flex justify-end gap-2">
+                    <button type="button" onClick={onCancel}
+                        className="rounded-xl border px-4 py-2 text-sm"
+                        style={{ borderColor: "var(--cor-borda)", color: "var(--cor-logo)" }}>Cancelar</button>
+                    <button type="button" onClick={onConfirm} disabled={loading}
+                        className="rounded-xl border px-4 py-2 text-sm font-semibold text-white transition-all duration-200 hover:-translate-y-px hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60"
+                        style={{ borderColor: "#9f2a21", background: "linear-gradient(140deg, #c43a2f 0%, #a42c22 100%)" }}>
+                        {loading ? "Excluindo..." : "Confirmar exclusão"}
+                    </button>
+                </div>
+            </div>
         </div>
     );
 }
@@ -510,6 +490,7 @@ export default function UsuariosAdminPage() {
 
     // Modals
     const [isCreateOpen, setIsCreateOpen] = useState(false);
+    const [attemptedUserSubmit, setAttemptedUserSubmit] = useState(false);
     const [isEditOpen, setIsEditOpen] = useState(false);
     const [isDeleteOpen, setIsDeleteOpen] = useState(false);
     const [isStatusConfirmOpen, setIsStatusConfirmOpen] = useState(false);
@@ -518,6 +499,7 @@ export default function UsuariosAdminPage() {
     const [form, setForm] = useState<UserForm>(EMPTY_FORM);
     const [editingUser, setEditingUser] = useState<Usuario | null>(null);
     const [deletingUser, setDeletingUser] = useState<Usuario | null>(null);
+    const [deletingCargo, setDeletingCargo] = useState<CargoItem | null>(null);
     const [statusUser, setStatusUser] = useState<Usuario | null>(null);
     const [statusDraft, setStatusDraft] = useState<PresenceStatusValue>("offline");
     const [statusUpdatingId, setStatusUpdatingId] = useState<number | null>(null);
@@ -752,6 +734,7 @@ export default function UsuariosAdminPage() {
         setIsEditOpen(false);
         setEditingUser(null);
         setForm(EMPTY_FORM);
+        setAttemptedUserSubmit(false);
         // Reset filters to show new user
         setQuery("");
         setFilterCargo("");
@@ -1111,7 +1094,7 @@ export default function UsuariosAdminPage() {
 
                 {/* ─── Cargos section ─────────────────────────────────── */}
                 {activeSection === "cargos" && (
-                    <div className="space-y-5 animate-in fade-in duration-200">
+                    <div className="space-y-5 animate-fade-in">
                         {/* Stat */}
                         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
                             <div
@@ -1168,7 +1151,7 @@ export default function UsuariosAdminPage() {
                                                 </button>
                                                 <button
                                                     type="button"
-                                                    onClick={() => void removeCargo(cargo.id_cargo)}
+                                                    onClick={() => setDeletingCargo(cargo)}
                                                     disabled={deletingCargoId === cargo.id_cargo}
                                                     className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-all duration-200 hover:shadow-md active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
                                                     style={{ borderColor: "#e2a0a0", color: "#a02020" }}
@@ -1186,7 +1169,7 @@ export default function UsuariosAdminPage() {
                 )}
 
                 {/* ─── Funcionários section ──────────────────────────── */}
-                {activeSection === "funcionarios" && <div className="space-y-5 animate-in fade-in duration-200">
+                {activeSection === "funcionarios" && <div className="space-y-5 animate-fade-in">
 
                 {/* Stat cards */}
                 <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
@@ -1288,16 +1271,22 @@ export default function UsuariosAdminPage() {
                                                     <div className="flex items-center gap-2">
                                                         <button
                                                             type="button"
+                                                            onClick={() => openEdit(user)}
+                                                            className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-all duration-200 hover:shadow-md"
+                                                            style={{ borderColor: "var(--cor-borda)", color: "var(--cor-logo)" }}
+                                                        >
+                                                            <Pencil size={14} />
+                                                            Editar
+                                                        </button>
+                                                        <button
+                                                            type="button"
                                                             onClick={() => { setDeletingUser(user); setIsDeleteOpen(true); }}
-                                                            className="rounded-lg border px-3 py-2 text-sm font-medium transition-all duration-200 hover:shadow-md"
+                                                            className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-all duration-200 hover:shadow-md"
                                                             style={{ borderColor: "#e2a0a0", color: "#a02020" }}
                                                         >
+                                                            <Trash2 size={14} />
                                                             Excluir
                                                         </button>
-                                                        <ActionMenu
-                                                            onEdit={() => openEdit(user)}
-                                                            onDelete={() => { setDeletingUser(user); setIsDeleteOpen(true); }}
-                                                        />
                                                     </div>
                                                 </td>
                                             </tr>
@@ -1344,10 +1333,10 @@ export default function UsuariosAdminPage() {
 
                 {/* ─── Cargo Modal ──────────────────────────────────── */}
                 {isCargoModalOpen && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-[2px] animate-in fade-in duration-200">
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-[2px] animate-fade-in">
                         <form
                             onSubmit={submitCargo}
-                            className="w-full max-w-md rounded-2xl border p-6 shadow-2xl animate-in zoom-in-95 duration-200"
+                            className="w-full max-w-md rounded-2xl border p-6 shadow-2xl animate-pop-in"
                             style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-widgets)" }}
                         >
                             <div className="mb-5 flex items-center justify-between">
@@ -1396,10 +1385,10 @@ export default function UsuariosAdminPage() {
 
                 {/* Create / Edit Modal */}
                 {(isCreateOpen || isEditOpen) && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-[2px] animate-in fade-in duration-200">
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-[2px] animate-fade-in">
                         <form
                             onSubmit={isCreateOpen ? onCreate : onSaveEdit}
-                            className="w-full max-w-2xl rounded-2xl border p-6 shadow-2xl animate-in zoom-in-95 duration-200"
+                            className="w-full max-w-2xl rounded-2xl border p-6 shadow-2xl animate-pop-in"
                             style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-widgets)" }}
                         >
                             <div className="mb-5 flex items-center justify-between">
@@ -1420,7 +1409,7 @@ export default function UsuariosAdminPage() {
                                     ] as const
                                 ).map(({ label, field, type, required, placeholder }) => (
                                     <label key={field} className="flex flex-col gap-1.5 text-sm font-medium" style={{ color: "var(--cor-logo)" }}>
-                                        <span className="inline-flex items-center">{label}{required ? <RequiredMark /> : null}</span>
+                                        <span className="inline-flex items-center">{label}{required ? <RequiredMark show={attemptedUserSubmit && !form[field]} /> : null}</span>
                                         <input
                                             type={type}
                                             required={required}
@@ -1547,7 +1536,7 @@ export default function UsuariosAdminPage() {
                                 <label className="flex flex-col gap-1.5 text-sm font-medium md:col-span-2" style={{ color: "var(--cor-logo)" }}>
                                     <span className="inline-flex items-center">
                                         {isCreateOpen ? "Senha" : "Nova senha (opcional)"}
-                                        {isCreateOpen ? <RequiredMark /> : null}
+                                        {isCreateOpen ? <RequiredMark show={attemptedUserSubmit && !form.senha} /> : null}
                                     </span>
                                     <input
                                         type="password"
@@ -1574,6 +1563,7 @@ export default function UsuariosAdminPage() {
                                 <button
                                     type="submit"
                                     disabled={saving}
+                                    onClick={() => setAttemptedUserSubmit(true)}
                                     className="rounded-xl px-4 py-2 text-sm font-medium text-white transition-all duration-200 hover:shadow-lg active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed"
                                     style={{ backgroundColor: "#1a1a2e" }}
                                 >
@@ -1672,6 +1662,19 @@ export default function UsuariosAdminPage() {
                             );
                         })()}
                     </div>
+                )}
+
+                {deletingCargo && (
+                    <ConfirmDeleteModal
+                        title="Excluir cargo"
+                        message={<>Tem certeza que deseja excluir o cargo <strong>{deletingCargo.nome_cargo}</strong>?</>}
+                        loading={deletingCargoId === deletingCargo.id_cargo}
+                        onCancel={() => setDeletingCargo(null)}
+                        onConfirm={async () => {
+                            await removeCargo(deletingCargo.id_cargo);
+                            setDeletingCargo(null);
+                        }}
+                    />
                 )}
 
                 {/* Status Confirm Modal */}

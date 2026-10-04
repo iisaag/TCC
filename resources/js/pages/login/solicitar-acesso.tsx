@@ -1,8 +1,10 @@
 import { Head, Link, useForm } from "@inertiajs/react";
 import type { FormEvent } from "react";
+import { useState } from "react";
 import RequiredMark from "@/components/ui/required-mark";
 
 export default function SolicitarAcesso() {
+	const [attemptedSubmit, setAttemptedSubmit] = useState(false);
 	const { data, setData, post, processing, errors } = useForm({
 		email: "",
 	});
@@ -26,7 +28,7 @@ export default function SolicitarAcesso() {
 
 					<form className="mt-8 space-y-6" onSubmit={submit}>
 						<div>
-							<label className="mb-2 flex items-center text-sm font-semibold text-[#3d4b66]" htmlFor="email">Seu email<RequiredMark /></label>
+							<label className="mb-2 flex items-center text-sm font-semibold text-[#3d4b66]" htmlFor="email">Seu email<RequiredMark show={attemptedSubmit && !data.email} /></label>
 							<input
 								id="email"
 								type="email"
@@ -40,6 +42,7 @@ export default function SolicitarAcesso() {
 
 						<button
 							type="submit"
+							onClick={() => setAttemptedSubmit(true)}
 							disabled={processing}
 							className="mt-1 flex h-14 w-full items-center justify-center gap-3 rounded-2xl bg-[#2f6ae8] text-lg font-bold text-white shadow-[0_16px_30px_rgba(47,106,232,0.35)] transition hover:bg-[#2358c9] disabled:cursor-not-allowed disabled:opacity-60"
 						>

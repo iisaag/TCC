@@ -13,6 +13,7 @@ export default function Login() {
 			: ""
 	));
 	const [manterConectado, setManterConectado] = useState(Boolean(rememberedEmail));
+	const [attemptedSubmit, setAttemptedSubmit] = useState(false);
 	const { props } = usePage<{ flash?: { success?: string | null } }>();
 
 	const { data, setData, post, processing, errors } = useForm({
@@ -106,7 +107,7 @@ export default function Login() {
 
 							<form className="mt-12 space-y-7" onSubmit={submit}>
 								<div>
-									<label className="mb-2 flex items-center text-sm font-semibold text-[#3d4b66]" htmlFor="email">Email<RequiredMark /></label>
+									<label className="mb-2 flex items-center text-sm font-semibold text-[#3d4b66]" htmlFor="email">Email<RequiredMark show={attemptedSubmit && !data.email} /></label>
 									<input
 										id="email"
 										type="email"
@@ -120,7 +121,7 @@ export default function Login() {
 
 								<div>
 									<div className="mb-2 flex items-center justify-between">
-										<label className="flex items-center text-sm font-semibold text-[#3d4b66]" htmlFor="senha">Senha<RequiredMark /></label>
+										<label className="flex items-center text-sm font-semibold text-[#3d4b66]" htmlFor="senha">Senha<RequiredMark show={attemptedSubmit && !data.senha} /></label>
 										<Link href="/esqueci-senha" className="text-xs font-semibold text-[#2d6ce8] hover:opacity-80">Esqueci a senha</Link>
 									</div>
 									<div className="relative">
@@ -168,6 +169,7 @@ export default function Login() {
 
 								<button
 									type="submit"
+									onClick={() => setAttemptedSubmit(true)}
 									disabled={processing}
 									className="mt-1 flex h-14 w-full items-center justify-center gap-3 rounded-2xl bg-[#2f6ae8] text-lg font-bold text-white shadow-[0_16px_30px_rgba(47,106,232,0.35)] transition hover:bg-[#2358c9] disabled:cursor-not-allowed disabled:opacity-60"
 								>

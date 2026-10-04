@@ -566,7 +566,10 @@ export default function Projetos() {
 	const [projetos, setProjetos] = useState<Projeto[]>([]);
 	const [form, setForm] = useState<FormState>(EMPTY_FORM);
 	const [isModalOpen, setIsModalOpen] = useState(false);
+	const [attemptedTaskSubmit, setAttemptedTaskSubmit] = useState(false);
 	const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
+	const [attemptedProjectSubmit, setAttemptedProjectSubmit] = useState(false);
+	const [attemptedSprintSubmit, setAttemptedSprintSubmit] = useState(false);
 	const [isLoading, setIsLoading] = useState(true);
 	const [isSaving, setIsSaving] = useState(false);
 	const [isSavingProject, setIsSavingProject] = useState(false);
@@ -1035,6 +1038,7 @@ export default function Projetos() {
 
 			setForm(EMPTY_FORM);
 			setIsModalOpen(false);
+			setAttemptedTaskSubmit(false);
 			await fetchBoard();
 		} catch (error) {
 			const message = error instanceof Error && error.message
@@ -1051,6 +1055,7 @@ export default function Projetos() {
 		setIsProjectModalOpen(false);
 		setEditingProjectId(null);
 		setProjectForm(EMPTY_PROJECT_FORM);
+		setAttemptedProjectSubmit(false);
 	};
 
 	const onEditProject = (projeto: Projeto) => {
@@ -1217,6 +1222,7 @@ export default function Projetos() {
 			}
 
 			setSprintForm({ nome_sprint: "", data_inicio: "", data_fim: "" });
+			setAttemptedSprintSubmit(false);
 			await fetchSprints(selectedProjectId);
 			setSuccessMessage("Sprint criada com sucesso");
 		} catch (error) {
@@ -1761,6 +1767,7 @@ export default function Projetos() {
 										setSelectedProjectId(null);
 										setQuery("");
 										setIsModalOpen(false);
+										setAttemptedTaskSubmit(false);
 										setIsDetailsOpen(false);
 										setSelectedTask(null);
 									}}
@@ -2108,7 +2115,7 @@ export default function Projetos() {
 									</label>
 
 									<label className="flex flex-col gap-1 text-sm" style={{ color: "var(--cor-logo)" }}>
-										<span className="inline-flex items-center">Data de inicio<RequiredMark /></span>
+										<span className="inline-flex items-center">Data de inicio<RequiredMark show={attemptedSprintSubmit && !sprintForm.data_inicio} /></span>
 										<input
 											required
 											type="date"
@@ -2120,7 +2127,7 @@ export default function Projetos() {
 									</label>
 
 									<label className="flex flex-col gap-1 text-sm" style={{ color: "var(--cor-logo)" }}>
-										<span className="inline-flex items-center">Data de finalizacao<RequiredMark /></span>
+										<span className="inline-flex items-center">Data de finalizacao<RequiredMark show={attemptedSprintSubmit && !sprintForm.data_fim} /></span>
 										<input
 											required
 											type="date"
@@ -2134,6 +2141,7 @@ export default function Projetos() {
 									<button
 										type="submit"
 										disabled={isCreatingSprint}
+										onClick={() => setAttemptedSprintSubmit(true)}
 										className="rounded-xl border px-4 py-2.5 text-base"
 										style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-botao)", color: "var(--cor-logo)" }}
 									>
@@ -2168,7 +2176,7 @@ export default function Projetos() {
 
 							<div className="grid grid-cols-1 gap-3 md:grid-cols-2">
 								<label className="flex flex-col gap-1 text-base" style={{ color: "var(--cor-logo)" }}>
-									<span className="inline-flex items-center">Nome do projeto<RequiredMark /></span>
+									<span className="inline-flex items-center">Nome do projeto<RequiredMark show={attemptedProjectSubmit && !projectForm.nome_projeto} /></span>
 									<input
 										required
 										value={projectForm.nome_projeto}
@@ -2228,6 +2236,7 @@ export default function Projetos() {
 								<button
 									type="submit"
 									disabled={isSavingProject}
+									onClick={() => setAttemptedProjectSubmit(true)}
 									className="rounded-xl border px-4 py-2.5 text-base"
 									style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-botao)", color: "var(--cor-logo)" }}
 								>
@@ -2369,7 +2378,7 @@ export default function Projetos() {
 
 								<button
 									type="button"
-									onClick={() => setIsModalOpen(false)}
+									onClick={() => { setIsModalOpen(false); setAttemptedTaskSubmit(false); }}
 									className="rounded-xl border px-4 py-2 text-sm transition-transform duration-200 hover:-translate-y-0.5"
 									style={{ color: "var(--cor-logo)", borderColor: "var(--cor-borda)" }}
 								>
@@ -2379,7 +2388,7 @@ export default function Projetos() {
 
 							<div className="grid grid-cols-1 gap-4 md:grid-cols-2">
 								<label className="flex flex-col gap-1 text-base" style={{ color: "var(--cor-logo)" }}>
-									<span className="inline-flex items-center">Titulo da tarefa<RequiredMark /></span>
+									<span className="inline-flex items-center">Titulo da tarefa<RequiredMark show={attemptedTaskSubmit && !form.titulo} /></span>
 									<input
 										required
 										value={form.titulo}
@@ -2505,7 +2514,7 @@ export default function Projetos() {
 							<div className="mt-6 flex justify-end gap-3">
 								<button
 									type="button"
-									onClick={() => setIsModalOpen(false)}
+									onClick={() => { setIsModalOpen(false); setAttemptedTaskSubmit(false); }}
 									className="rounded-xl border px-5 py-2.5 text-base transition-transform duration-200 hover:-translate-y-0.5"
 									style={{ borderColor: "var(--cor-borda)", color: "var(--cor-logo)" }}
 								>
@@ -2514,6 +2523,7 @@ export default function Projetos() {
 								<button
 									type="submit"
 									disabled={isSaving}
+									onClick={() => setAttemptedTaskSubmit(true)}
 									className="rounded-xl border px-5 py-2.5 text-base transition-transform duration-200 hover:-translate-y-0.5"
 									style={{ backgroundColor: "var(--cor-botao)", color: "var(--cor-logo)", borderColor: "var(--cor-borda)" }}
 								>

@@ -1,4 +1,6 @@
-export default function RequiredMark() {
+export default function RequiredMark({ show = false }: { show?: boolean }) {
+	if (!show) return null;
+
 	return (
 		<span className="group relative ml-1 inline-flex align-middle">
 			<span

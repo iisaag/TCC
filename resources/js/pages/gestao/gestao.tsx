@@ -4,8 +4,8 @@ import {
     Building2,
     ChevronDown,
     CornerDownRight,
+    Eye,
     History,
-    MoreVertical,
     Pencil,
     Plus,
     RefreshCw,
@@ -408,10 +408,12 @@ function CardSelect({
                 style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-widgets)", color: "var(--cor-logo)" }}
             >
                 <span>{selected?.label ?? placeholder ?? "Selecione"}</span>
-                <ChevronDown
-                    size={18}
-                    style={{ transition: "transform 0.24s ease", transform: open ? "rotate(180deg)" : "rotate(0deg)", color: "var(--cor-logo2)", flexShrink: 0 }}
-                />
+                {!disabled && (
+                    <ChevronDown
+                        size={18}
+                        style={{ transition: "transform 0.24s ease", transform: open ? "rotate(180deg)" : "rotate(0deg)", color: "var(--cor-logo2)", flexShrink: 0 }}
+                    />
+                )}
             </button>
 
             {open ? (
@@ -477,38 +479,6 @@ function SelectFilter({ value, onChange, options, placeholder }: {
     );
 }
 
-function ActionMenu({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => void }) {
-    const [open, setOpen] = useState(false);
-    const ref = useRef<HTMLDivElement>(null);
-
-    useEffect(() => {
-        if (!open) return;
-        const handler = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
-        document.addEventListener("mousedown", handler);
-        return () => document.removeEventListener("mousedown", handler);
-    }, [open]);
-
-    return (
-        <div ref={ref} className="relative isolate">
-            <button type="button" onClick={() => setOpen((v) => !v)}
-                className="relative z-10 flex items-center justify-center rounded-lg border p-1.5 transition-all duration-200 hover:shadow-md active:scale-95"
-                style={{ borderColor: "var(--cor-borda)", color: "var(--cor-logo2)" }}
-            >
-                <MoreVertical size={15} />
-            </button>
-            {open && (
-                <div className="absolute right-0 top-full z-40 mt-2 min-w-[130px] rounded-xl border py-1 shadow-lg animate-in zoom-in-95 fade-in duration-150"
-                    style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-widgets)" }}>
-                    <button type="button" className="w-full px-4 py-2 text-left text-sm" style={{ color: "var(--cor-logo)" }}
-                        onClick={() => { setOpen(false); onEdit(); }}>Editar</button>
-                    <button type="button" className="w-full px-4 py-2 text-left text-sm" style={{ color: "#c0392b" }}
-                        onClick={() => { setOpen(false); onDelete(); }}>Excluir</button>
-                </div>
-            )}
-        </div>
-    );
-}
-
 function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: number }) {
     return (
         <div className="rounded-2xl border p-4 shadow-sm backdrop-blur transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md" style={{ borderColor: "var(--cor-borda)", backgroundColor: "color-mix(in srgb, var(--cor-widgets) 88%, transparent)" }}>
@@ -565,15 +535,61 @@ function IconButton({ children, onClick, title, danger = false, disabled = false
     children: React.ReactNode; onClick: () => void; title: string; danger?: boolean; disabled?: boolean;
 }) {
     return (
-        <button type="button" onClick={onClick} title={title} disabled={disabled}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-xl border transition hover:-translate-y-0.5 disabled:opacity-60"
-            style={{
-                borderColor: danger ? "color-mix(in srgb, var(--cor-atrasoI) 40%, var(--cor-borda))" : "var(--cor-borda)",
-                backgroundColor: danger ? "color-mix(in srgb, var(--cor-atrasoI) 12%, var(--cor-widgets))" : "var(--cor-widgets)",
-                color: danger ? "var(--cor-atrasoI)" : "var(--cor-logo)",
-            }}>
-            {children}
-        </button>
+        <span className="group relative inline-flex">
+            <button type="button" onClick={onClick} aria-label={title} disabled={disabled}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-xl border transition hover:-translate-y-0.5 disabled:opacity-60"
+                style={{
+                    borderColor: danger ? "color-mix(in srgb, var(--cor-atrasoI) 40%, var(--cor-borda))" : "var(--cor-borda)",
+                    backgroundColor: danger ? "color-mix(in srgb, var(--cor-atrasoI) 12%, var(--cor-widgets))" : "var(--cor-widgets)",
+                    color: danger ? "var(--cor-atrasoI)" : "var(--cor-logo)",
+                }}>
+                {children}
+            </button>
+            <span
+                role="tooltip"
+                className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 w-max -translate-x-1/2 translate-y-1 scale-95 rounded-xl border px-3 py-1.5 text-xs font-medium opacity-0 shadow-lg transition-all duration-150 ease-out group-hover:translate-y-0 group-hover:scale-100 group-hover:opacity-100"
+                style={{
+                    backgroundColor: "var(--cor-widgets)",
+                    borderColor: "var(--cor-borda)",
+                    color: "var(--cor-logo)",
+                    boxShadow: "0 12px 28px rgba(6, 15, 26, 0.22)",
+                }}
+            >
+                {title}
+                <span className="absolute left-1/2 top-full -translate-x-1/2 border-4 border-transparent" style={{ borderTopColor: "var(--cor-widgets)" }} />
+            </span>
+        </span>
+    );
+}
+
+function ConfirmDeleteModal({ title, message, onCancel, onConfirm, loading }: {
+    title: string; message: React.ReactNode; onCancel: () => void; onConfirm: () => void; loading: boolean;
+}) {
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-[2px] animate-fade-in">
+            <div className="w-full max-w-md rounded-2xl border p-6 shadow-2xl animate-pop-in"
+                style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-widgets)" }}>
+                <div className="mb-4 flex items-center justify-between">
+                    <h2 className="text-lg font-semibold" style={{ color: "#9f2f2f" }}>{title}</h2>
+                    <button type="button" onClick={onCancel}
+                        className="rounded-lg border p-1.5 transition hover:shadow-md"
+                        style={{ borderColor: "var(--cor-borda)" }}>
+                        <X size={14} style={{ color: "var(--cor-logo2)" }} />
+                    </button>
+                </div>
+                <p className="mb-5 text-sm" style={{ color: "var(--cor-logo)" }}>{message}</p>
+                <div className="flex justify-end gap-2">
+                    <button type="button" onClick={onCancel}
+                        className="rounded-xl border px-4 py-2 text-sm"
+                        style={{ borderColor: "var(--cor-borda)", color: "var(--cor-logo)" }}>Cancelar</button>
+                    <button type="button" onClick={onConfirm} disabled={loading}
+                        className="rounded-xl border px-4 py-2 text-sm font-semibold text-white transition-all duration-200 hover:-translate-y-px hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60"
+                        style={{ borderColor: "#9f2a21", background: "linear-gradient(140deg, #c43a2f 0%, #a42c22 100%)" }}>
+                        {loading ? "Excluindo..." : "Confirmar exclusão"}
+                    </button>
+                </div>
+            </div>
+        </div>
     );
 }
 
@@ -617,6 +633,7 @@ export default function GestaoPage() {
     const [currentPage, setCurrentPage] = useState(1);
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const [isEditOpen, setIsEditOpen] = useState(false);
+    const [attemptedUserSubmit, setAttemptedUserSubmit] = useState(false);
     const [isDeleteOpen, setIsDeleteOpen] = useState(false);
     const [isStatusConfirmOpen, setIsStatusConfirmOpen] = useState(false);
     const [isHistoryOpen, setIsHistoryOpen] = useState(false);
@@ -629,6 +646,8 @@ export default function GestaoPage() {
     const [deletedHistory, setDeletedHistory] = useState<UsuarioExcluido[]>([]);
     const [historyLoading, setHistoryLoading] = useState(false);
     const [restoringDeletedId, setRestoringDeletedId] = useState<number | null>(null);
+    const [deletingCargo, setDeletingCargo] = useState<CargoItem | null>(null);
+    const [deletingEquipe, setDeletingEquipe] = useState<EquipeItem | null>(null);
 
     // ── Cargos state ─────────────────────────────────────────────
     const [cargos, setCargos] = useState<CargoItem[]>([]);
@@ -646,6 +665,7 @@ export default function GestaoPage() {
     const [deletingEquipeId, setDeletingEquipeId] = useState<number | null>(null);
     const [membrosSearch, setMembrosSearch] = useState("");
     const [isEquipeModalOpen, setIsEquipeModalOpen] = useState(false);
+    const [isViewingEquipe, setIsViewingEquipe] = useState(false);
 
     const csrfToken = useMemo(
         () => document.querySelector('meta[name="csrf-token"]')?.getAttribute("content") ?? "",
@@ -859,6 +879,7 @@ export default function GestaoPage() {
         setIsEditOpen(false);
         setEditingUser(null);
         setUserForm(EMPTY_USER_FORM);
+        setAttemptedUserSubmit(false);
         setQuery(""); setFilterCargo(""); setFilterNivel(""); setFilterStatus(""); setFilterPermissao("");
         setCurrentPage(1);
     };
@@ -1120,6 +1141,20 @@ export default function GestaoPage() {
 
     const openEditEquipe = (equipe: EquipeItem) => {
         setEditingEquipe(equipe);
+        setIsViewingEquipe(false);
+        setEquipeForm({
+            nome: equipe.nome,
+            equipe_pai: equipe.equipe_pai ? String(equipe.equipe_pai) : "",
+            tipo: equipe.tipo ?? "SUBEQUIPE",
+            id_lider: equipe.id_lider ? String(equipe.id_lider) : "",
+            membros: equipe.membros ?? [],
+        });
+        setIsEquipeModalOpen(true);
+    };
+
+    const openViewEquipe = (equipe: EquipeItem) => {
+        setEditingEquipe(equipe);
+        setIsViewingEquipe(true);
         setEquipeForm({
             nome: equipe.nome,
             equipe_pai: equipe.equipe_pai ? String(equipe.equipe_pai) : "",
@@ -1132,6 +1167,7 @@ export default function GestaoPage() {
 
     const closeEquipeModal = () => {
         setIsEquipeModalOpen(false);
+        setIsViewingEquipe(false);
         resetEquipeForm();
     };
 
@@ -1144,6 +1180,7 @@ export default function GestaoPage() {
 
     const submitEquipe = async (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault();
+        if (isViewingEquipe) return;
         setSavingEquipe(true);
         setError(null);
         try {
@@ -1270,7 +1307,7 @@ export default function GestaoPage() {
 
                 {/* ══════════════════ TAB: USUÁRIOS ══════════════════ */}
                 {activeTab === "usuarios" && !loading && (
-                    <div className="space-y-6 animate-in fade-in duration-200">
+                    <div className="space-y-6 animate-fade-in">
 
                         {/* Stat cards — mesma linha do header banner */}
                         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -1371,16 +1408,12 @@ export default function GestaoPage() {
                                                             <td className="px-5 py-4 whitespace-nowrap text-sm" style={{ color: "var(--cor-logo2)" }}>{formatDateTime(user.data_criacao)}</td>
                                                             <td className="px-5 py-4">
                                                                 <div className="flex items-center gap-2">
-                                                                    <button type="button" onClick={() => { setDeletingUser(user); setIsDeleteOpen(true); }}
-                                                                        className="inline-flex items-center gap-1.5 rounded-xl border px-3.5 py-2 text-sm font-medium transition hover:-translate-y-0.5"
-                                                                        style={{
-                                                                            borderColor: "color-mix(in srgb, var(--cor-atrasoI) 38%, var(--cor-borda))",
-                                                                            backgroundColor: "color-mix(in srgb, var(--cor-atrasoI) 12%, var(--cor-widgets))",
-                                                                            color: "var(--cor-atrasoI)",
-                                                                        }}>
-                                                                        <Trash2 size={12} /> Excluir
-                                                                    </button>
-                                                                    <ActionMenu onEdit={() => openEdit(user)} onDelete={() => { setDeletingUser(user); setIsDeleteOpen(true); }} />
+                                                                    <IconButton onClick={() => openEdit(user)} title="Editar">
+                                                                        <Pencil size={14} />
+                                                                    </IconButton>
+                                                                    <IconButton onClick={() => { setDeletingUser(user); setIsDeleteOpen(true); }} title="Excluir" danger>
+                                                                        <Trash2 size={14} />
+                                                                    </IconButton>
                                                                 </div>
                                                             </td>
                                                         </tr>
@@ -1415,7 +1448,7 @@ export default function GestaoPage() {
 
                 {/* ══════════════════ TAB: CARGOS ══════════════════ */}
                 {activeTab === "cargos" && !loading && (
-                    <div className="space-y-6 animate-in fade-in duration-200">
+                    <div className="space-y-6 animate-fade-in">
                         <section className="rounded-[2rem] border p-6 shadow-lg" style={{ backgroundColor: "var(--cor-widgets)", borderColor: "var(--cor-borda)" }}>
                             <SectionHeader icon={<BriefcaseBusiness size={18} />} title="Cargos cadastrados" subtitle="Lista de cargos com edição em card, igual ao fluxo de funcionários." />
                             <div className="mt-5 space-y-3">
@@ -1442,17 +1475,12 @@ export default function GestaoPage() {
                                             <p className="font-medium" style={{ color: "var(--cor-logo)" }}>{cargo.nome_cargo}</p>
                                         </div>
                                         <div className="flex flex-wrap items-center gap-2">
-                                            <button type="button" onClick={() => openEditCargo(cargo)}
-                                                className="inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-medium transition hover:-translate-y-0.5"
-                                                style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-fundo)", color: "var(--cor-logo)" }}>
-                                                <Pencil size={14} /> Editar
-                                            </button>
-                                            <button type="button" onClick={() => void removeCargo(cargo.id_cargo)} disabled={deletingCargoId === cargo.id_cargo}
-                                                className="inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-medium transition hover:-translate-y-0.5 disabled:opacity-60"
-                                                style={{ borderColor: "color-mix(in srgb, var(--cor-atrasoI) 40%, var(--cor-borda))", backgroundColor: "color-mix(in srgb, var(--cor-atrasoI) 12%, var(--cor-widgets))", color: "var(--cor-atrasoI)" }}>
+                                            <IconButton onClick={() => openEditCargo(cargo)} title="Editar cargo">
+                                                <Pencil size={14} />
+                                            </IconButton>
+                                            <IconButton onClick={() => setDeletingCargo(cargo)} title="Excluir cargo" danger disabled={deletingCargoId === cargo.id_cargo}>
                                                 {deletingCargoId === cargo.id_cargo ? <RefreshCw size={14} className="animate-spin" /> : <Trash2 size={14} />}
-                                                {deletingCargoId === cargo.id_cargo ? "Excluindo..." : "Excluir"}
-                                            </button>
+                                            </IconButton>
                                         </div>
                                     </div>
                                 ))}
@@ -1463,7 +1491,7 @@ export default function GestaoPage() {
 
                 {/* ══════════════════ TAB: EQUIPES ══════════════════ */}
                 {activeTab === "equipes" && !loading && (
-                    <div className="space-y-6 animate-in fade-in duration-200">
+                    <div className="space-y-6 animate-fade-in">
                         <section className="rounded-[2rem] border p-6 shadow-lg" style={{ backgroundColor: "var(--cor-widgets)", borderColor: "var(--cor-borda)" }}>
                             <SectionHeader icon={<Users size={18} />} title="Equipes cadastradas" subtitle="Lista de equipes com edição em card, no mesmo padrão de funcionários." />
                             <div className="mt-5 space-y-3">
@@ -1504,8 +1532,9 @@ export default function GestaoPage() {
                                                     </p>
                                                 </div>
                                                 <div className="flex items-center gap-2">
+                                                    <IconButton onClick={() => openViewEquipe(equipe)} title="Visualizar equipe"><Eye size={14} /></IconButton>
                                                     <IconButton onClick={() => openEditEquipe(equipe)} title="Editar equipe"><Pencil size={14} /></IconButton>
-                                                    <IconButton onClick={() => void removeEquipe(equipe.id_equipe)} title="Excluir equipe" danger disabled={deletingEquipeId === equipe.id_equipe}>
+                                                    <IconButton onClick={() => setDeletingEquipe(equipe)} title="Excluir equipe" danger disabled={deletingEquipeId === equipe.id_equipe}>
                                                         {deletingEquipeId === equipe.id_equipe ? <RefreshCw size={14} className="animate-spin" /> : <Trash2 size={14} />}
                                                     </IconButton>
                                                 </div>
@@ -1522,9 +1551,9 @@ export default function GestaoPage() {
 
                 {/* Create / Edit User */}
                 {(isCreateOpen || isEditOpen) && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-[2px] animate-in fade-in duration-200">
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-[2px] animate-fade-in">
                         <form onSubmit={isCreateOpen ? onCreate : onSaveEdit}
-                            className="w-full max-w-2xl rounded-2xl border p-6 shadow-2xl animate-in zoom-in-95 duration-200"
+                            className="w-full max-w-2xl rounded-2xl border p-6 shadow-2xl animate-pop-in"
                             style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-widgets)" }}>
                             <div className="mb-5 flex items-center justify-between">
                                 <h2 className="text-lg font-semibold" style={{ color: "var(--cor-logo)" }}>
@@ -1544,7 +1573,7 @@ export default function GestaoPage() {
                                     { label: "Nível", field: "nivel" as const, type: "text", required: false, placeholder: "Ex: Pleno" },
                                 ]).map(({ label, field, type, required, placeholder }) => (
                                     <label key={field} className="flex flex-col gap-1.5 text-sm font-medium" style={{ color: "var(--cor-logo)" }}>
-                                        <span className="inline-flex items-center">{label}{required ? <RequiredMark /> : null}</span>
+                                        <span className="inline-flex items-center">{label}{required ? <RequiredMark show={attemptedUserSubmit && !userForm[field]} /> : null}</span>
                                         <input type={type} required={required} value={userForm[field]} placeholder={placeholder}
                                             onChange={(e) => setUserForm((f) => ({ ...f, [field]: e.target.value }))}
                                             className="rounded-xl border px-3 py-2 text-sm outline-none transition-all duration-200"
@@ -1599,7 +1628,7 @@ export default function GestaoPage() {
 
                                 {isCreateOpen && (
                                     <label className="flex flex-col gap-1.5 text-sm font-medium" style={{ color: "var(--cor-logo)" }}>
-                                        <span className="inline-flex items-center">Senha<RequiredMark /></span>
+                                        <span className="inline-flex items-center">Senha<RequiredMark show={attemptedUserSubmit && !userForm.senha} /></span>
                                         <input type="password" required value={userForm.senha} placeholder="Senha de acesso"
                                             onChange={(e) => setUserForm((f) => ({ ...f, senha: e.target.value }))}
                                             className="rounded-xl border px-3 py-2 text-sm outline-none transition-all duration-200"
@@ -1622,7 +1651,7 @@ export default function GestaoPage() {
                                 <button type="button" onClick={closeUserModal}
                                     className="rounded-xl border px-4 py-2 text-sm transition hover:shadow-sm"
                                     style={{ borderColor: "var(--cor-borda)", color: "var(--cor-logo)" }}>Cancelar</button>
-                                <button type="submit" disabled={savingUser}
+                                <button type="submit" disabled={savingUser} onClick={() => setAttemptedUserSubmit(true)}
                                     className="rounded-xl px-4 py-2 text-sm font-medium text-white dark:text-(--cor-fundo) transition hover:shadow-lg disabled:opacity-60 bg-[#1a1a2e] dark:bg-(--cor-accentII)">
                                     {savingUser ? "Salvando..." : isCreateOpen ? "Cadastrar" : "Salvar"}
                                 </button>
@@ -1633,8 +1662,8 @@ export default function GestaoPage() {
 
                 {/* Delete User */}
                 {isDeleteOpen && deletingUser && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-[2px] animate-in fade-in duration-200">
-                        <div className="w-full max-w-md rounded-2xl border p-6 shadow-2xl animate-in zoom-in-95 duration-200"
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-[2px] animate-fade-in">
+                        <div className="w-full max-w-md rounded-2xl border p-6 shadow-2xl animate-pop-in"
                             style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-widgets)" }}>
                             <div className="mb-4 flex items-center justify-between">
                                 <h2 className="text-lg font-semibold" style={{ color: "#9f2f2f" }}>Excluir funcionário</h2>
@@ -1671,11 +1700,37 @@ export default function GestaoPage() {
                     </div>
                 )}
 
+                {deletingCargo && (
+                    <ConfirmDeleteModal
+                        title="Excluir cargo"
+                        message={<>Tem certeza que deseja excluir o cargo <strong>{deletingCargo.nome_cargo}</strong>?</>}
+                        loading={deletingCargoId === deletingCargo.id_cargo}
+                        onCancel={() => setDeletingCargo(null)}
+                        onConfirm={async () => {
+                            await removeCargo(deletingCargo.id_cargo);
+                            setDeletingCargo(null);
+                        }}
+                    />
+                )}
+
+                {deletingEquipe && (
+                    <ConfirmDeleteModal
+                        title="Excluir equipe"
+                        message={<>Tem certeza que deseja excluir a equipe <strong>{deletingEquipe.nome}</strong>?</>}
+                        loading={deletingEquipeId === deletingEquipe.id_equipe}
+                        onCancel={() => setDeletingEquipe(null)}
+                        onConfirm={async () => {
+                            await removeEquipe(deletingEquipe.id_equipe);
+                            setDeletingEquipe(null);
+                        }}
+                    />
+                )}
+
                 {isCargoModalOpen && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-[2px] animate-in fade-in duration-200">
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-[2px] animate-fade-in">
                         <form
                             onSubmit={submitCargo}
-                            className="w-full max-w-xl rounded-2xl border p-6 shadow-2xl animate-in zoom-in-95 duration-200"
+                            className="w-full max-w-xl rounded-2xl border p-6 shadow-2xl animate-pop-in"
                             style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-widgets)" }}
                         >
                             <div className="mb-5 flex items-center justify-between">
@@ -1724,15 +1779,15 @@ export default function GestaoPage() {
                 )}
 
                 {isEquipeModalOpen && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-[2px] animate-in fade-in duration-200">
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-[2px] animate-fade-in">
                         <form
                             onSubmit={submitEquipe}
-                            className="w-full max-w-2xl rounded-2xl border p-6 shadow-2xl animate-in zoom-in-95 duration-200"
+                            className="w-full max-w-2xl rounded-2xl border p-6 shadow-2xl animate-pop-in"
                             style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-widgets)" }}
                         >
                             <div className="mb-5 flex items-center justify-between">
                                 <h2 className="text-lg font-semibold" style={{ color: "var(--cor-logo)" }}>
-                                    {editingEquipe ? "Editar equipe" : "Adicionar equipe"}
+                                    {isViewingEquipe ? "Visualizar equipe" : editingEquipe ? "Editar equipe" : "Adicionar equipe"}
                                 </h2>
                                 <button
                                     type="button"
@@ -1750,7 +1805,8 @@ export default function GestaoPage() {
                                         value={equipeForm.nome}
                                         onChange={(event) => setEquipeForm((current) => ({ ...current, nome: event.target.value }))}
                                         placeholder="Ex.: Produto, Marketing, Operações"
-                                        className="w-full rounded-xl border px-4 py-3 text-sm shadow-sm outline-none transition focus:border-slate-400"
+                                        disabled={isViewingEquipe}
+                                        className="w-full rounded-xl border px-4 py-3 text-sm shadow-sm outline-none transition focus:border-slate-400 disabled:opacity-70"
                                         style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-fundo)", color: "var(--cor-logo)" }}
                                     />
                                 </FieldLabel>
@@ -1759,6 +1815,7 @@ export default function GestaoPage() {
                                     <CardSelect
                                         value={equipeForm.tipo}
                                         onChange={(value) => setEquipeForm((form) => ({ ...form, tipo: value }))}
+                                        disabled={isViewingEquipe}
                                         options={[
                                             { value: "EMPRESA", label: "Equipe principal" },
                                             { value: "SUBEQUIPE", label: "Subequipe" },
@@ -1770,6 +1827,7 @@ export default function GestaoPage() {
                                     <CardSelect
                                         value={equipeForm.equipe_pai}
                                         onChange={(value) => setEquipeForm((form) => ({ ...form, equipe_pai: value }))}
+                                        disabled={isViewingEquipe}
                                         options={[
                                             { value: "", label: "Nenhuma" },
                                             ...equipes.map((equipe) => ({ value: String(equipe.id_equipe), label: equipe.nome })),
@@ -1781,6 +1839,7 @@ export default function GestaoPage() {
                                     <CardSelect
                                         value={equipeForm.id_lider}
                                         onChange={(value) => setEquipeForm((form) => ({ ...form, id_lider: value }))}
+                                        disabled={isViewingEquipe}
                                         options={[
                                             { value: "", label: "Sem líder" },
                                             ...usuarios.map((usuario) => ({
@@ -1799,15 +1858,17 @@ export default function GestaoPage() {
                                     className="rounded-xl border px-4 py-2 text-sm transition hover:shadow-sm"
                                     style={{ borderColor: "var(--cor-borda)", color: "var(--cor-logo)" }}
                                 >
-                                    Cancelar
+                                    {isViewingEquipe ? "Fechar" : "Cancelar"}
                                 </button>
-                                <button
-                                    type="submit"
-                                    disabled={savingEquipe}
-                                    className="rounded-xl px-4 py-2 text-sm font-medium text-white dark:text-(--cor-fundo) transition hover:shadow-lg disabled:opacity-60 bg-[#1a1a2e] dark:bg-(--cor-accentII)"
-                                >
-                                    {savingEquipe ? "Salvando..." : editingEquipe ? "Salvar" : "Adicionar"}
-                                </button>
+                                {!isViewingEquipe && (
+                                    <button
+                                        type="submit"
+                                        disabled={savingEquipe}
+                                        className="rounded-xl px-4 py-2 text-sm font-medium text-white dark:text-(--cor-fundo) transition hover:shadow-lg disabled:opacity-60 bg-[#1a1a2e] dark:bg-(--cor-accentII)"
+                                    >
+                                        {savingEquipe ? "Salvando..." : editingEquipe ? "Salvar" : "Adicionar"}
+                                    </button>
+                                )}
                             </div>
                         </form>
                     </div>
@@ -1815,8 +1876,8 @@ export default function GestaoPage() {
 
                 {/* Status Confirm */}
                 {isStatusConfirmOpen && statusUser && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-[2px] animate-in fade-in duration-200">
-                        <div className="w-full max-w-md rounded-2xl border p-6 shadow-2xl animate-in zoom-in-95 duration-200"
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-[2px] animate-fade-in">
+                        <div className="w-full max-w-md rounded-2xl border p-6 shadow-2xl animate-pop-in"
                             style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-widgets)" }}>
                             <div className="mb-4 flex items-center justify-between">
                                 <h2 className="text-lg font-semibold" style={{ color: "var(--cor-logo)" }}>Alterar status</h2>
@@ -1850,8 +1911,8 @@ export default function GestaoPage() {
 
                 {/* History */}
                 {isHistoryOpen && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-[2px] animate-in fade-in duration-200">
-                        <div className="flex h-full max-h-[80vh] w-full max-w-2xl flex-col rounded-2xl border shadow-2xl animate-in zoom-in-95 duration-200"
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-[2px] animate-fade-in">
+                        <div className="flex h-full max-h-[80vh] w-full max-w-2xl flex-col rounded-2xl border shadow-2xl animate-pop-in"
                             style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-widgets)" }}>
                             <div className="flex items-center justify-between border-b p-5" style={{ borderColor: "var(--cor-borda)" }}>
                                 <h2 className="text-lg font-semibold" style={{ color: "var(--cor-logo)" }}>Histórico de excluídos</h2>
