@@ -18,6 +18,11 @@ class Projeto extends Model
         'status_projeto',
         'prioridade_proj',
         'id_responsavel',
+        'kanban_padrao',
+    ];
+
+    protected $casts = [
+        'kanban_padrao' => 'boolean',
     ];
 
     public function responsavel()
@@ -47,5 +52,10 @@ class Projeto extends Model
     public function sprints()
     {
         return $this->hasMany(Sprint::class, 'id_projeto', 'id_projeto');
+    }
+
+    public function colunas()
+    {
+        return $this->hasMany(BoardColuna::class, 'id_projeto', 'id_projeto')->orderBy('ordem');
     }
 }

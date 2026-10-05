@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\BoardColunasController;
 use App\Http\Controllers\CargosController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EquipesController;
@@ -48,6 +49,13 @@ Route::middleware(['web', 'session.auth'])->group(function (): void {
 	Route::post('projetos/excluidos/{registro}/restaurar', [ProjetosController::class, 'restoreDeleted']);
 	Route::apiResource('projetos', ProjetosController::class);
 	Route::get('sprints',                             [SprintsController::class, 'index']);
+
+	// Colunas do quadro kanban
+	Route::get('projetos/{idProjeto}/colunas',       [BoardColunasController::class, 'index']);
+	Route::post('projetos/{idProjeto}/colunas',      [BoardColunasController::class, 'store']);
+	Route::patch('projetos/{idProjeto}/colunas/reordenar', [BoardColunasController::class, 'reorder']);
+	Route::put('colunas/{id}',                       [BoardColunasController::class, 'update']);
+	Route::delete('colunas/{id}',                    [BoardColunasController::class, 'destroy']);
 
 	// Tarefas
 	Route::get('tarefas/total/por-status',           [TarefasController::class, 'totalPorStatus']);

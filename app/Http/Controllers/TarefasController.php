@@ -88,6 +88,7 @@ class TarefasController extends Controller
             'bloqueada'             => 'nullable|boolean',
             'prazo'                 => 'nullable|date',
             'status_task'           => 'nullable|string',
+            'id_coluna'             => 'nullable|integer|exists:board_colunas,id_coluna',
             'em_historico'          => 'nullable|boolean',
             'relacionados'          => 'nullable|array',
             'relacionados.*'        => 'integer|exists:usuarios,id_usuario',

@@ -1,7 +1,8 @@
 import { usePage } from "@inertiajs/react";
-import { ArrowLeft, ChevronDown, GripVertical, History, MoreVertical, Pencil, Plus, RotateCcw, Search, Trash2 } from "lucide-react";
+import { ArrowLeft, Calendar, ChevronDown, ChevronLeft, ChevronRight, GripVertical, History, MoreVertical, Pencil, Plus, RotateCcw, Search, Trash2, X } from "lucide-react";
 import type { FormEvent} from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import RequiredMark from "@/components/ui/required-mark";
 import DashboardLayout from "@/layouts/DashboardLayout";
 import { apiRoutes } from "@/lib/routes";
@@ -41,6 +42,16 @@ interface Projeto {
 	status_projeto?: string | null;
 	id_responsavel?: number | null;
 	responsavel?: Usuario | null;
+	kanban_padrao?: boolean | number | null;
+}
+
+interface BoardColunaApi {
+	id_coluna: number;
+	id_projeto: number;
+	nome: string;
+	progresso: number;
+	ordem: number;
+	arquiva_ao_concluir: boolean | number;
 }
 
 interface ProjetoExcluido {
@@ -76,6 +87,7 @@ interface TarefaApi {
 	progresso?: number | null;
 	bloqueada?: boolean | null;
 	status_task?: string | null;
+	id_coluna?: number | null;
 	relacionados?: Usuario[];
 	responsavel?: Usuario | null;
 }
@@ -104,6 +116,7 @@ interface FormState {
 	tipo_task: "FRONT" | "BACK" | "FULLSTACK";
 	bloqueada: boolean;
 	status_task: BoardStatus;
+	id_coluna: string;
 	relacionados: number[];
 }
 
@@ -113,6 +126,7 @@ interface ProjectFormState {
 	prioridade_proj: "" | "BAIXA" | "MEDIA" | "ALTA";
 	status_projeto: string;
 	id_responsavel: string;
+	kanban_padrao: boolean;
 }
 
 const STATUS_COLUMNS: Array<{ key: BoardStatus; label: string }> = [
@@ -144,6 +158,7 @@ const EMPTY_FORM: FormState = {
 	tipo_task: "FRONT",
 	bloqueada: false,
 	status_task: "TO_DO",
+	id_coluna: "",
 	relacionados: [],
 };
 
@@ -153,6 +168,7 @@ const EMPTY_PROJECT_FORM: ProjectFormState = {
 	prioridade_proj: "",
 	status_projeto: "",
 	id_responsavel: "",
+	kanban_padrao: true,
 };
 
 function normalizeProjectPriorityValue(priority?: string | null): ProjectFormState["prioridade_proj"] {
@@ -434,6 +450,219 @@ function readCookie(name: string): string {
 
 interface SelectOption { value: string; label: string }
 
+function computeMenuPlacement(trigger: HTMLElement, preferredHeight = 256) {
+	const rect = trigger.getBoundingClientRect();
+	const margin = 12;
+	const spaceBelow = window.innerHeight - rect.bottom - margin;
+	const spaceAbove = rect.top - margin;
+
+	if (spaceBelow < 160 && spaceAbove > spaceBelow) {
+		const maxHeight = Math.max(Math.min(preferredHeight, spaceAbove), 120);
+		return { top: rect.top - maxHeight - 4, left: rect.left, width: rect.width, maxHeight };
+	}
+
+	const maxHeight = Math.max(Math.min(preferredHeight, spaceBelow), 120);
+	return { top: rect.bottom + 4, left: rect.left, width: rect.width, maxHeight };
+}
+
+const WEEKDAY_LABELS = ["D", "S", "T", "Q", "Q", "S", "S"];
+const MONTH_LABELS = [
+	"janeiro", "fevereiro", "março", "abril", "maio", "junho",
+	"julho", "agosto", "setembro", "outubro", "novembro", "dezembro",
+];
+
+function pad2(n: number) {
+	return String(n).padStart(2, "0");
+}
+
+function toIsoDate(date: Date) {
+	return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
+}
+
+function parseIsoDate(iso: string): Date | null {
+	if (!iso) return null;
+	const [y, m, d] = iso.split("-").map(Number);
+	if (!y || !m || !d) return null;
+	return new Date(y, m - 1, d);
+}
+
+function formatDateDisplay(iso: string): string {
+	const date = parseIsoDate(iso);
+	return date ? `${pad2(date.getDate())}/${pad2(date.getMonth() + 1)}/${date.getFullYear()}` : "";
+}
+
+function isSameDay(a: Date, b: Date) {
+	return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+}
+
+function DatePicker({ value, onChange, placeholder = "Selecionar data" }: {
+	value: string; onChange: (value: string) => void; placeholder?: string;
+}) {
+	const [open, setOpen] = useState(false);
+	const [menuRect, setMenuRect] = useState<{ top: number; left: number } | null>(null);
+	const [viewDate, setViewDate] = useState(() => parseIsoDate(value) ?? new Date());
+	const ref = useRef<HTMLButtonElement>(null);
+	const menuRef = useRef<HTMLDivElement>(null);
+	const panelWidth = 288;
+
+	const updateMenuRect = () => {
+		const rect = ref.current?.getBoundingClientRect();
+		if (!rect) return;
+		const margin = 12;
+		const panelHeight = 360;
+		const spaceBelow = window.innerHeight - rect.bottom - margin;
+		const spaceAbove = rect.top - margin;
+		const left = Math.min(rect.left, window.innerWidth - panelWidth - margin);
+		if (spaceBelow < panelHeight && spaceAbove > spaceBelow) {
+			setMenuRect({ top: rect.top - panelHeight - 4, left });
+		} else {
+			setMenuRect({ top: rect.bottom + 4, left });
+		}
+	};
+
+	useEffect(() => {
+		if (!open) return;
+
+		setViewDate(parseIsoDate(value) ?? new Date());
+		ref.current?.scrollIntoView({ block: "center", behavior: "auto" });
+		updateMenuRect();
+
+		const handler = (e: MouseEvent) => {
+			if (
+				ref.current && !ref.current.contains(e.target as Node) &&
+				menuRef.current && !menuRef.current.contains(e.target as Node)
+			) {
+				setOpen(false);
+			}
+		};
+		document.addEventListener("mousedown", handler);
+		window.addEventListener("scroll", updateMenuRect, true);
+		window.addEventListener("resize", updateMenuRect);
+
+		return () => {
+			document.removeEventListener("mousedown", handler);
+			window.removeEventListener("scroll", updateMenuRect, true);
+			window.removeEventListener("resize", updateMenuRect);
+		};
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [open]);
+
+	const today = new Date();
+	const selected = parseIsoDate(value);
+
+	const days = useMemo(() => {
+		const firstOfMonth = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1);
+		const gridStart = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1 - firstOfMonth.getDay());
+		return Array.from({ length: 42 }, (_, i) => new Date(gridStart.getFullYear(), gridStart.getMonth(), gridStart.getDate() + i));
+	}, [viewDate]);
+
+	return (
+		<div className="relative">
+			<button
+				ref={ref}
+				type="button"
+				onClick={() => setOpen((v) => !v)}
+				className="flex w-full items-center justify-between gap-2 rounded-xl border px-4 py-3 text-left text-base font-medium outline-none transition-all duration-200 hover:-translate-y-px hover:shadow-md"
+				style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-widgets)", color: "var(--cor-logo)" }}
+			>
+				<span style={{ color: value ? "var(--cor-logo)" : "var(--cor-logo2)" }}>
+					{value ? formatDateDisplay(value) : placeholder}
+				</span>
+				<Calendar size={18} style={{ color: "var(--cor-logo2)", flexShrink: 0 }} />
+			</button>
+
+			{open && menuRect ? createPortal(
+				<div
+					ref={menuRef}
+					className="animate-dropdown fixed z-[200] rounded-2xl border p-3 shadow-2xl"
+					style={{
+						top: menuRect.top,
+						left: menuRect.left,
+						width: panelWidth,
+						backgroundColor: "var(--cor-widgets)",
+						borderColor: "var(--cor-borda)",
+						boxShadow: "0 18px 44px rgba(5, 18, 32, 0.28)",
+					}}
+				>
+					<div className="mb-2 flex items-center justify-between">
+						<span className="text-sm font-semibold capitalize" style={{ color: "var(--cor-logo)" }}>
+							{MONTH_LABELS[viewDate.getMonth()]} de {viewDate.getFullYear()}
+						</span>
+						<div className="flex items-center gap-1">
+							<button
+								type="button"
+								onClick={() => setViewDate((d) => new Date(d.getFullYear(), d.getMonth() - 1, 1))}
+								className="inline-flex h-7 w-7 items-center justify-center rounded-lg border transition hover:shadow-sm"
+								style={{ borderColor: "var(--cor-borda)", color: "var(--cor-logo2)" }}
+								aria-label="Mês anterior"
+							>
+								<ChevronLeft size={14} />
+							</button>
+							<button
+								type="button"
+								onClick={() => setViewDate((d) => new Date(d.getFullYear(), d.getMonth() + 1, 1))}
+								className="inline-flex h-7 w-7 items-center justify-center rounded-lg border transition hover:shadow-sm"
+								style={{ borderColor: "var(--cor-borda)", color: "var(--cor-logo2)" }}
+								aria-label="Próximo mês"
+							>
+								<ChevronRight size={14} />
+							</button>
+						</div>
+					</div>
+
+					<div className="grid grid-cols-7 gap-1 text-center text-xs font-semibold" style={{ color: "var(--cor-logo2)" }}>
+						{WEEKDAY_LABELS.map((label, i) => <span key={i} className="py-1">{label}</span>)}
+					</div>
+
+					<div className="grid grid-cols-7 gap-1">
+						{days.map((day) => {
+							const outside = day.getMonth() !== viewDate.getMonth();
+							const isSelected = selected ? isSameDay(day, selected) : false;
+							const isToday = isSameDay(day, today);
+							return (
+								<button
+									key={day.toISOString()}
+									type="button"
+									onClick={() => { onChange(toIsoDate(day)); setOpen(false); }}
+									className="flex h-8 w-8 items-center justify-center rounded-lg text-sm transition hover:shadow-sm"
+									style={{
+										color: isSelected ? "#fff" : outside ? "var(--cor-logo2)" : "var(--cor-logo)",
+										backgroundColor: isSelected ? "var(--cor-accent)" : "transparent",
+										opacity: outside ? 0.45 : 1,
+										boxShadow: !isSelected && isToday ? "inset 0 0 0 1.5px var(--cor-accent)" : undefined,
+									}}
+								>
+									{day.getDate()}
+								</button>
+							);
+						})}
+					</div>
+
+					<div className="mt-2 flex items-center justify-between border-t pt-2" style={{ borderColor: "var(--cor-borda)" }}>
+						<button
+							type="button"
+							onClick={() => { onChange(""); setOpen(false); }}
+							className="text-sm font-medium transition hover:opacity-75"
+							style={{ color: "var(--cor-logo2)" }}
+						>
+							Limpar
+						</button>
+						<button
+							type="button"
+							onClick={() => { onChange(toIsoDate(today)); setOpen(false); }}
+							className="text-sm font-medium transition hover:opacity-75"
+							style={{ color: "var(--cor-accent)" }}
+						>
+							Hoje
+						</button>
+					</div>
+				</div>,
+				document.body,
+			) : null}
+		</div>
+	);
+}
+
 function CustomSelect({
 	value,
 	onChange,
@@ -448,21 +677,41 @@ function CustomSelect({
 	placeholder?: string;
 }) {
 	const [open, setOpen] = useState(false);
+	const [menuRect, setMenuRect] = useState<{ top: number; left: number; width: number; maxHeight: number } | null>(null);
 	const ref = useRef<HTMLDivElement>(null);
+	const menuRef = useRef<HTMLDivElement>(null);
+
+	const updateMenuRect = () => {
+		if (ref.current) {
+			setMenuRect(computeMenuPlacement(ref.current));
+		}
+	};
 
 	useEffect(() => {
 		if (!open) {
 return;
 }
 
+		ref.current?.scrollIntoView({ block: "center", behavior: "auto" });
+		updateMenuRect();
+
 		const handler = (e: MouseEvent) => {
-			if (ref.current && !ref.current.contains(e.target as Node)) {
+			if (
+				ref.current && !ref.current.contains(e.target as Node) &&
+				menuRef.current && !menuRef.current.contains(e.target as Node)
+			) {
 setOpen(false);
 }
 		};
 		document.addEventListener("mousedown", handler);
+		window.addEventListener("scroll", updateMenuRect, true);
+		window.addEventListener("resize", updateMenuRect);
 
-		return () => document.removeEventListener("mousedown", handler);
+		return () => {
+			document.removeEventListener("mousedown", handler);
+			window.removeEventListener("scroll", updateMenuRect, true);
+			window.removeEventListener("resize", updateMenuRect);
+		};
 	}, [open]);
 
 	const selected = options.find((o) => o.value === value);
@@ -482,10 +731,15 @@ setOpen(false);
 					style={{ transition: "transform 0.24s ease", transform: open ? "rotate(180deg)" : "rotate(0deg)", color: "var(--cor-logo2)", flexShrink: 0 }}
 				/>
 			</button>
-			{open ? (
+			{open && menuRect ? createPortal(
 				<div
-					className="animate-dropdown absolute z-[200] mt-2 w-full rounded-2xl border p-1.5 shadow-2xl"
+					ref={menuRef}
+					className="animate-dropdown fixed z-[200] overflow-y-auto rounded-2xl border p-1.5 shadow-2xl"
 					style={{
+						top: menuRect.top,
+						left: menuRect.left,
+						width: menuRect.width,
+						maxHeight: menuRect.maxHeight,
 						backgroundColor: "var(--cor-widgets)",
 						borderColor: "var(--cor-borda)",
 						boxShadow: "0 18px 44px rgba(5, 18, 32, 0.28)",
@@ -520,7 +774,8 @@ setOpen(false);
 							{option.label}
 						</button>
 					))}
-				</div>
+				</div>,
+				document.body,
 			) : null}
 		</div>
 	);
@@ -549,6 +804,130 @@ function AvatarPill({ usuario, size = 30 }: { usuario: Usuario; size?: number })
 		>
 			{getInitials(usuario.nome)}
 		</span>
+	);
+}
+
+function RelatedPeoplePicker({ usuarios, selectedIds, onToggle }: {
+	usuarios: Usuario[]; selectedIds: number[]; onToggle: (id: number) => void;
+}) {
+	const [search, setSearch] = useState("");
+	const [open, setOpen] = useState(false);
+	const [menuRect, setMenuRect] = useState<{ top: number; left: number; width: number; maxHeight: number } | null>(null);
+	const ref = useRef<HTMLDivElement>(null);
+	const inputRef = useRef<HTMLInputElement>(null);
+	const menuRef = useRef<HTMLDivElement>(null);
+
+	const updateMenuRect = () => {
+		if (inputRef.current) {
+			setMenuRect(computeMenuPlacement(inputRef.current, 192));
+		}
+	};
+
+	useEffect(() => {
+		if (!open) return;
+
+		inputRef.current?.scrollIntoView({ block: "center", behavior: "auto" });
+		updateMenuRect();
+
+		const handler = (e: MouseEvent) => {
+			if (
+				ref.current && !ref.current.contains(e.target as Node) &&
+				menuRef.current && !menuRef.current.contains(e.target as Node)
+			) {
+				setOpen(false);
+			}
+		};
+		document.addEventListener("mousedown", handler);
+		window.addEventListener("scroll", updateMenuRect, true);
+		window.addEventListener("resize", updateMenuRect);
+
+		return () => {
+			document.removeEventListener("mousedown", handler);
+			window.removeEventListener("scroll", updateMenuRect, true);
+			window.removeEventListener("resize", updateMenuRect);
+		};
+	}, [open]);
+
+	const selected = useMemo(
+		() => usuarios.filter((usuario) => selectedIds.includes(usuario.id_usuario)),
+		[usuarios, selectedIds],
+	);
+
+	const filtered = useMemo(() => {
+		const q = search.trim().toLowerCase();
+		return q ? usuarios.filter((usuario) => usuario.nome.toLowerCase().includes(q)) : usuarios;
+	}, [usuarios, search]);
+
+	return (
+		<div ref={ref} className="relative">
+			{selected.length > 0 && (
+				<div className="mb-2 flex flex-wrap gap-1.5">
+					{selected.map((usuario) => (
+						<span
+							key={usuario.id_usuario}
+							className="inline-flex items-center gap-1.5 rounded-full border py-1 pl-1 pr-2 text-xs"
+							style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-widgets)", color: "var(--cor-logo)" }}
+						>
+							<AvatarPill usuario={usuario} size={18} />
+							{usuario.nome}
+							<button
+								type="button"
+								onClick={() => onToggle(usuario.id_usuario)}
+								aria-label={`Remover ${usuario.nome}`}
+								className="inline-flex items-center justify-center rounded-full p-0.5 hover:bg-black/10"
+							>
+								<X size={10} />
+							</button>
+						</span>
+					))}
+				</div>
+			)}
+
+			<input
+				ref={inputRef}
+				type="text"
+				value={search}
+				onChange={(e) => { setSearch(e.target.value); setOpen(true); }}
+				onFocus={() => setOpen(true)}
+				placeholder="Buscar pessoa pelo nome..."
+				className="w-full rounded-xl border px-3 py-2 text-sm outline-none transition focus:ring-2"
+				style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-widgets)", color: "var(--cor-logo)" }}
+			/>
+
+			{open && menuRect ? createPortal(
+				<div
+					ref={menuRef}
+					className="animate-dropdown fixed z-[200] overflow-y-auto rounded-xl border shadow-lg"
+					style={{
+						top: menuRect.top,
+						left: menuRect.left,
+						width: menuRect.width,
+						maxHeight: menuRect.maxHeight,
+						borderColor: "var(--cor-borda)",
+						backgroundColor: "var(--cor-widgets)",
+					}}
+				>
+					{filtered.length === 0 ? (
+						<p className="px-3 py-2 text-sm" style={{ color: "var(--cor-logo2)" }}>Nenhuma pessoa encontrada.</p>
+					) : filtered.map((usuario) => (
+						<label
+							key={usuario.id_usuario}
+							className="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm transition hover:bg-black/5"
+							style={{ color: "var(--cor-logo)" }}
+						>
+							<input
+								type="checkbox"
+								checked={selectedIds.includes(usuario.id_usuario)}
+								onChange={() => onToggle(usuario.id_usuario)}
+							/>
+							<AvatarPill usuario={usuario} size={20} />
+							{usuario.nome}
+						</label>
+					))}
+				</div>,
+				document.body,
+			) : null}
+		</div>
 	);
 }
 
@@ -615,6 +994,16 @@ export default function Projetos() {
 		data_inicio: "",
 		data_fim: "",
 	});
+
+	// ── Colunas customizadas (projetos sem kanban padrao) ──────────
+	const [colunasCustom, setColunasCustom] = useState<BoardColunaApi[]>([]);
+	const [isLoadingColunas, setIsLoadingColunas] = useState(false);
+	const [isColunaModalOpen, setIsColunaModalOpen] = useState(false);
+	const [editingColuna, setEditingColuna] = useState<BoardColunaApi | null>(null);
+	const [colunaForm, setColunaForm] = useState({ nome: "", progresso: "0", arquiva_ao_concluir: false });
+	const [savingColuna, setSavingColuna] = useState(false);
+	const [deletingColuna, setDeletingColuna] = useState<BoardColunaApi | null>(null);
+	const [deletingColunaId, setDeletingColunaId] = useState<number | null>(null);
 
 	const csrfToken = useMemo(() => {
 		const tokenFromMeta = document.querySelector('meta[name="csrf-token"]')?.getAttribute("content") ?? "";
@@ -748,6 +1137,38 @@ export default function Projetos() {
 		}
 
 		void fetchSprints(selectedProjectId);
+	}, [selectedProjectId]);
+
+	const fetchColunas = async (idProjeto: number) => {
+		setIsLoadingColunas(true);
+
+		try {
+			const response = await fetch(apiRoutes.projetoColunas(idProjeto), {
+				credentials: "same-origin",
+				headers: { Accept: "application/json" },
+			});
+
+			if (!response.ok) {
+				throw new Error("Erro ao carregar colunas");
+			}
+
+			const payload = (await response.json()) as ApiEnvelope<{ colunas?: BoardColunaApi[] }>;
+			setColunasCustom(payload.data?.colunas ?? []);
+		} catch {
+			setColunasCustom([]);
+		} finally {
+			setIsLoadingColunas(false);
+		}
+	};
+
+	useEffect(() => {
+		if (selectedProjectId === null) {
+			setColunasCustom([]);
+
+			return;
+		}
+
+		void fetchColunas(selectedProjectId);
 	}, [selectedProjectId]);
 
 	const selectedProject = useMemo(
@@ -1003,10 +1424,23 @@ export default function Projetos() {
 
 	const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
 		event.preventDefault();
+
+		const isCustomProject = selectedProject?.kanban_padrao === false;
+
+		if (isCustomProject && !form.id_coluna) {
+			setError("Selecione uma coluna para o card.");
+
+			return;
+		}
+
 		setIsSaving(true);
 		setError(null);
 
 		try {
+			const colunaEscolhida = isCustomProject
+				? colunasCustom.find((c) => c.id_coluna === Number(form.id_coluna))
+				: undefined;
+
 			const payload = {
 				titulo: form.titulo,
 				descricao: form.descricao || null,
@@ -1014,10 +1448,19 @@ export default function Projetos() {
 				id_responsavel: form.id_responsavel ? Number(form.id_responsavel) : null,
 				prioridade_task: form.prioridade_task,
 				tipo_task: form.tipo_task,
-				progresso: STATUS_PROGRESS[form.status_task],
 				bloqueada: form.bloqueada,
-				status_task: denormalizeStatus(form.status_task),
 				relacionados: form.relacionados,
+				...(isCustomProject
+					? {
+						id_coluna: colunaEscolhida?.id_coluna ?? null,
+						status_task: colunaEscolhida?.nome ?? null,
+						progresso: colunaEscolhida?.progresso ?? 0,
+						em_historico: Boolean(colunaEscolhida?.arquiva_ao_concluir),
+					}
+					: {
+						progresso: STATUS_PROGRESS[form.status_task],
+						status_task: denormalizeStatus(form.status_task),
+					}),
 			};
 
 			const response = await fetch(apiRoutes.tarefas, {
@@ -1072,6 +1515,7 @@ export default function Projetos() {
 			prioridade_proj: normalizeProjectPriorityValue(projeto.prioridade_proj),
 			status_projeto: projeto.status_projeto ?? "",
 			id_responsavel: projeto.id_responsavel ? String(projeto.id_responsavel) : "",
+			kanban_padrao: projeto.kanban_padrao !== false,
 		});
 		setIsProjectModalOpen(true);
 	};
@@ -1196,6 +1640,11 @@ export default function Projetos() {
 			return;
 		}
 
+		if (!sprintForm.data_inicio || !sprintForm.data_fim) {
+			setError("Informe a data de inicio e de finalizacao da sprint.");
+			return;
+		}
+
 		setIsCreatingSprint(true);
 		setError(null);
 
@@ -1280,15 +1729,16 @@ export default function Projetos() {
 		try {
 			const normalizedPriority = normalizeProjectPriorityValue(projectForm.prioridade_proj);
 
+			const isEditingProject = editingProjectId !== null;
+
 			const payload = {
 				nome_projeto: projectForm.nome_projeto,
 				descricao: projectForm.descricao || null,
 				prioridade_proj: normalizedPriority || null,
 				status_projeto: projectForm.status_projeto || null,
 				id_responsavel: projectForm.id_responsavel ? Number(projectForm.id_responsavel) : null,
+				...(isEditingProject ? {} : { kanban_padrao: projectForm.kanban_padrao }),
 			};
-
-			const isEditingProject = editingProjectId !== null;
 			const response = await fetch(
 				isEditingProject ? `${apiRoutes.projetos}/${editingProjectId}` : apiRoutes.projetos,
 				{
@@ -1337,6 +1787,7 @@ export default function Projetos() {
 			tipo_task: normalizeTipoValue(task.tipo_task),
 			bloqueada: Boolean(task.bloqueada),
 			status_task: normalizeStatus(task.status_task),
+			id_coluna: task.id_coluna ? String(task.id_coluna) : "",
 			relacionados: relatedIds,
 		});
 		setIsEditingDetails(false);
@@ -1384,6 +1835,11 @@ export default function Projetos() {
 				.map((id) => Number(id))
 				.filter((id) => Number.isFinite(id));
 
+			const isCustomProject = selectedProject?.kanban_padrao === false;
+			const colunaEscolhida = isCustomProject
+				? colunasCustom.find((c) => c.id_coluna === Number(detailsForm.id_coluna))
+				: undefined;
+
 			const payload = {
 				titulo: detailsForm.titulo,
 				descricao: detailsForm.descricao || null,
@@ -1391,10 +1847,19 @@ export default function Projetos() {
 				id_responsavel: detailsForm.id_responsavel ? Number(detailsForm.id_responsavel) : null,
 				prioridade_task: detailsForm.prioridade_task,
 				tipo_task: detailsForm.tipo_task,
-				progresso: STATUS_PROGRESS[detailsForm.status_task],
 				bloqueada: detailsForm.bloqueada,
-				status_task: denormalizeStatus(detailsForm.status_task),
 				relacionados: normalizedRelatedIds,
+				...(isCustomProject
+					? {
+						id_coluna: colunaEscolhida?.id_coluna ?? null,
+						status_task: colunaEscolhida?.nome ?? null,
+						progresso: colunaEscolhida?.progresso ?? 0,
+						em_historico: Boolean(colunaEscolhida?.arquiva_ao_concluir),
+					}
+					: {
+						progresso: STATUS_PROGRESS[detailsForm.status_task],
+						status_task: denormalizeStatus(detailsForm.status_task),
+					}),
 			};
 
 			const response = await fetch(`${apiRoutes.tarefas}/${selectedTask.id_tarefa}`, {
@@ -1521,6 +1986,100 @@ export default function Projetos() {
 			setError("Nao foi possivel mover o card. Tente novamente.");
 		} finally {
 			setMovingTaskId(null);
+		}
+	};
+
+	// ── Colunas customizadas: CRUD ──────────────────────────────────
+
+	const openCreateColuna = () => {
+		setEditingColuna(null);
+		setColunaForm({ nome: "", progresso: "0", arquiva_ao_concluir: false });
+		setIsColunaModalOpen(true);
+	};
+
+	const openEditColuna = (coluna: BoardColunaApi) => {
+		setEditingColuna(coluna);
+		setColunaForm({
+			nome: coluna.nome,
+			progresso: String(coluna.progresso),
+			arquiva_ao_concluir: Boolean(coluna.arquiva_ao_concluir),
+		});
+		setIsColunaModalOpen(true);
+	};
+
+	const closeColunaModal = () => {
+		setIsColunaModalOpen(false);
+		setEditingColuna(null);
+	};
+
+	const submitColuna = async (event: FormEvent<HTMLFormElement>) => {
+		event.preventDefault();
+
+		if (!selectedProjectId) {
+			return;
+		}
+
+		setSavingColuna(true);
+		setError(null);
+
+		try {
+			const payload = {
+				nome: colunaForm.nome,
+				progresso: Number(colunaForm.progresso) || 0,
+				arquiva_ao_concluir: colunaForm.arquiva_ao_concluir,
+			};
+
+			const url = editingColuna
+				? apiRoutes.colunas(editingColuna.id_coluna)
+				: apiRoutes.projetoColunas(selectedProjectId);
+
+			const response = await fetch(url, {
+				method: editingColuna ? "PUT" : "POST",
+				credentials: "same-origin",
+				headers: { "Content-Type": "application/json", ...mutationHeaders },
+				body: JSON.stringify(payload),
+			});
+
+			if (!response.ok) {
+				throw new Error("Nao foi possivel salvar a coluna.");
+			}
+
+			closeColunaModal();
+			await fetchColunas(selectedProjectId);
+			setSuccessMessage(editingColuna ? "Coluna atualizada com sucesso" : "Coluna criada com sucesso");
+		} catch (err) {
+			setError(err instanceof Error ? err.message : "Nao foi possivel salvar a coluna.");
+		} finally {
+			setSavingColuna(false);
+		}
+	};
+
+	const confirmDeleteColuna = async () => {
+		if (!deletingColuna || !selectedProjectId) {
+			return;
+		}
+
+		setDeletingColunaId(deletingColuna.id_coluna);
+		setError(null);
+
+		try {
+			const response = await fetch(apiRoutes.colunas(deletingColuna.id_coluna), {
+				method: "DELETE",
+				credentials: "same-origin",
+				headers: mutationHeaders,
+			});
+
+			if (!response.ok) {
+				throw new Error("Nao foi possivel excluir a coluna.");
+			}
+
+			setDeletingColuna(null);
+			await Promise.all([fetchColunas(selectedProjectId), fetchBoard()]);
+			setSuccessMessage("Coluna excluída com sucesso");
+		} catch (err) {
+			setError(err instanceof Error ? err.message : "Nao foi possivel excluir a coluna.");
+		} finally {
+			setDeletingColunaId(null);
 		}
 	};
 
@@ -1806,6 +2365,7 @@ export default function Projetos() {
 												...current,
 												id_projeto: String(selectedProjectId),
 												id_responsavel: me?.id ? String(me.id) : "",
+												id_coluna: colunasCustom[0] ? String(colunasCustom[0].id_coluna) : "",
 											}));
 											setIsModalOpen(true);
 										}}
@@ -1887,6 +2447,171 @@ export default function Projetos() {
 							</div>
 						) : null}
 
+						{selectedProject?.kanban_padrao === false ? (
+							<div className="space-y-4">
+								<div className="flex flex-wrap items-center justify-between gap-2">
+									<p className="text-sm" style={{ color: "var(--cor-logo2)" }}>
+										{colunasCustom.length} coluna{colunasCustom.length !== 1 ? "s" : ""} personalizada{colunasCustom.length !== 1 ? "s" : ""}
+									</p>
+									<button
+										type="button"
+										onClick={openCreateColuna}
+										className="inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-medium transition hover:-translate-y-0.5"
+										style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-widgets)", color: "var(--cor-logo)" }}
+									>
+										<Plus size={16} /> Nova coluna
+									</button>
+								</div>
+
+								{isLoadingColunas ? (
+									<p className="text-sm" style={{ color: "var(--cor-logo2)" }}>Carregando colunas...</p>
+								) : colunasCustom.length === 0 ? (
+									<div
+										className="rounded-2xl border border-dashed px-5 py-10 text-center"
+										style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-fundo)" }}
+									>
+										<p className="text-lg font-semibold" style={{ color: "var(--cor-logo)" }}>
+											Nenhuma coluna criada ainda
+										</p>
+										<p className="mt-1 text-sm" style={{ color: "var(--cor-logo2)" }}>
+											Crie a primeira coluna para comecar a organizar os cards deste projeto.
+										</p>
+										<button
+											type="button"
+											onClick={openCreateColuna}
+											className="mt-4 inline-flex items-center gap-2 rounded-xl border px-5 py-2.5 text-sm font-medium transition hover:-translate-y-0.5"
+											style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-botao)", color: "var(--cor-logo)" }}
+										>
+											<Plus size={16} /> Criar primeira coluna
+										</button>
+									</div>
+								) : (
+									<div className="flex gap-4 overflow-x-auto pb-3">
+										{colunasCustom.map((coluna) => {
+											const tasksDaColuna = tasksOfSelectedProject.filter(
+												(tarefa) => Number(tarefa.id_coluna) === coluna.id_coluna,
+											);
+
+											return (
+												<section
+													key={coluna.id_coluna}
+													className="w-[290px] min-w-[290px] rounded-2xl border p-3"
+													style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-fundo)" }}
+												>
+													<div className="mb-3 flex items-start justify-between gap-2">
+														<div>
+															<h2 className="text-lg font-semibold" style={{ color: "var(--cor-logo)" }}>
+																{coluna.nome}
+															</h2>
+															<p className="text-xs" style={{ color: "var(--cor-logo2)" }}>
+																{coluna.progresso}% de progresso
+																{coluna.arquiva_ao_concluir ? " · arquiva ao concluir" : ""}
+															</p>
+														</div>
+														<div className="flex items-center gap-1">
+															<span className="rounded-full px-2.5 py-1 text-sm" style={{ backgroundColor: "var(--cor-widgets)", color: "var(--cor-logo2)" }}>
+																{tasksDaColuna.length}
+															</span>
+															<button
+																type="button"
+																onClick={() => openEditColuna(coluna)}
+																title="Editar coluna"
+																className="inline-flex h-7 w-7 items-center justify-center rounded-lg border transition hover:shadow-sm"
+																style={{ borderColor: "var(--cor-borda)", color: "var(--cor-logo2)" }}
+															>
+																<Pencil size={13} />
+															</button>
+															<button
+																type="button"
+																onClick={() => setDeletingColuna(coluna)}
+																title="Excluir coluna"
+																className="inline-flex h-7 w-7 items-center justify-center rounded-lg border transition hover:shadow-sm"
+																style={{ borderColor: "color-mix(in srgb, var(--cor-atrasoI) 40%, var(--cor-borda))", color: "var(--cor-atrasoI)" }}
+															>
+																<Trash2 size={13} />
+															</button>
+														</div>
+													</div>
+
+													<div className="space-y-3">
+														{tasksDaColuna.map((tarefa) => (
+															<article
+																key={tarefa.id_tarefa}
+																onClick={() => openTaskDetails(tarefa)}
+																className="cursor-pointer rounded-xl border p-0"
+																style={{ borderColor: "#d8dde4", backgroundColor: "var(--cor-widgets)" }}
+															>
+																<div className="h-2 w-full rounded-t-xl" style={{ backgroundColor: priorityColor(tarefa.prioridade_task) }} />
+																<div className="p-3">
+																	<div className="mb-2 flex items-start justify-between gap-2">
+																		<p className="text-lg leading-tight font-semibold" style={{ color: "var(--cor-logo)" }}>
+																			{tarefa.titulo}
+																		</p>
+																		<GripVertical size={16} style={{ color: "#94a2b3" }} />
+																	</div>
+
+																	<div className="mb-2 flex flex-wrap gap-1.5 text-sm">
+																		<span className="rounded px-2 py-1 font-semibold" style={{ color: "#fff", backgroundColor: typeColor(tarefa.tipo_task) }}>
+																			{typeLabel(tarefa.tipo_task)}
+																		</span>
+																		<span className="rounded px-2 py-1 font-semibold" style={{ color: "#fff", backgroundColor: priorityColor(tarefa.prioridade_task) }}>
+																			Prioridade: {priorityLabel(tarefa.prioridade_task)}
+																		</span>
+																		{tarefa.bloqueada ? (
+																			<span className="rounded bg-rose-100 px-2 py-1" style={{ color: "#aa2d48" }}>
+																				Bloqueada
+																			</span>
+																		) : null}
+																	</div>
+
+																	<p className="text-sm" style={{ color: "var(--cor-logo2)" }}>
+																		Resp.: {tarefa.responsavel?.nome ?? "Nao definido"}
+																	</p>
+																	<div className="mt-2 flex items-center gap-1">
+																		{(tarefa.relacionados ?? []).slice(0, 5).map((usuario) => (
+																			<AvatarPill key={`${tarefa.id_tarefa}-${usuario.id_usuario}`} usuario={usuario} size={30} />
+																		))}
+																		{(tarefa.relacionados ?? []).length > 5 ? (
+																			<span className="rounded-full border px-2 py-1 text-sm" style={{ color: "#4b5f75", borderColor: "#c6d0db" }}>
+																				+{(tarefa.relacionados ?? []).length - 5}
+																			</span>
+																		) : null}
+																	</div>
+																	<div className="mt-2">
+																		<div className="mb-1 flex items-center justify-between text-sm" style={{ color: "var(--cor-logo2)" }}>
+																			<span>Progresso</span>
+																			<span>{coluna.progresso}%</span>
+																		</div>
+																		<div className="h-2 rounded bg-slate-200">
+																			<div
+																				className="h-2 rounded"
+																				style={{ width: `${coluna.progresso}%`, backgroundColor: "#4e7ad8" }}
+																			/>
+																		</div>
+																	</div>
+
+																	{tarefa.descricao ? (
+																		<p className="mt-2 line-clamp-3 text-sm" style={{ color: "var(--cor-logo2)" }}>
+																			{tarefa.descricao}
+																		</p>
+																	) : null}
+																</div>
+															</article>
+														))}
+
+														{tasksDaColuna.length === 0 ? (
+															<p className="text-base" style={{ color: "var(--cor-logo2)" }}>
+																Sem cards nesta coluna.
+															</p>
+														) : null}
+													</div>
+												</section>
+											);
+										})}
+									</div>
+								)}
+							</div>
+						) : (
 						<div className="flex gap-4 overflow-x-auto pb-3">
 					{visibleBoardColumns.map((column) => (
 						<section
@@ -2035,6 +2760,7 @@ export default function Projetos() {
 							</div>
 						) : null}
 						</div>
+						)}
 
 						{movingTaskId ? (
 							<p className="text-base" style={{ color: "var(--cor-logo2)" }}>
@@ -2043,6 +2769,129 @@ export default function Projetos() {
 						) : null}
 					</>
 				)}
+
+				{isColunaModalOpen ? (
+					<div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/45 p-4 backdrop-blur-[3px] animate-fade-in">
+						<form
+							onSubmit={submitColuna}
+							className="w-full max-w-md rounded-2xl border p-6 shadow-2xl animate-pop-in"
+							style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-widgets)" }}
+						>
+							<div className="mb-4 flex items-center justify-between">
+								<h2 className="text-lg font-semibold" style={{ color: "var(--cor-logo)" }}>
+									{editingColuna ? "Editar coluna" : "Nova coluna"}
+								</h2>
+								<button
+									type="button"
+									onClick={closeColunaModal}
+									className="rounded-lg border p-1.5 transition hover:shadow-md"
+									style={{ borderColor: "var(--cor-borda)" }}
+								>
+									<X size={14} style={{ color: "var(--cor-logo2)" }} />
+								</button>
+							</div>
+
+							<div className="space-y-3">
+								<label className="flex flex-col gap-1 text-sm" style={{ color: "var(--cor-logo)" }}>
+									Nome da coluna
+									<input
+										required
+										value={colunaForm.nome}
+										onChange={(e) => setColunaForm((c) => ({ ...c, nome: e.target.value }))}
+										placeholder="Ex.: Em revisao"
+										className="rounded-xl border px-4 py-2.5 text-base shadow-sm outline-none transition focus:ring-2"
+										style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-fundo)", color: "var(--cor-logo)" }}
+									/>
+								</label>
+
+								<label className="flex flex-col gap-1 text-sm" style={{ color: "var(--cor-logo)" }}>
+									Progresso associado (%)
+									<input
+										required
+										type="number"
+										min={0}
+										max={100}
+										value={colunaForm.progresso}
+										onChange={(e) => setColunaForm((c) => ({ ...c, progresso: e.target.value }))}
+										className="rounded-xl border px-4 py-2.5 text-base shadow-sm outline-none transition focus:ring-2"
+										style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-fundo)", color: "var(--cor-logo)" }}
+									/>
+								</label>
+
+								<label className="flex items-center gap-2 text-sm" style={{ color: "var(--cor-logo)" }}>
+									<input
+										type="checkbox"
+										checked={colunaForm.arquiva_ao_concluir}
+										onChange={(e) => setColunaForm((c) => ({ ...c, arquiva_ao_concluir: e.target.checked }))}
+									/>
+									Mover card para o historico ao entrar nesta coluna
+								</label>
+							</div>
+
+							<div className="mt-5 flex justify-end gap-2">
+								<button
+									type="button"
+									onClick={closeColunaModal}
+									className="rounded-xl border px-4 py-2 text-sm"
+									style={{ borderColor: "var(--cor-borda)", color: "var(--cor-logo)" }}
+								>
+									Cancelar
+								</button>
+								<button
+									type="submit"
+									disabled={savingColuna}
+									className="rounded-xl border px-4 py-2 text-sm font-medium"
+									style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-botao)", color: "var(--cor-logo)" }}
+								>
+									{savingColuna ? "Salvando..." : editingColuna ? "Salvar" : "Criar coluna"}
+								</button>
+							</div>
+						</form>
+					</div>
+				) : null}
+
+				{deletingColuna ? (
+					<div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/45 p-4 backdrop-blur-[3px] animate-fade-in">
+						<div
+							className="w-full max-w-md rounded-2xl border p-6 shadow-2xl animate-pop-in"
+							style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-widgets)" }}
+						>
+							<div className="mb-4 flex items-center justify-between">
+								<h2 className="text-lg font-semibold" style={{ color: "#9f2f2f" }}>Excluir coluna</h2>
+								<button
+									type="button"
+									onClick={() => setDeletingColuna(null)}
+									className="rounded-lg border p-1.5 transition hover:shadow-md"
+									style={{ borderColor: "var(--cor-borda)" }}
+								>
+									<X size={14} style={{ color: "var(--cor-logo2)" }} />
+								</button>
+							</div>
+							<p className="mb-5 text-sm" style={{ color: "var(--cor-logo)" }}>
+								Tem certeza que deseja excluir a coluna <strong>{deletingColuna.nome}</strong>? Os cards dela ficam sem coluna definida.
+							</p>
+							<div className="flex justify-end gap-2">
+								<button
+									type="button"
+									onClick={() => setDeletingColuna(null)}
+									className="rounded-xl border px-4 py-2 text-sm"
+									style={{ borderColor: "var(--cor-borda)", color: "var(--cor-logo)" }}
+								>
+									Cancelar
+								</button>
+								<button
+									type="button"
+									onClick={() => void confirmDeleteColuna()}
+									disabled={deletingColunaId === deletingColuna.id_coluna}
+									className="rounded-xl border px-4 py-2 text-sm font-semibold text-white transition-all duration-200 hover:-translate-y-px hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60"
+									style={{ borderColor: "#9f2a21", background: "linear-gradient(140deg, #c43a2f 0%, #a42c22 100%)" }}
+								>
+									{deletingColunaId === deletingColuna.id_coluna ? "Excluindo..." : "Confirmar exclusão"}
+								</button>
+							</div>
+						</div>
+					</div>
+				) : null}
 
 				{isSprintModalOpen && isAdmin ? (
 					<div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/45 p-4 backdrop-blur-[3px] animate-fade-in">
@@ -2116,25 +2965,17 @@ export default function Projetos() {
 
 									<label className="flex flex-col gap-1 text-sm" style={{ color: "var(--cor-logo)" }}>
 										<span className="inline-flex items-center">Data de inicio<RequiredMark show={attemptedSprintSubmit && !sprintForm.data_inicio} /></span>
-										<input
-											required
-											type="date"
+										<DatePicker
 											value={sprintForm.data_inicio}
-											onChange={(e) => setSprintForm((c) => ({ ...c, data_inicio: e.target.value }))}
-											className="rounded-xl border px-4 py-3 text-base shadow-sm outline-none transition focus:ring-2"
-											style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-widgets)", color: "var(--cor-logo)" }}
+											onChange={(v) => setSprintForm((c) => ({ ...c, data_inicio: v }))}
 										/>
 									</label>
 
 									<label className="flex flex-col gap-1 text-sm" style={{ color: "var(--cor-logo)" }}>
 										<span className="inline-flex items-center">Data de finalizacao<RequiredMark show={attemptedSprintSubmit && !sprintForm.data_fim} /></span>
-										<input
-											required
-											type="date"
+										<DatePicker
 											value={sprintForm.data_fim}
-											onChange={(e) => setSprintForm((c) => ({ ...c, data_fim: e.target.value }))}
-											className="rounded-xl border px-4 py-3 text-base shadow-sm outline-none transition focus:ring-2"
-											style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-widgets)", color: "var(--cor-logo)" }}
+											onChange={(v) => setSprintForm((c) => ({ ...c, data_fim: v }))}
 										/>
 									</label>
 
@@ -2222,6 +3063,46 @@ export default function Projetos() {
 										style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-widgets)", color: "var(--cor-logo)" }}
 									/>
 								</label>
+
+								{!editingProjectId && (
+									<div className="flex flex-col gap-2 text-base md:col-span-2">
+										<span style={{ color: "var(--cor-logo)" }}>Criar com quadro Kanban?</span>
+										<div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+											<button
+												type="button"
+												onClick={() => setProjectForm((c) => ({ ...c, kanban_padrao: true }))}
+												className="rounded-xl border p-3 text-left transition hover:-translate-y-0.5"
+												style={{
+													borderColor: projectForm.kanban_padrao ? "var(--cor-accent)" : "var(--cor-borda)",
+													backgroundColor: projectForm.kanban_padrao
+														? "color-mix(in srgb, var(--cor-accent) 14%, var(--cor-widgets))"
+														: "var(--cor-widgets)",
+												}}
+											>
+												<p className="text-sm font-semibold" style={{ color: "var(--cor-logo)" }}>Sim, com colunas padrão</p>
+												<p className="mt-0.5 text-xs" style={{ color: "var(--cor-logo2)" }}>
+													O projeto ja comeca com Backlog, To Do, Doing, Teste e Aprovado.
+												</p>
+											</button>
+											<button
+												type="button"
+												onClick={() => setProjectForm((c) => ({ ...c, kanban_padrao: false }))}
+												className="rounded-xl border p-3 text-left transition hover:-translate-y-0.5"
+												style={{
+													borderColor: !projectForm.kanban_padrao ? "var(--cor-accent)" : "var(--cor-borda)",
+													backgroundColor: !projectForm.kanban_padrao
+														? "color-mix(in srgb, var(--cor-accent) 14%, var(--cor-widgets))"
+														: "var(--cor-widgets)",
+												}}
+											>
+												<p className="text-sm font-semibold" style={{ color: "var(--cor-logo)" }}>Nao, vou criar as colunas</p>
+												<p className="mt-0.5 text-xs" style={{ color: "var(--cor-logo2)" }}>
+													O projeto comeca sem colunas. Voce configura do seu jeito depois.
+												</p>
+											</button>
+										</div>
+									</div>
+								)}
 							</div>
 
 							<div className="mt-5 flex justify-end gap-3">
@@ -2449,14 +3330,26 @@ export default function Projetos() {
 									/>
 								</label>
 
-								<label className="flex flex-col gap-1 text-base" style={{ color: "var(--cor-logo)" }}>
-									Status
-									<CustomSelect
-										value={form.status_task}
-										onChange={(v) => setForm((c) => ({ ...c, status_task: v as BoardStatus }))}
-										options={STATUS_COLUMNS.map((status) => ({ value: status.key, label: status.label }))}
-									/>
-								</label>
+								{selectedProject?.kanban_padrao === false ? (
+									<label className="flex flex-col gap-1 text-base" style={{ color: "var(--cor-logo)" }}>
+										Coluna
+										<CustomSelect
+											value={form.id_coluna}
+											onChange={(v) => setForm((c) => ({ ...c, id_coluna: v }))}
+											options={colunasCustom.map((c) => ({ value: String(c.id_coluna), label: c.nome }))}
+											placeholder={colunasCustom.length === 0 ? "Crie uma coluna primeiro" : "Selecione"}
+										/>
+									</label>
+								) : (
+									<label className="flex flex-col gap-1 text-base" style={{ color: "var(--cor-logo)" }}>
+										Status
+										<CustomSelect
+											value={form.status_task}
+											onChange={(v) => setForm((c) => ({ ...c, status_task: v as BoardStatus }))}
+											options={STATUS_COLUMNS.map((status) => ({ value: status.key, label: status.label }))}
+										/>
+									</label>
+								)}
 
 							</div>
 
@@ -2496,19 +3389,7 @@ export default function Projetos() {
 										</button>
 									) : null}
 								</div>
-								<div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-									{usuarios.map((usuario) => (
-										<label key={usuario.id_usuario} className="flex items-center gap-2 text-base" style={{ color: "var(--cor-logo)" }}>
-											<input
-												type="checkbox"
-												checked={form.relacionados.includes(usuario.id_usuario)}
-												onChange={() => onToggleRelacionado(usuario.id_usuario)}
-											/>
-											<AvatarPill usuario={usuario} size={22} />
-											{usuario.nome}
-										</label>
-									))}
-								</div>
+								<RelatedPeoplePicker usuarios={usuarios} selectedIds={form.relacionados} onToggle={onToggleRelacionado} />
 							</div>
 
 							<div className="mt-6 flex justify-end gap-3">
@@ -2626,15 +3507,27 @@ export default function Projetos() {
 										/>
 									</label>
 
-									<label className="flex flex-col gap-1 text-sm font-medium" style={{ color: "var(--cor-logo)" }}>
-										Status
-										<CustomSelect
-											disabled={!isEditingDetails}
-											value={detailsForm.status_task}
-											onChange={(v) => setDetailsForm((c) => ({ ...c, status_task: v as BoardStatus }))}
-											options={STATUS_COLUMNS.map((s) => ({ value: s.key, label: s.label }))}
-										/>
-									</label>
+									{selectedProject?.kanban_padrao === false ? (
+										<label className="flex flex-col gap-1 text-sm font-medium" style={{ color: "var(--cor-logo)" }}>
+											Coluna
+											<CustomSelect
+												disabled={!isEditingDetails}
+												value={detailsForm.id_coluna}
+												onChange={(v) => setDetailsForm((c) => ({ ...c, id_coluna: v }))}
+												options={colunasCustom.map((c) => ({ value: String(c.id_coluna), label: c.nome }))}
+											/>
+										</label>
+									) : (
+										<label className="flex flex-col gap-1 text-sm font-medium" style={{ color: "var(--cor-logo)" }}>
+											Status
+											<CustomSelect
+												disabled={!isEditingDetails}
+												value={detailsForm.status_task}
+												onChange={(v) => setDetailsForm((c) => ({ ...c, status_task: v as BoardStatus }))}
+												options={STATUS_COLUMNS.map((s) => ({ value: s.key, label: s.label }))}
+											/>
+										</label>
+									)}
 								</div>
 
 								{/* Badges de prioridade e tipo */}
@@ -2716,18 +3609,8 @@ export default function Projetos() {
 									)}
 
 									{isEditingDetails ? (
-										<div className="mt-3 grid grid-cols-1 gap-1.5 md:grid-cols-2">
-											{usuarios.map((usuario) => (
-												<label key={usuario.id_usuario} className="flex items-center gap-2 text-sm" style={{ color: "var(--cor-logo)" }}>
-													<input
-														type="checkbox"
-														checked={detailsForm.relacionados.includes(usuario.id_usuario)}
-														onChange={() => onToggleRelacionadoDetails(usuario.id_usuario)}
-													/>
-													<AvatarPill usuario={usuario} size={22} />
-													{usuario.nome}
-												</label>
-											))}
+										<div className="mt-3">
+											<RelatedPeoplePicker usuarios={usuarios} selectedIds={detailsForm.relacionados} onToggle={onToggleRelacionadoDetails} />
 										</div>
 									) : null}
 								</div>

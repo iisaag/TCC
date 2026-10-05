@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\BoardColuna;
 use App\Models\Projeto;
 use App\Support\Notificacoes;
 use Illuminate\Http\JsonResponse;
@@ -50,6 +51,23 @@ class ProjetosController extends Controller
             $table->dateTime('excluido_em');
             $table->dateTime('expira_em')->index();
         });
+    }
+
+    private const COLUNAS_PADRAO = [
+        ['nome' => 'To Do', 'progresso' => 0, 'ordem' => 1, 'arquiva_ao_concluir' => false],
+        ['nome' => 'Doing', 'progresso' => 50, 'ordem' => 2, 'arquiva_ao_concluir' => false],
+        ['nome' => 'Teste', 'progresso' => 75, 'ordem' => 3, 'arquiva_ao_concluir' => false],
+        ['nome' => 'Aprovado', 'progresso' => 100, 'ordem' => 4, 'arquiva_ao_concluir' => true],
+    ];
+
+    private function seedColunasPadrao(Projeto $projeto): void
+    {
+        foreach (self::COLUNAS_PADRAO as $coluna) {
+            BoardColuna::create([
+                'id_projeto' => $projeto->id_projeto,
+                ...$coluna,
+            ]);
+        }
     }
 
     private function normalizarPrioridadeProjeto(mixed $value): ?string
@@ -147,9 +165,17 @@ class ProjetosController extends Controller
             'status_projeto'  => 'nullable|string',
             'prioridade_proj' => 'nullable|string|in:BAIXA,MEDIA,ALTA',
             'id_responsavel'  => 'nullable|integer|exists:usuarios,id_usuario',
+            'kanban_padrao'   => 'nullable|boolean',
         ]);
 
+        $criarColunasPadrao = (bool) ($validated['kanban_padrao'] ?? true);
+        $validated['kanban_padrao'] = $criarColunasPadrao;
+
         $projeto = Projeto::create($validated);
+
+        if ($criarColunasPadrao) {
+            $this->seedColunasPadrao($projeto);
+        }
 
         $nomeProjeto = trim((string) $projeto->nome_projeto);
 

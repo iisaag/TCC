@@ -25,6 +25,7 @@ class Tarefa extends Model
         'prazo',
         'status_task',
         'em_historico',
+        'id_coluna',
     ];
 
     protected $casts = [
@@ -58,6 +59,11 @@ class Tarefa extends Model
     public function sprint()
     {
         return $this->belongsTo(Sprint::class, 'id_sprint', 'id_sprint');
+    }
+
+    public function coluna()
+    {
+        return $this->belongsTo(BoardColuna::class, 'id_coluna', 'id_coluna');
     }
 
     public function responsavel()
