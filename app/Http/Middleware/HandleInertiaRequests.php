@@ -136,6 +136,7 @@ class HandleInertiaRequests extends Middleware
                     'profileTags' => $usuario->perfil_tags,
                     'profileBio' => $usuario->perfil_sobre,
                     'avatar' => $usuario->foto_perfil ?: null,
+                    'bannerColor' => $usuario->cor_banner ?: null,
                     'status' => ($isOnline && $customStatus !== 'offline') ? $customStatus : 'offline',
                     'is_admin' => $isAdmin,
                     'id_equipe' => $usuario->id_equipe,

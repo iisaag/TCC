@@ -19,6 +19,7 @@ class Usuario extends Model
         'perfil_tags',
         'perfil_sobre',
         'foto_perfil',
+        'cor_banner',
         'cargo',
         'nivel',
         'status_atual',

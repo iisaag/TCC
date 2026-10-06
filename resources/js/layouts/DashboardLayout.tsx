@@ -50,6 +50,7 @@ interface ActiveUser {
     profileTags?: string | null;
     profileBio?: string | null;
     avatar?: string;
+    bannerColor?: string | null;
 }
 
 function resolveAvatarUrl(avatar?: string | null): string | undefined {
@@ -148,6 +149,7 @@ export default function DashboardLayout({ children, currentPage }: DashboardLayo
                     profileTags: usuario.profileTags,
                     profileBio: usuario.profileBio,
                     avatar: resolveAvatarUrl(usuario.avatar),
+                    bannerColor: usuario.bannerColor ?? null,
                 }));
 
                 if (mappedUsers.length > 0) {
@@ -232,6 +234,7 @@ export default function DashboardLayout({ children, currentPage }: DashboardLayo
                 profileTags: usuario.profileTags,
                 profileBio: usuario.profileBio,
                 avatar: resolveAvatarUrl(usuario.avatar),
+                bannerColor: usuario.bannerColor ?? null,
             }));
 
             setActiveUsers(mappedUsers);

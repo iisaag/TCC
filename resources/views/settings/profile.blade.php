@@ -21,6 +21,8 @@
         $locationParts = array_values(array_filter(array_map('trim', explode(',', (string) $savedLocation))));
         $locationUf = count($locationParts) > 1 ? array_pop($locationParts) : '';
         $locationAddress = implode(', ', $locationParts);
+        $savedBannerColor = old('cor_banner', $user['cor_banner'] ?? '') ?: '#2563eb';
+        $bannerPresets = ['#2563eb', '#7c3aed', '#0d9488', '#16a34a', '#f97316', '#db2777', '#dc2626', '#475569'];
     @endphp
 
     <main class="mx-auto w-full max-w-[920px] space-y-6">
@@ -119,6 +121,52 @@
         </section>
 
         <section class="rounded-3xl border border-[#d5dbe8] bg-[#f5f7fc] p-6 shadow-[0_2px_8px_rgba(15,23,42,0.08)] dark:border-[#2d4353] dark:bg-[#1c2a35] dark:shadow-[0_2px_10px_rgba(0,0,0,0.35)]">
+            <h2 class="mb-4 text-2xl font-semibold text-[#0a1730] dark:text-[#d8ecfb]">Banner do perfil</h2>
+            <p class="mb-5 text-sm text-[#60789e] dark:text-[#9cc4df]">Escolha a cor de fundo do seu banner. Ele aparece com o nome do site estampado sempre que alguém abrir seu perfil.</p>
+
+            <div
+                id="banner-preview"
+                class="relative mb-5 h-24 w-full overflow-hidden rounded-2xl"
+                style="background-color: {{ $savedBannerColor }};"
+            >
+                <div class="pointer-events-none absolute inset-0 flex items-center gap-6 overflow-hidden select-none">
+                    @for ($i = 0; $i < 5; $i++)
+                        <span class="font-aclonica whitespace-nowrap text-3xl font-bold text-white/20">AivyPM</span>
+                    @endfor
+                </div>
+            </div>
+
+            <form method="POST" action="/settings/banner" id="banner-form">
+                @csrf
+                <input type="hidden" name="cor_banner" id="cor_banner_input" value="{{ $savedBannerColor }}">
+
+                <div class="flex flex-wrap items-center gap-3">
+                    @foreach ($bannerPresets as $preset)
+                        <button
+                            type="button"
+                            data-banner-preset="{{ $preset }}"
+                            class="banner-swatch h-10 w-10 rounded-full border-2 transition hover:scale-110 {{ strcasecmp($savedBannerColor, $preset) === 0 ? 'border-[#0a1730] dark:border-white' : 'border-transparent' }}"
+                            style="background-color: {{ $preset }};"
+                            aria-label="Usar cor {{ $preset }}"
+                        ></button>
+                    @endforeach
+
+                    <label class="relative flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border-2 border-dashed border-[#c9d5e6] text-[#60789e] dark:border-[#2d4353] dark:text-[#9cc4df]" title="Escolher outra cor">
+                        <svg aria-hidden="true" viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 5v14" />
+                            <path d="M5 12h14" />
+                        </svg>
+                        <input type="color" id="banner-color-picker" value="{{ $savedBannerColor }}" class="absolute inset-0 h-full w-full cursor-pointer opacity-0">
+                    </label>
+
+                    <button type="submit" class="ml-auto inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-[#2f6ae8] px-6 text-sm font-semibold text-white shadow-[0_8px_22px_rgba(47,106,232,0.35)] transition hover:bg-[#2459cb] dark:bg-[#3a87bb] dark:hover:bg-[#326f98]">
+                        Salvar banner
+                    </button>
+                </div>
+            </form>
+        </section>
+
+        <section class="rounded-3xl border border-[#d5dbe8] bg-[#f5f7fc] p-6 shadow-[0_2px_8px_rgba(15,23,42,0.08)] dark:border-[#2d4353] dark:bg-[#1c2a35] dark:shadow-[0_2px_10px_rgba(0,0,0,0.35)]">
             <h2 class="mb-6 text-2xl font-semibold text-[#0a1730] dark:text-[#d8ecfb]">Informações pessoais</h2>
 
             <form class="space-y-6" method="POST" action="/settings/contato" id="contact-form">
@@ -202,6 +250,46 @@
         });
 
         syncThemeToggle();
+
+        const bannerPreview = document.getElementById('banner-preview');
+        const bannerColorInput = document.getElementById('cor_banner_input');
+        const bannerColorPicker = document.getElementById('banner-color-picker');
+        const bannerSwatches = document.querySelectorAll('[data-banner-preset]');
+
+        const setBannerColor = (color) => {
+            if (bannerPreview) {
+                bannerPreview.style.backgroundColor = color;
+            }
+
+            if (bannerColorInput) {
+                bannerColorInput.value = color;
+            }
+
+            bannerSwatches.forEach((swatch) => {
+                const isActive = swatch.getAttribute('data-banner-preset')?.toLowerCase() === color.toLowerCase();
+                swatch.classList.toggle('border-[#0a1730]', isActive);
+                swatch.classList.toggle('dark:border-white', isActive);
+                swatch.classList.toggle('border-transparent', !isActive);
+            });
+        };
+
+        bannerSwatches.forEach((swatch) => {
+            swatch.addEventListener('click', () => {
+                const color = swatch.getAttribute('data-banner-preset');
+
+                if (color) {
+                    setBannerColor(color);
+
+                    if (bannerColorPicker) {
+                        bannerColorPicker.value = color;
+                    }
+                }
+            });
+        });
+
+        bannerColorPicker?.addEventListener('input', () => {
+            setBannerColor(bannerColorPicker.value);
+        });
 
         const fileInput = document.getElementById('foto_arquivo');
         const hiddenPhotoInput = document.getElementById('foto_perfil');

@@ -31,6 +31,7 @@ interface ActiveUser {
     profileTags?: string | null;
     profileBio?: string | null;
     avatar?: string;       // URL da foto. Se não tiver, mostra as iniciais.
+    bannerColor?: string | null;
 }
 
 interface ActiveUsersProps {

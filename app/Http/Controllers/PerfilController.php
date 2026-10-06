@@ -34,6 +34,7 @@ class PerfilController extends Controller
                 'perfil_sobre' => $usuario->perfil_sobre,
                 'role' => $authUser['role'] ?? null,
                 'avatar' => $usuario->foto_perfil,
+                'cor_banner' => $usuario->cor_banner,
             ],
             'success' => $request->session()->get('success'),
             'error' => $request->session()->get('error'),
@@ -80,6 +81,30 @@ class PerfilController extends Controller
         $usuario->save();
 
         return back()->with('success', 'Informações de contato atualizadas com sucesso.');
+    }
+
+    public function updateBanner(Request $request): RedirectResponse
+    {
+        $authUser = $request->session()->get('auth.user');
+
+        if (! is_array($authUser) || ! isset($authUser['id'])) {
+            return redirect()->route('login');
+        }
+
+        $validated = $request->validate([
+            'cor_banner' => ['nullable', 'regex:/^#[0-9A-Fa-f]{6}$/'],
+        ]);
+
+        $usuario = Usuario::find($authUser['id']);
+
+        if (! $usuario) {
+            return redirect()->route('login');
+        }
+
+        $usuario->cor_banner = $validated['cor_banner'] ?? null;
+        $usuario->save();
+
+        return back()->with('success', 'Cor do banner atualizada com sucesso.');
     }
 
     public function updatePhoto(Request $request): RedirectResponse
