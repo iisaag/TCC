@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Cargo;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 
 class CargosController extends Controller
@@ -76,7 +77,9 @@ class CargosController extends Controller
         }
 
         $validated = $request->validate([
-            'nome_cargo' => 'required|string|min:2|max:100',
+            'nome_cargo' => 'required|string|min:2|max:100|unique:cargos,nome_cargo,' . $cargo->id_cargo . ',id_cargo',
+        ], [
+            'nome_cargo.unique' => 'Já existe um cargo com este nome.',
         ]);
 
         $cargo->update($validated);
@@ -97,6 +100,15 @@ class CargosController extends Controller
                 'success' => false,
                 'message' => 'Cargo não encontrado',
             ], 404);
+        }
+
+        $emUso = DB::table('usuarios')->where('cargo', $cargo->nome_cargo)->count();
+
+        if ($emUso > 0) {
+            return response()->json([
+                'success' => false,
+                'message' => "Não é possível excluir o cargo \"{$cargo->nome_cargo}\": {$emUso} funcionário(s) ainda usam este cargo. Altere o cargo deles antes de excluir.",
+            ], 422);
         }
 
         $cargo->delete();

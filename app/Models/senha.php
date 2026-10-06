@@ -19,6 +19,10 @@ class Senha extends Model
         'nivel_acesso',
     ];
 
+    protected $hidden = [
+        'senha',
+    ];
+
     public function setSenhaAttribute(string $value): void
     {
         $this->attributes['senha'] = Hash::needsRehash($value) ? Hash::make($value) : $value;

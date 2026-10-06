@@ -273,7 +273,7 @@ class UsuariosController extends Controller
         ]);
     }
 
-    public function destroy(int $id): JsonResponse
+    public function destroy(Request $request, int $id): JsonResponse
     {
         $usuario = Usuario::find($id);
 
@@ -282,6 +282,15 @@ class UsuariosController extends Controller
                 'success' => false,
                 'message' => 'Usuário não encontrado',
             ], 404);
+        }
+
+        $bloqueio = $this->deletionBlocker($request, $usuario);
+
+        if ($bloqueio !== null) {
+            return response()->json([
+                'success' => false,
+                'message' => $bloqueio,
+            ], 422);
         }
 
         try {
@@ -347,6 +356,15 @@ class UsuariosController extends Controller
                     UserPresence::where('user_id', $userId)->delete();
                 }
 
+                if (Schema::hasTable('equipes') && Schema::hasColumn('equipes', 'criado_por')) {
+                    DB::table('equipes')->where('criado_por', $userId)->update(['criado_por' => null]);
+                }
+
+                if (Schema::hasTable('notificacoes_usuario')) {
+                    DB::table('notificacoes_usuario')->where('id_destinatario', $userId)->delete();
+                    DB::table('notificacoes_usuario')->where('id_autor', $userId)->update(['id_autor' => null]);
+                }
+
                 $usuario->delete();
             });
         } catch (QueryException $exception) {
@@ -360,6 +378,49 @@ class UsuariosController extends Controller
             'success' => true,
             'message' => 'Usuário excluído com sucesso',
         ]);
+    }
+
+    /**
+     * Retorna o motivo que impede a exclusão do usuário, ou null se puder excluir.
+     */
+    private function deletionBlocker(Request $request, Usuario $usuario): ?string
+    {
+        $userId = (int) $usuario->id_usuario;
+
+        if ((int) data_get($request->session()->get('auth.user'), 'id') === $userId) {
+            return 'Você não pode excluir o seu próprio usuário.';
+        }
+
+        if (Schema::hasTable('senha')) {
+            $ehAdm = Senha::query()->where('email', $usuario->email)->value('nivel_acesso') === 'adm';
+
+            if ($ehAdm && Senha::query()->where('nivel_acesso', 'adm')->count() <= 1) {
+                return 'Não é possível excluir o último administrador do sistema.';
+            }
+        }
+
+        if (Schema::hasTable('projetos')) {
+            $projetos = DB::table('projetos')
+                ->where('id_responsavel', $userId)
+                ->where(fn ($q) => $q->whereNull('status_projeto')->orWhere('status_projeto', '!=', '__EXCLUIDO_TEMP__'))
+                ->pluck('nome_projeto');
+
+            if ($projetos->isNotEmpty()) {
+                return 'Este funcionário é responsável pelo(s) projeto(s): ' . $projetos->implode(', ')
+                    . '. Defina outro responsável antes de excluir.';
+            }
+        }
+
+        if (Schema::hasTable('equipes') && Schema::hasColumn('equipes', 'id_lider')) {
+            $equipes = DB::table('equipes')->where('id_lider', $userId)->pluck('nome');
+
+            if ($equipes->isNotEmpty()) {
+                return 'Este funcionário é líder da(s) equipe(s): ' . $equipes->implode(', ')
+                    . '. Defina outro líder antes de excluir.';
+            }
+        }
+
+        return null;
     }
 
     public function deletedHistory(): JsonResponse

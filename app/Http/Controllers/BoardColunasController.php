@@ -116,13 +116,16 @@ class BoardColunasController extends Controller
             ], 404);
         }
 
-        DB::transaction(function () use ($coluna): void {
-            DB::table('tarefas')
-                ->where('id_coluna', $coluna->id_coluna)
-                ->update(['id_coluna' => null]);
+        $tarefas = DB::table('tarefas')->where('id_coluna', $coluna->id_coluna)->count();
 
-            $coluna->delete();
-        });
+        if ($tarefas > 0) {
+            return response()->json([
+                'success' => false,
+                'message' => "Não é possível excluir a coluna \"{$coluna->nome}\": ela possui {$tarefas} tarefa(s). Mova as tarefas para outra coluna antes de excluir.",
+            ], 422);
+        }
+
+        $coluna->delete();
 
         return response()->json([
             'success' => true,

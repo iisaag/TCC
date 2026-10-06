@@ -2070,7 +2070,8 @@ export default function Projetos() {
 			});
 
 			if (!response.ok) {
-				throw new Error("Nao foi possivel excluir a coluna.");
+				const payloadError = (await response.json().catch(() => null)) as { message?: string } | null;
+				throw new Error(payloadError?.message || "Nao foi possivel excluir a coluna.");
 			}
 
 			setDeletingColuna(null);

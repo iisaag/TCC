@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Equipe;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class EquipesController extends Controller
 {
@@ -185,7 +186,20 @@ class EquipesController extends Controller
             ], 404);
         }
 
-        $equipe->delete();
+        $subequipes = DB::table('equipes')->where('equipe_pai', $equipe->id_equipe)->pluck('nome');
+
+        if ($subequipes->isNotEmpty()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Não é possível excluir esta equipe porque ela possui subequipes: '
+                    . $subequipes->implode(', ') . '. Exclua ou mova as subequipes antes.',
+            ], 422);
+        }
+
+        DB::transaction(function () use ($equipe): void {
+            DB::table('usuarios')->where('id_equipe', $equipe->id_equipe)->update(['id_equipe' => null]);
+            $equipe->delete();
+        });
 
         return response()->json([
             'success' => true,

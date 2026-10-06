@@ -52,7 +52,7 @@ CREATE TABLE usuarios (
     id_equipe INT DEFAULT NULL,
     data_criacao DATETIME DEFAULT CURRENT_TIMESTAMP,
 
-    FOREIGN KEY (cargo) REFERENCES cargos(nome_cargo)
+    FOREIGN KEY (cargo) REFERENCES cargos(nome_cargo) ON UPDATE CASCADE
 ) ENGINE=InnoDB;
 
 -- =====================================================
@@ -366,14 +366,15 @@ VALUES
 -- =====================================================
 -- SENHAS
 -- =====================================================
+-- senhas originais (hash bcrypt): belli=123, ana=0809, bela=0906, bruno=2222, carla=3333, daniel=4444, eva=5555
 INSERT INTO senha VALUES
-('belli@ivyteam.com','123','adm'),
-('ana@ivyteam.com','0809','adm'),
-('bela@ivyteam.com','0906','adm'),
-('bruno@ivyteam.com','2222','adm'),
-('carla@ivyteam.com','3333','usuario'),
-('daniel@ivyteam.com','4444','adm'),
-('eva@ivyteam.com','5555','usuario');
+('belli@ivyteam.com','$2y$10$.zl9R8NJxNBsYaXjUQlIQOfh0/.jmJ/mhRYLy0Cm3Bhd1q9sq3M1C','adm'),
+('ana@ivyteam.com','$2y$10$QjB.GWn4yGMJ2G/qrBq8ReQ1jTWbegnsRd/qrbiH3CcNTG/Vjc7h.','adm'),
+('bela@ivyteam.com','$2y$10$AJvaTaQSQ6jA7iMgX5/SXOHrDATnmkWk7hxszP5/9Qb6seQO79eK2','adm'),
+('bruno@ivyteam.com','$2y$10$tIcDN2FJPMXnXM8tVPrSZeIZVz9Yt/S2.npqDm5eDzNtBx2xblzYu','adm'),
+('carla@ivyteam.com','$2y$10$/DSFSWUQ1dpYE3WRmgXVT./0F4mlc2HjfWMUSdkeVO2Woe3cpEyha','usuario'),
+('daniel@ivyteam.com','$2y$10$K.Etu5EUD32cz6X7RmoGf.0uvJc7gOPM0fPa53YLLO7sWzOkuKIYW','adm'),
+('eva@ivyteam.com','$2y$10$IcAKFpfI4mwTPx7gRKHitOU19.CmHroJTqRW6wYncDPBMI38USZ/6','usuario');
 
 -- =====================================================
 -- EQUIPES

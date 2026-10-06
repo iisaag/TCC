@@ -162,49 +162,27 @@ class SenhaController extends Controller
             'senha' => 'required|string',
         ]);
 
-        $hasSenhaTable = Schema::hasTable('senha');
-        $hasUsuariosTable = Schema::hasTable('usuarios');
-
-        if (! $hasUsuariosTable) {
+        if (! Schema::hasTable('usuarios') || ! Schema::hasTable('senha')) {
             return back()->withErrors([
                 'email' => 'Base de usuários não está disponível no ambiente atual.',
             ]);
         }
 
-        $registro = $hasSenhaTable ? Senha::with('usuario')->find($validated['email']) : null;
+        $registro = Senha::with('usuario')->find($validated['email']);
+        $usuario = $registro?->usuario ?? Usuario::query()->where('email', $validated['email'])->first();
 
-        if ($hasSenhaTable) {
-            $usuario = $registro?->usuario ?? Usuario::query()->where('email', $validated['email'])->first();
-
-            if (! $registro || ! $this->senhaConfere($validated['senha'], $registro->senha) || ! $usuario) {
-                return back()->withErrors([
-                    'email' => $registro && $this->senhaConfere($validated['senha'], $registro->senha)
-                        ? 'Usuário não encontrado na tabela usuarios.'
-                        : 'Credenciais inválidas',
-                ]);
-            }
-
-            $nivelAcessoOriginal = (string) $registro->nivel_acesso;
-        } else {
-            $usuario = Usuario::query()->where('email', $validated['email'])->first();
-
-            if (! $usuario) {
-                return back()->withErrors([
-                    'email' => 'Usuário não encontrado neste ambiente local.',
-                ]);
-            }
-
-            if ($validated['senha'] !== '123') {
-                return back()->withErrors([
-                    'email' => 'Credenciais inválidas',
-                ]);
-            }
-
-            $nivelAcessoOriginal = 'adm';
+        if (! $registro || ! $this->senhaConfere($validated['senha'], $registro->senha) || ! $usuario) {
+            return back()->withErrors([
+                'email' => $registro && $this->senhaConfere($validated['senha'], $registro->senha)
+                    ? 'Usuário não encontrado na tabela usuarios.'
+                    : 'Credenciais inválidas',
+            ]);
         }
 
+        $nivelAcessoOriginal = (string) $registro->nivel_acesso;
+
         $nivelAcesso = strtolower($nivelAcessoOriginal);
-            $temPermissaoTotal = in_array($nivelAcesso, ['adm'], true);
+        $temPermissaoTotal = in_array($nivelAcesso, ['adm'], true);
         $cargoTexto = $usuario->getRawOriginal('cargo');
 
         $request->session()->regenerate();
@@ -280,6 +258,13 @@ class SenhaController extends Controller
                 'success' => false,
                 'message' => 'Registro não encontrado',
             ], 404);
+        }
+
+        if (Usuario::query()->where('email', $email)->exists()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Este acesso pertence a um funcionário ativo. Exclua o funcionário para remover o acesso.',
+            ], 422);
         }
 
         $registro->delete();
