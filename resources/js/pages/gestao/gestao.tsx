@@ -993,7 +993,7 @@ export default function GestaoPage() {
             const res = await fetch(`${apiRoutes.usuarios}/${deletingUser.id_usuario}`, {
                 method: "DELETE", headers: authHeaders,
             });
-            if (!res.ok) throw new Error(await readApiMessage(res, "Não foi possível excluir o funcionário."));
+            if (!res.ok) throw new Error(await readApiMessage(res, "Não foi possível desativar o funcionário."));
             if (deletingUser.email) {
                 await fetch(`${apiRoutes.senhas}/${encodeURIComponent(deletingUser.email)}`, {
                     method: "DELETE", headers: authHeaders,
@@ -1001,10 +1001,10 @@ export default function GestaoPage() {
             }
             setIsDeleteOpen(false);
             setDeletingUser(null);
-            setSuccess("Funcionário excluído com sucesso.");
+            setSuccess("Funcionário desativado com sucesso.");
             await fetchData();
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Não foi possível excluir o funcionário.");
+            setError(err instanceof Error ? err.message : "Não foi possível desativar o funcionário.");
         } finally {
             setDeletingUserId(null);
         }
@@ -1335,7 +1335,7 @@ export default function GestaoPage() {
                                     <button type="button" onClick={() => void openDeletedHistory()}
                                         className="inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-medium transition hover:-translate-y-0.5 hover:shadow-md"
                                         style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-botao)", color: "var(--cor-logo)" }}>
-                                        <History size={15} /> Histórico de excluídos
+                                        <History size={15} /> Histórico de usuários desativados
                                     </button>
                                     <button type="button" onClick={() => { setUserForm(EMPTY_USER_FORM); setIsCreateOpen(true); }}
                                         className="inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-medium transition hover:-translate-y-0.5 hover:shadow-md"
@@ -1411,8 +1411,8 @@ export default function GestaoPage() {
                                                                     <IconButton onClick={() => openEdit(user)} title="Editar">
                                                                         <Pencil size={14} />
                                                                     </IconButton>
-                                                                    <IconButton onClick={() => { setDeletingUser(user); setIsDeleteOpen(true); }} title="Excluir" danger>
-                                                                        <Trash2 size={14} />
+                                                                    <IconButton onClick={() => { setDeletingUser(user); setIsDeleteOpen(true); }} title="Desativar funcionário">
+                                                                        <UserMinus size={14} />
                                                                     </IconButton>
                                                                 </div>
                                                             </td>
@@ -1666,7 +1666,7 @@ export default function GestaoPage() {
                         <div className="w-full max-w-md rounded-2xl border p-6 shadow-2xl animate-pop-in"
                             style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-widgets)" }}>
                             <div className="mb-4 flex items-center justify-between">
-                                <h2 className="text-lg font-semibold" style={{ color: "#9f2f2f" }}>Excluir funcionário</h2>
+                                <h2 className="text-lg font-semibold" style={{ color: "var(--cor-logo)" }}>Desativar funcionário</h2>
                                 <button type="button" onClick={() => { setIsDeleteOpen(false); setDeletingUser(null); }}
                                     className="rounded-lg border p-1.5 transition hover:shadow-md"
                                     style={{ borderColor: "var(--cor-borda)" }}>
@@ -1674,7 +1674,7 @@ export default function GestaoPage() {
                                 </button>
                             </div>
                             <p className="mb-3 text-sm" style={{ color: "var(--cor-logo)" }}>
-                                Tem certeza que deseja excluir <strong>{deletingUser.nome}</strong>?
+                                Deseja desativar <strong>{deletingUser.nome}</strong>? Ele perderá o acesso e poderá ser restaurado pelo histórico durante 7 dias.
                             </p>
                             {(() => {
                                 const impacto = getImpactoExclusao(deletingUser);
@@ -1693,7 +1693,7 @@ export default function GestaoPage() {
                                 <button type="button" onClick={() => void onDeleteUser()} disabled={deletingUserId === deletingUser.id_usuario}
                                     className="rounded-xl border px-4 py-2 text-sm font-semibold text-white transition-all duration-200 hover:-translate-y-px hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60"
                                     style={{ borderColor: "#9f2a21", background: "linear-gradient(140deg, #c43a2f 0%, #a42c22 100%)" }}>
-                                    {deletingUserId === deletingUser.id_usuario ? "Excluindo..." : "Confirmar exclusão"}
+                                    {deletingUserId === deletingUser.id_usuario ? "Desativando..." : "Desativar funcionário"}
                                 </button>
                             </div>
                         </div>
@@ -1915,7 +1915,7 @@ export default function GestaoPage() {
                         <div className="flex h-full max-h-[80vh] w-full max-w-2xl flex-col rounded-2xl border shadow-2xl animate-pop-in"
                             style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-widgets)" }}>
                             <div className="flex items-center justify-between border-b p-5" style={{ borderColor: "var(--cor-borda)" }}>
-                                <h2 className="text-lg font-semibold" style={{ color: "var(--cor-logo)" }}>Histórico de excluídos</h2>
+                                <h2 className="text-lg font-semibold" style={{ color: "var(--cor-logo)" }}>Histórico de usuários desativados</h2>
                                 <button type="button" onClick={() => setIsHistoryOpen(false)}
                                     className="rounded-lg border p-1.5 transition hover:shadow-md" style={{ borderColor: "var(--cor-borda)" }}>
                                     <X size={14} style={{ color: "var(--cor-logo2)" }} />
@@ -1925,7 +1925,7 @@ export default function GestaoPage() {
                                 {historyLoading ? (
                                     <p className="text-center text-sm" style={{ color: "var(--cor-logo2)" }}>Carregando...</p>
                                 ) : deletedHistory.length === 0 ? (
-                                    <p className="text-center text-sm" style={{ color: "var(--cor-logo2)" }}>Nenhum usuário excluído recentemente.</p>
+                                    <p className="text-center text-sm" style={{ color: "var(--cor-logo2)" }}>Nenhum usuário desativado recentemente.</p>
                                 ) : (
                                     <div className="space-y-3">
                                         {deletedHistory.map((registro) => (

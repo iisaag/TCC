@@ -37,6 +37,7 @@ Route::middleware('session.auth')->group(function () {
 	Route::post('/presence/status', [PresenceController::class, 'updateStatus'])->name('presence.status');
 	Route::get('/presence/users', [PresenceController::class, 'users'])->name('presence.users');
 
+	Route::inertia('/home', 'home')->name('home');
 	Route::inertia('/dashboard',  'dashboard')->name('dashboard');
 	Route::inertia('/desempenho', 'desempenho/desempenho')->name('desempenho');
 	Route::inertia('/equipe',     'equipe/equipe')->name('equipe');

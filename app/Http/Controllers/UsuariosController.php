@@ -9,6 +9,7 @@ use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
@@ -44,6 +45,32 @@ class UsuariosController extends Controller
     private function usuariosTemEquipe(): bool
     {
         return Schema::hasTable('usuarios') && Schema::hasColumn('usuarios', 'id_equipe');
+    }
+
+    private function ensureDeletedUsersTable(): void
+    {
+        if (Schema::hasTable('usuarios_excluidos')) {
+            return;
+        }
+
+        Schema::create('usuarios_excluidos', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedInteger('id_usuario_original')->nullable();
+            $table->string('nome', 100);
+            $table->string('email', 150);
+            $table->string('telefone', 30)->nullable();
+            $table->string('localizacao', 120)->nullable();
+            $table->longText('foto_perfil')->nullable();
+            $table->string('cargo', 100)->nullable();
+            $table->string('nivel', 50)->nullable();
+            $table->string('status_atual', 40)->nullable();
+            $table->string('nivel_acesso', 50)->default('usuario');
+            $table->string('senha_hash', 255)->nullable();
+            $table->unsignedInteger('projetos_afetados')->default(0);
+            $table->unsignedInteger('equipes_afetadas')->default(0);
+            $table->dateTime('excluido_em');
+            $table->dateTime('expira_em')->index();
+        });
     }
 
     private function isAdmin(Request $request): bool
@@ -294,6 +321,8 @@ class UsuariosController extends Controller
         }
 
         try {
+            $this->ensureDeletedUsersTable();
+
             DB::transaction(function () use ($usuario): void {
                 $userId = (int) $usuario->id_usuario;
                 $userEmail = (string) $usuario->email;
@@ -308,25 +337,23 @@ class UsuariosController extends Controller
                     ? (int) DB::table('equipes')->where('criado_por', $userId)->count()
                     : 0;
 
-                if (Schema::hasTable('usuarios_excluidos')) {
-                    DB::table('usuarios_excluidos')->insert([
-                        'id_usuario_original' => $userId,
-                        'nome' => $usuario->nome,
-                        'email' => $userEmail,
-                        'telefone' => $usuario->telefone,
-                        'localizacao' => $usuario->localizacao,
-                        'foto_perfil' => $usuario->getRawOriginal('foto_perfil'),
-                        'cargo' => $usuario->getRawOriginal('cargo'),
-                        'nivel' => $usuario->nivel,
-                        'status_atual' => $usuario->status_atual,
-                        'nivel_acesso' => $senha?->nivel_acesso ?? 'usuario',
-                        'senha_hash' => $senha?->getRawOriginal('senha'),
-                        'projetos_afetados' => $projetosAfetados,
-                        'equipes_afetadas' => $equipesAfetadas,
-                        'excluido_em' => now(),
-                        'expira_em' => now()->addDays(self::DELETION_RETENTION_DAYS),
-                    ]);
-                }
+                DB::table('usuarios_excluidos')->insert([
+                    'id_usuario_original' => $userId,
+                    'nome' => $usuario->nome,
+                    'email' => $userEmail,
+                    'telefone' => $usuario->telefone,
+                    'localizacao' => $usuario->localizacao,
+                    'foto_perfil' => $usuario->getRawOriginal('foto_perfil'),
+                    'cargo' => $usuario->getRawOriginal('cargo'),
+                    'nivel' => $usuario->nivel,
+                    'status_atual' => $usuario->status_atual,
+                    'nivel_acesso' => $senha?->nivel_acesso ?? 'usuario',
+                    'senha_hash' => $senha?->getRawOriginal('senha'),
+                    'projetos_afetados' => $projetosAfetados,
+                    'equipes_afetadas' => $equipesAfetadas,
+                    'excluido_em' => now(),
+                    'expira_em' => now()->addDays(self::DELETION_RETENTION_DAYS),
+                ]);
 
                 if (Schema::hasTable('senha')) {
                     Senha::where('email', $userEmail)->delete();
@@ -370,32 +397,32 @@ class UsuariosController extends Controller
         } catch (QueryException $exception) {
             return response()->json([
                 'success' => false,
-                'message' => 'Não foi possível excluir este funcionário porque ainda existem vínculos obrigatórios (projetos, tarefas, equipes ou registros históricos). Reatribua os vínculos e tente novamente.',
+                'message' => 'Não foi possível desativar este funcionário porque ainda existem vínculos obrigatórios (projetos, tarefas, equipes ou registros históricos). Reatribua os vínculos e tente novamente.',
             ], 422);
         }
 
         return response()->json([
             'success' => true,
-            'message' => 'Usuário excluído com sucesso',
+            'message' => 'Usuário desativado com sucesso',
         ]);
     }
 
     /**
-     * Retorna o motivo que impede a exclusão do usuário, ou null se puder excluir.
+     * Retorna o motivo que impede a desativação do usuário, ou null se puder desativar.
      */
     private function deletionBlocker(Request $request, Usuario $usuario): ?string
     {
         $userId = (int) $usuario->id_usuario;
 
         if ((int) data_get($request->session()->get('auth.user'), 'id') === $userId) {
-            return 'Você não pode excluir o seu próprio usuário.';
+            return 'Você não pode desativar o seu próprio usuário.';
         }
 
         if (Schema::hasTable('senha')) {
             $ehAdm = Senha::query()->where('email', $usuario->email)->value('nivel_acesso') === 'adm';
 
             if ($ehAdm && Senha::query()->where('nivel_acesso', 'adm')->count() <= 1) {
-                return 'Não é possível excluir o último administrador do sistema.';
+                return 'Não é possível desativar o último administrador do sistema.';
             }
         }
 
@@ -407,7 +434,7 @@ class UsuariosController extends Controller
 
             if ($projetos->isNotEmpty()) {
                 return 'Este funcionário é responsável pelo(s) projeto(s): ' . $projetos->implode(', ')
-                    . '. Defina outro responsável antes de excluir.';
+                    . '. Defina outro responsável antes de desativar.';
             }
         }
 
@@ -416,7 +443,7 @@ class UsuariosController extends Controller
 
             if ($equipes->isNotEmpty()) {
                 return 'Este funcionário é líder da(s) equipe(s): ' . $equipes->implode(', ')
-                    . '. Defina outro líder antes de excluir.';
+                    . '. Defina outro líder antes de desativar.';
             }
         }
 
@@ -425,13 +452,7 @@ class UsuariosController extends Controller
 
     public function deletedHistory(): JsonResponse
     {
-        if (! Schema::hasTable('usuarios_excluidos')) {
-            return response()->json([
-                'success' => true,
-                'message' => 'Histórico indisponível.',
-                'data' => ['usuarios_excluidos' => []],
-            ]);
-        }
+        $this->ensureDeletedUsersTable();
 
         DB::table('usuarios_excluidos')
             ->where('expira_em', '<=', now())
@@ -460,26 +481,21 @@ class UsuariosController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Histórico de usuários excluídos carregado com sucesso.',
+            'message' => 'Histórico de usuários desativados carregado com sucesso.',
             'data' => ['usuarios_excluidos' => $historico],
         ]);
     }
 
     public function restoreDeleted(int $registro): JsonResponse
     {
-        if (! Schema::hasTable('usuarios_excluidos')) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Histórico de exclusão não está disponível.',
-            ], 422);
-        }
+        $this->ensureDeletedUsersTable();
 
         $historico = DB::table('usuarios_excluidos')->where('id', $registro)->first();
 
         if (! $historico) {
             return response()->json([
                 'success' => false,
-                'message' => 'Registro de exclusão não encontrado.',
+                'message' => 'Registro de desativação não encontrado.',
             ], 404);
         }
 

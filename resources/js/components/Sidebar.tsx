@@ -27,13 +27,14 @@ import {
     Sun,
     Menu,
     X,
+    House,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { frontRoutes } from "@/lib/routes";
 
 // TIPOS
 
-type PageName = "dashboard" | "performance" | "tasks" | "team" | "gestao" | "users-admin" | "settings";
+type PageName = "home" | "dashboard" | "performance" | "tasks" | "team" | "gestao" | "users-admin" | "settings";
 
 interface SidebarProps {
 
@@ -47,6 +48,7 @@ interface SidebarProps {
 // Centralizamos aqui todos os itens de navegação.
 // Para adicionar uma nova página: basta adicionar um novo objeto nessa lista!
 const navItems = [
+    { name: "home"        as PageName, label: "Início",      href: frontRoutes.home,       icon: <House size={20} /> },
     { name: "dashboard"   as PageName, label: "Dashboard",  href: frontRoutes.dashboard,  icon: <LayoutDashboard size={20} /> },
     { name: "performance" as PageName, label: "Desempenho", href: frontRoutes.desempenho, icon: <BarChart2 size={20} /> },
     { name: "tasks"       as PageName, label: "Projetos",   href: frontRoutes.projetos,   icon: <ClipboardList size={20} /> },

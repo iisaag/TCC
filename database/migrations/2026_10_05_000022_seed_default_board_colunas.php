@@ -6,8 +6,8 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration {
     private const DEFAULT_COLUMNS = [
-        ['nome' => 'To Do', 'status' => 'TO_DO', 'progresso' => 0, 'ordem' => 1, 'arquiva_ao_concluir' => false],
-        ['nome' => 'Doing', 'status' => 'DOING', 'progresso' => 50, 'ordem' => 2, 'arquiva_ao_concluir' => false],
+        ['nome' => 'A Fazer', 'status' => 'TO_DO', 'progresso' => 0, 'ordem' => 1, 'arquiva_ao_concluir' => false],
+        ['nome' => 'Em andamento', 'status' => 'DOING', 'progresso' => 50, 'ordem' => 2, 'arquiva_ao_concluir' => false],
         ['nome' => 'Teste', 'status' => 'TESTE', 'progresso' => 75, 'ordem' => 3, 'arquiva_ao_concluir' => false],
         ['nome' => 'Aprovado', 'status' => 'APROVADO', 'progresso' => 100, 'ordem' => 4, 'arquiva_ao_concluir' => true],
     ];

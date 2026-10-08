@@ -5,7 +5,7 @@ import ActiveUsers from "@/components/ActiveUsers";
 import Header from "@/components/Header";
 import Sidebar from "@/components/Sidebar";
 
-type PageName = "dashboard" | "performance" | "tasks" | "team" | "gestao" | "users-admin" | "settings";
+type PageName = "home" | "dashboard" | "performance" | "tasks" | "team" | "gestao" | "users-admin" | "settings";
 
 interface DashboardLayoutProps {
     children: ReactNode;
@@ -289,9 +289,11 @@ export default function DashboardLayout({ children, currentPage }: DashboardLayo
                         {children}
                     </main>
 
-                    <div className="dashboard-layout-rightbar overflow-y-auto p-4" style={{ backgroundColor: 'var(--cor-secundaria)' }}>
-                        <ActiveUsers users={activeUsers} />
-                    </div>
+                    {currentPage !== "home" && (
+                        <div className="dashboard-layout-rightbar overflow-y-auto p-4" style={{ backgroundColor: 'var(--cor-secundaria)' }}>
+                            <ActiveUsers users={activeUsers} />
+                        </div>
+                    )}
                 </div>
             </div>
         </div>

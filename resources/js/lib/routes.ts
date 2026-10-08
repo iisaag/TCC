@@ -1,5 +1,5 @@
 export const frontRoutes = {
-    home: '/dashboard',
+    home: '/home',
     dashboard: '/dashboard',
     desempenho: '/desempenho',
     equipe: '/equipe',

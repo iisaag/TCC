@@ -834,7 +834,7 @@ export default function UsuariosAdminPage() {
                 headers: { Accept: "application/json", "X-Requested-With": "XMLHttpRequest", "X-CSRF-TOKEN": csrfToken },
             });
             if (!uRes.ok) {
-                throw new Error(await readApiMessage(uRes, "Não foi possível excluir o funcionário."));
+                throw new Error(await readApiMessage(uRes, "Não foi possível desativar o funcionário."));
             }
             if (deletingUser.email) {
                 await fetch(`${apiRoutes.senhas}/${encodeURIComponent(deletingUser.email)}`, {
@@ -844,10 +844,10 @@ export default function UsuariosAdminPage() {
             }
             setIsDeleteOpen(false);
             setDeletingUser(null);
-            setSuccess("Funcionário excluído com sucesso.");
+            setSuccess("Funcionário desativado com sucesso.");
             await fetchData();
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Não foi possível excluir o funcionário.");
+            setError(err instanceof Error ? err.message : "Não foi possível desativar o funcionário.");
         } finally {
             setDeletingId(null);
         }
@@ -897,13 +897,13 @@ export default function UsuariosAdminPage() {
             });
 
             if (!response.ok) {
-                throw new Error(await readApiMessage(response, "Não foi possível carregar o histórico de excluídos."));
+                throw new Error(await readApiMessage(response, "Não foi possível carregar o histórico de usuários desativados."));
             }
 
             const payload = (await response.json()) as ApiEnvelope<{ usuarios_excluidos?: UsuarioExcluido[] }>;
             setDeletedUsersHistory(payload.data?.usuarios_excluidos ?? []);
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Não foi possível carregar o histórico de excluídos.");
+            setError(err instanceof Error ? err.message : "Não foi possível carregar o histórico de usuários desativados.");
         } finally {
             setHistoryLoading(false);
         }
@@ -1029,7 +1029,7 @@ export default function UsuariosAdminPage() {
                     <div>
                         <h1 className="text-2xl font-bold" style={{ color: "var(--cor-logo)" }}>Usuários</h1>
                         <p className="mt-0.5 text-sm" style={{ color: "var(--cor-logo2)" }}>
-                            Área administrativa para cadastro, permissão e exclusão de funcionários.
+                            Área administrativa para cadastro, permissões e desativação de funcionários.
                         </p>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
@@ -1042,7 +1042,7 @@ export default function UsuariosAdminPage() {
                                     style={{ borderColor: "var(--cor-borda)", color: "var(--cor-logo)" }}
                                 >
                                     <History size={15} />
-                                    Histórico de excluídos
+                                    Histórico de desativados
                                 </button>
                                 <button
                                     type="button"
@@ -1283,9 +1283,10 @@ export default function UsuariosAdminPage() {
                                                             onClick={() => { setDeletingUser(user); setIsDeleteOpen(true); }}
                                                             className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-all duration-200 hover:shadow-md"
                                                             style={{ borderColor: "#e2a0a0", color: "#a02020" }}
+                                                            title="Desativar funcionário"
                                                         >
-                                                            <Trash2 size={14} />
-                                                            Excluir
+                                                            <UserMinus size={14} />
+                                                            Desativar
                                                         </button>
                                                     </div>
                                                 </td>
@@ -1588,17 +1589,17 @@ export default function UsuariosAdminPage() {
                             <div className="mb-4 flex items-center gap-3">
                                 <Avatar nome={deletingUser.nome} />
                                 <h3 className="text-base font-semibold" style={{ color: "var(--cor-logo)" }}>
-                                    Excluir funcionário
+                                    Desativar funcionário
                                 </h3>
                             </div>
                             <p className="text-sm" style={{ color: "var(--cor-logo2)" }}>
-                                Deseja excluir{" "}
+                                Deseja desativar{" "}
                                 <strong style={{ color: "var(--cor-logo)" }}>{deletingUser.nome}</strong>?
-                                {" "}Esta ação remove o funcionário e suas credenciais de login permanentemente.
+                                {" "}O funcionário perderá o acesso e sairá da lista de usuários ativos. Você poderá restaurá-lo pelo histórico durante 7 dias.
                             </p>
                             <div className="mt-4 rounded-xl border p-3 text-sm" style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-fundo)", color: "var(--cor-logo)" }}>
                                 <div className="flex items-center justify-between gap-3">
-                                    <span className="font-semibold">Prejuízo estimado</span>
+                                    <span className="font-semibold">Impacto da desativação</span>
                                     <span className="rounded-full px-2.5 py-0.5 text-xs font-semibold" style={{ backgroundColor: impacto.nivel === "Alto" ? "#fde8e8" : impacto.nivel === "Médio" ? "#fff3cd" : "#edf7ed", color: impacto.nivel === "Alto" ? "#9a2b2b" : impacto.nivel === "Médio" ? "#8a5a00" : "#1d6a45" }}>
                                         {impacto.nivel}
                                     </span>
@@ -1655,7 +1656,7 @@ export default function UsuariosAdminPage() {
                                     className="rounded-xl border px-4 py-2 text-sm font-semibold text-white transition-all duration-200 hover:-translate-y-px hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60"
                                     style={{ borderColor: "#9f2a21", background: "linear-gradient(140deg, #c43a2f 0%, #a42c22 100%)" }}
                                 >
-                                    {deletingId === deletingUser.id_usuario ? "Excluindo..." : "Excluir"}
+                                    {deletingId === deletingUser.id_usuario ? "Desativando..." : "Desativar"}
                                 </button>
                             </div>
                         </div>
@@ -1745,10 +1746,10 @@ export default function UsuariosAdminPage() {
                             <div className="mb-4 flex items-center justify-between gap-3">
                                 <div>
                                     <h3 className="text-base font-semibold" style={{ color: "var(--cor-logo)" }}>
-                                        Histórico de usuários excluídos
+                                        Histórico de usuários desativados
                                     </h3>
                                     <p className="text-xs" style={{ color: "var(--cor-logo2)" }}>
-                                        Registros somem automaticamente após 7 dias da exclusão.
+                                        Os registros são removidos automaticamente após 7 dias da desativação.
                                     </p>
                                 </div>
                                 <button
@@ -1767,7 +1768,7 @@ export default function UsuariosAdminPage() {
                                 </div>
                             ) : deletedUsersHistory.length === 0 ? (
                                 <div className="rounded-xl border p-5 text-sm text-center" style={{ borderColor: "var(--cor-borda)", color: "var(--cor-logo2)" }}>
-                                    Nenhum usuário excluído nos últimos 7 dias.
+                                    Nenhum usuário desativado nos últimos 7 dias.
                                 </div>
                             ) : (
                                 <div className="max-h-[420px] space-y-2 overflow-y-auto pr-1">
@@ -1788,7 +1789,7 @@ export default function UsuariosAdminPage() {
                                                         Projetos afetados: {registro.projetos_afetados} | Equipes afetadas: {registro.equipes_afetadas}
                                                     </p>
                                                     <p className="text-xs" style={{ color: "#8a5a00" }}>
-                                                        Excluído em {formatDateTime(registro.excluido_em)}. {getRemainingDaysLabel(registro.expira_em)} ({formatDateTime(registro.expira_em)}).
+                                                        Desativado em {formatDateTime(registro.excluido_em)}. {getRemainingDaysLabel(registro.expira_em)} ({formatDateTime(registro.expira_em)}).
                                                     </p>
                                                 </div>
                                                 <button

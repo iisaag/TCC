@@ -130,16 +130,16 @@ interface ProjectFormState {
 }
 
 const STATUS_COLUMNS: Array<{ key: BoardStatus; label: string }> = [
-	{ key: "TO_DO", label: "To Do" },
-	{ key: "DOING", label: "Doing" },
+	{ key: "TO_DO", label: "A Fazer" },
+	{ key: "DOING", label: "Em andamento" },
 	{ key: "TESTE", label: "Teste" },
 	{ key: "APROVADO", label: "Aprovado" },
 ];
 
 const BOARD_COLUMNS: Array<{ key: BoardColumnKey; label: string }> = [
-	{ key: "BACKLOG", label: "Backlog" },
+	{ key: "BACKLOG", label: "Pendências" },
 	...STATUS_COLUMNS,
-	{ key: "HISTORY", label: "History" },
+	{ key: "HISTORY", label: "Histórico" },
 ];
 
 const STATUS_PROGRESS: Record<BoardStatus, number> = {
@@ -1553,8 +1553,10 @@ export default function Projetos() {
 				setSelectedProjectId(null);
 			}
 
+			setProjetos((current) => current.filter((item) => item.id_projeto !== projeto.id_projeto));
 			setProjectToDelete(null);
 			await fetchBoard();
+			await loadDeletedProjectsHistory();
 			setSuccessMessage("Projeto excluido com sucesso");
 		} catch (error) {
 			const message = error instanceof Error && error.message
@@ -1706,7 +1708,7 @@ export default function Projetos() {
 				fetchBoard(),
 				fetchSprints(selectedProjectId),
 			]);
-			setSuccessMessage("Sprint encerrada. Cards concluídos foram para History.");
+			setSuccessMessage("Sprint encerrada. Os cards concluídos foram para o histórico.");
 		} catch (error) {
 			setError(error instanceof Error ? error.message : "Nao foi possivel encerrar a sprint.");
 		} finally {
@@ -2261,8 +2263,8 @@ export default function Projetos() {
 										)}
 
 										<div className="mt-3 grid grid-cols-2 gap-2 text-base" style={{ color: "var(--cor-logo2)" }}>
-											<span>To Do: {projeto.toDo}</span>
-											<span>Doing: {projeto.doing}</span>
+											<span>A Fazer: {projeto.toDo}</span>
+											<span>Em andamento: {projeto.doing}</span>
 											<span>Teste: {projeto.teste}</span>
 											<span>Aprovado: {projeto.aprovado}</span>
 										</div>
@@ -2402,7 +2404,7 @@ export default function Projetos() {
 										? "Carregando sprint..."
 										: activeSprint
 											? `Sprint: ${displayWithoutAccents(activeSprint.nome_sprint)} (${formatDate(activeSprint.data_inicio)} a ${formatDate(activeSprint.data_fim)})`
-											: "Sem sprint ativa (cards ficam no Backlog)"}
+											: "Sem sprint ativa (os cards ficam em Pendências)"}
 								</span>
 
 								<details className="relative sm:ml-auto">
@@ -3082,7 +3084,7 @@ export default function Projetos() {
 											>
 												<p className="text-sm font-semibold" style={{ color: "var(--cor-logo)" }}>Sim, com colunas padrão</p>
 												<p className="mt-0.5 text-xs" style={{ color: "var(--cor-logo2)" }}>
-													O projeto ja comeca com Backlog, To Do, Doing, Teste e Aprovado.
+													O projeto já começa com Pendências, A Fazer, Em andamento, Teste e Aprovado.
 												</p>
 											</button>
 											<button

@@ -293,14 +293,17 @@ class DashboardController extends Controller
             // ----------------------------------------------------------------
             // KPI Cards
             // ----------------------------------------------------------------
-            $projetosAtivos = Projeto::whereNotIn(
+            $projetosAtivos = Projeto::whereRaw(
+                'UPPER(TRIM(status_projeto)) <> ?',
+                [self::TEMP_DELETED_STATUS]
+            )->whereNotIn(
                 DB::raw('LOWER(status_projeto)'),
                 array_map('strtolower', self::PROJ_EXCLUIDOS)
             )->count();
 
-                        // Mantemos o KPI sincronizado com a mesma regra da "Saúde dos Projetos"
-                        // para evitar divergência entre total do card e itens do popup.
-                        $projetosEmRisco = 0;
+            // Mantemos o KPI sincronizado com a mesma regra da "Saúde dos Projetos"
+            // para evitar divergência entre total do card e itens do popup.
+            $projetosEmRisco = 0;
 
             $tarefasPendentes = Tarefa::whereNotIn(
                 DB::raw('UPPER(status_task)'),
@@ -338,6 +341,7 @@ class DashboardController extends Controller
             // Saúde dos Projetos
             // ----------------------------------------------------------------
             $projetos = Projeto::with('responsavel')
+                ->whereRaw('UPPER(TRIM(status_projeto)) <> ?', [self::TEMP_DELETED_STATUS])
                 ->whereNotIn(
                     DB::raw('LOWER(status_projeto)'),
                     array_map('strtolower', self::PROJ_EXCLUIDOS)
@@ -467,7 +471,9 @@ class DashboardController extends Controller
             $todosAtivos = Projeto::whereNotIn(
                 DB::raw('LOWER(status_projeto)'),
                 array_map('strtolower', self::PROJ_EXCLUIDOS)
-            )->get();
+            )
+                ->whereRaw('UPPER(TRIM(status_projeto)) <> ?', [self::TEMP_DELETED_STATUS])
+                ->get();
 
             foreach ($todosAtivos as $p) {
                 $ultimoLog = DB::table('log_projeto')

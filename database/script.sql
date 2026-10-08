@@ -66,6 +66,29 @@ CREATE TABLE senha (
 ) ENGINE=InnoDB;
 
 -- =====================================================
+-- HISTORICO DE USUARIOS DESATIVADOS (restauracao em ate 7 dias)
+-- =====================================================
+CREATE TABLE usuarios_excluidos (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    id_usuario_original INT,
+    nome VARCHAR(100) NOT NULL,
+    email VARCHAR(150) NOT NULL,
+    telefone VARCHAR(30),
+    localizacao VARCHAR(120),
+    foto_perfil LONGTEXT,
+    cargo VARCHAR(100),
+    nivel VARCHAR(50),
+    status_atual VARCHAR(40),
+    nivel_acesso VARCHAR(50) NOT NULL DEFAULT 'usuario',
+    senha_hash VARCHAR(255),
+    projetos_afetados INT UNSIGNED NOT NULL DEFAULT 0,
+    equipes_afetadas INT UNSIGNED NOT NULL DEFAULT 0,
+    excluido_em DATETIME NOT NULL,
+    expira_em DATETIME NOT NULL,
+    INDEX idx_usuarios_excluidos_expira_em (expira_em)
+) ENGINE=InnoDB;
+
+-- =====================================================
 -- EQUIPES
 -- =====================================================
 CREATE TABLE equipes (
@@ -398,8 +421,8 @@ INSERT INTO board_colunas (id_projeto,nome,progresso,ordem,arquiva_ao_concluir)
 SELECT p.id_projeto, c.nome, c.progresso, c.ordem, c.arquiva_ao_concluir
 FROM projetos p
 CROSS JOIN (
-    SELECT 'To Do' nome, 0 progresso, 1 ordem, FALSE arquiva_ao_concluir
-    UNION ALL SELECT 'Doing', 50, 2, FALSE
+    SELECT 'A Fazer' nome, 0 progresso, 1 ordem, FALSE arquiva_ao_concluir
+    UNION ALL SELECT 'Em andamento', 50, 2, FALSE
     UNION ALL SELECT 'Teste', 75, 3, FALSE
     UNION ALL SELECT 'Aprovado', 100, 4, TRUE
 ) c
@@ -555,8 +578,8 @@ UPDATE tarefas t
 JOIN board_colunas bc
     ON bc.id_projeto = t.id_projeto
    AND (
-        (t.status_task = 'TO_DO'   AND bc.nome = 'To Do')
-     OR (t.status_task = 'DOING'   AND bc.nome = 'Doing')
+        (t.status_task = 'TO_DO'   AND bc.nome = 'A Fazer')
+     OR (t.status_task = 'DOING'   AND bc.nome = 'Em andamento')
      OR (t.status_task = 'TESTE'   AND bc.nome = 'Teste')
      OR (t.status_task = 'APROVADO' AND bc.nome = 'Aprovado')
    )

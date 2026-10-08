@@ -208,7 +208,7 @@ class SenhaController extends Controller
             );
         }
 
-        return redirect()->route('dashboard');
+        return redirect()->route('home');
     }
 
     public function resetDireto(Request $request)

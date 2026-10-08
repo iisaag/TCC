@@ -54,8 +54,8 @@ class ProjetosController extends Controller
     }
 
     private const COLUNAS_PADRAO = [
-        ['nome' => 'To Do', 'progresso' => 0, 'ordem' => 1, 'arquiva_ao_concluir' => false],
-        ['nome' => 'Doing', 'progresso' => 50, 'ordem' => 2, 'arquiva_ao_concluir' => false],
+        ['nome' => 'A Fazer', 'progresso' => 0, 'ordem' => 1, 'arquiva_ao_concluir' => false],
+        ['nome' => 'Em andamento', 'progresso' => 50, 'ordem' => 2, 'arquiva_ao_concluir' => false],
         ['nome' => 'Teste', 'progresso' => 75, 'ordem' => 3, 'arquiva_ao_concluir' => false],
         ['nome' => 'Aprovado', 'progresso' => 100, 'ordem' => 4, 'arquiva_ao_concluir' => true],
     ];

@@ -366,16 +366,12 @@ function KpiCard({
     icon,
     label,
     value,
-    trend,
-    trendUp,
     iconBg,
     onClick,
 }: {
     icon: React.ReactNode;
     label: string;
     value: string | number;
-    trend?: string;
-    trendUp?: boolean;
     iconBg: string;
     onClick?: () => void;
 }) {
@@ -403,15 +399,6 @@ function KpiCard({
             <div className="flex flex-col gap-1">
                 <span className="text-sm font-semibold" style={{ color: "var(--cor-logo2)" }}>{label}</span>
                 <span className="text-4xl font-bold" style={{ color: "var(--cor-logo)" }}>{value}</span>
-                {trend && (
-                    <span
-                        className="flex items-center gap-1 text-sm font-semibold"
-                        style={{ color: trendUp ? "#22c55e" : "#ef4444" }}
-                    >
-                        {trendUp ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
-                        {trend}
-                    </span>
-                )}
                 {clickable && (
                     <span className="mt-1 text-xs font-semibold" style={{ color: "var(--cor-logo2)" }}>
                         Clique para ver detalhes
@@ -805,14 +792,12 @@ export default function Dashboard() {
                     {data && (
                         <>
                             {/* ── KPI CARDS ── */}
-                            <div className="dashboard-print-kpis grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-6">
+                            <div className="dashboard-print-kpis grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
                                 <KpiCard
                                     label="Projetos Ativos"
                                     value={data.kpis.projetos_ativos}
                                     icon={<FolderOpen size={20} />}
                                     iconBg="#3b82f6"
-                                    trendUp
-                                    trend="8.3%"
                                     onClick={() => setSelectedKpi("projetos_ativos")}
                                 />
                                 <KpiCard
@@ -820,8 +805,6 @@ export default function Dashboard() {
                                     value={data.kpis.projetos_em_risco}
                                     icon={<AlertTriangle size={20} />}
                                     iconBg="#6366f1"
-                                    trendUp={false}
-                                    trend="15.2%"
                                     onClick={() => setSelectedKpi("projetos_em_risco")}
                                 />
                                 <KpiCard
@@ -829,8 +812,6 @@ export default function Dashboard() {
                                     value={data.kpis.tarefas_pendentes}
                                     icon={<Clock size={20} />}
                                     iconBg="#0ea5e9"
-                                    trendUp={false}
-                                    trend="5.1%"
                                     onClick={() => setSelectedKpi("tarefas_pendentes")}
                                 />
                                 <KpiCard
@@ -838,27 +819,7 @@ export default function Dashboard() {
                                     value={data.kpis.tarefas_atrasadas}
                                     icon={<AlertTriangle size={20} />}
                                     iconBg="#14b8a6"
-                                    trendUp
-                                    trend="12.5%"
                                     onClick={() => setSelectedKpi("tarefas_atrasadas")}
-                                />
-                                <KpiCard
-                                    label={`Concluídas (${dias}d)`}
-                                    value={data.kpis.tarefas_concluidas}
-                                    icon={<CheckCircle2 size={20} />}
-                                    iconBg="#22c55e"
-                                    trendUp
-                                    trend="22.8%"
-                                    onClick={() => setSelectedKpi("tarefas_concluidas")}
-                                />
-                                <KpiCard
-                                    label="Progresso Médio"
-                                    value={`${data.kpis.progresso_medio}%`}
-                                    icon={<TrendingUp size={20} />}
-                                    iconBg="#8b5cf6"
-                                    trendUp
-                                    trend="6.2%"
-                                    onClick={() => setSelectedKpi("progresso_medio")}
                                 />
                             </div>
 
@@ -967,8 +928,31 @@ export default function Dashboard() {
                                 )}
                             </SectionCard>
 
+                            <div className="flex flex-col gap-8">
+                                <section>
+                                    <h2 className="mb-3 text-xl font-bold" style={{ color: "var(--cor-logo)" }}>Outros indicadores</h2>
+                                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                                        <KpiCard
+                                            label={`Concluídas (${dias}d)`}
+                                            value={data.kpis.tarefas_concluidas}
+                                            icon={<CheckCircle2 size={20} />}
+                                            iconBg="#22c55e"
+                                            onClick={() => setSelectedKpi("tarefas_concluidas")}
+                                        />
+                                        <KpiCard
+                                            label="Progresso Médio"
+                                            value={`${data.kpis.progresso_medio}%`}
+                                            icon={<TrendingUp size={20} />}
+                                            iconBg="#8b5cf6"
+                                            onClick={() => setSelectedKpi("progresso_medio")}
+                                        />
+                                    </div>
+                                </section>
+
                             {/* ── GRÁFICOS ── */}
-                            <div className={isPrinting ? "grid grid-cols-1 gap-4" : "dashboard-print-chart-grid grid grid-cols-1 gap-4 lg:grid-cols-3"}>
+                            <section>
+                            <h2 className="mb-3 text-xl font-bold" style={{ color: "var(--cor-logo)" }}>Análises do período</h2>
+                            <div className={isPrinting ? "grid grid-cols-1 gap-4" : "dashboard-print-chart-grid grid grid-cols-1 gap-4 lg:grid-cols-2"}>
                                 {/* Evolução de Tarefas */}
                                 <SectionCard>
                                     <h3 className="mb-3 text-2xl font-bold" style={{ color: "var(--cor-logo)" }}>
@@ -1091,6 +1075,7 @@ export default function Dashboard() {
                                     )}
                                 </SectionCard>
                             </div>
+                            </section>
 
                             {/* ── RESUMO OPERACIONAL ── */}
                             <div>
@@ -1295,6 +1280,7 @@ export default function Dashboard() {
                                     )}
                                 </div>
                             )}
+                                </div>
 
                             {selectedKpi && !isPrinting && (() => {
                                 const modalData = getKpiModalData(selectedKpi, data);
