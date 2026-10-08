@@ -408,11 +408,24 @@ function KpiCard({
                 )}
             </div>
             <div
-                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-white transition-transform duration-300 group-hover:scale-105"
-                style={{ background: iconBg }}
+                className="flex h-11 w-11 shrink-0 items-center justify-center drop-shadow-[0_0_5px_currentColor] transition-transform duration-300 group-hover:scale-110 [&>svg]:size-7"
+                style={{ color: iconBg }}
             >
                 {icon}
             </div>
+        </div>
+    );
+}
+
+/** Total exibido no centro do gráfico de rosca (posição = cx/cy do Pie) */
+function DonutTotal({ total, left, top }: { total: number; left: number | string; top: number | string }) {
+    return (
+        <div
+            className="pointer-events-none absolute z-10 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center leading-none"
+            style={{ left, top }}
+        >
+            <span className="text-3xl font-bold" style={{ color: "var(--cor-logo)" }}>{total}</span>
+            <span className="mt-1.5 text-[11px] tracking-[0.15em]" style={{ color: "var(--cor-logo2)" }}>TAREFAS</span>
         </div>
     );
 }
@@ -479,7 +492,7 @@ function SelectFilter({
             <button
                 type="button"
                 onClick={() => setOpen((prev) => !prev)}
-                className="relative flex h-10 w-full cursor-pointer items-center gap-2 rounded-xl border px-3.5 text-base font-semibold shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
+                className={`relative flex h-10 w-full cursor-pointer items-center gap-2 rounded-xl border px-3.5 text-base font-semibold transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg active:scale-95 ${open ? "-translate-y-0.5 shadow-lg" : "shadow-md"}`}
                 style={{ borderColor: "var(--cor-borda)", background: "var(--cor-botao)", color: "var(--cor-logo)" }}
             >
                 {icon}
@@ -497,10 +510,14 @@ function SelectFilter({
 
             {open && (
                 <div
-                    className="absolute right-0 z-[200] mt-1 w-full overflow-hidden rounded-xl border shadow-xl"
-                    style={{ backgroundColor: "var(--cor-widgets)", borderColor: "var(--cor-borda)" }}
+                    className="animate-dropdown absolute right-0 z-[200] mt-1.5 w-full overflow-hidden rounded-xl border"
+                    style={{
+                        backgroundColor: "var(--cor-widgets)",
+                        borderColor: "var(--cor-borda)",
+                        boxShadow: "0 18px 40px rgba(0, 0, 0, 0.35), 0 4px 12px rgba(0, 0, 0, 0.2)",
+                    }}
                 >
-                    {options.map((o) => {
+                    {options.map((o, i) => {
                         const isActive = String(o.value) === value;
 
                         return (
@@ -511,7 +528,7 @@ function SelectFilter({
                                     onChange(String(o.value));
                                     setOpen(false);
                                 }}
-                                className="w-full px-3.5 py-2.5 text-left text-base transition-colors"
+                                className={`animate-stagger-${Math.min(i + 1, 3)} w-full px-3.5 py-2.5 text-left text-base transition-all duration-200 hover:pl-5`}
                                 style={{
                                     color: "var(--cor-logo)",
                                     backgroundColor: isActive ? "var(--cor-botao)" : "transparent",
@@ -889,10 +906,10 @@ export default function Dashboard() {
                                                             </td>
                                                             <td className="py-4">
                                                                 <span
-                                                                    className="flex w-fit items-center gap-1 rounded-full px-3 py-1.5 text-sm font-semibold"
-                                                                    style={{ background: st.bg, color: st.color }}
+                                                                    className="flex w-fit items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-semibold"
+                                                                    style={{ color: st.color, border: `1px solid color-mix(in srgb, ${st.color} 45%, transparent)` }}
                                                                 >
-                                                                    {st.icon}
+                                                                    <span className="flex drop-shadow-[0_0_5px_currentColor] [&>svg]:size-4">{st.icon}</span>
                                                                     {st.label}
                                                                 </span>
                                                             </td>
@@ -1007,6 +1024,12 @@ export default function Dashboard() {
                                         Distribuição de Tarefas
                                     </h3>
                                     {isPrinting ? (
+                                        <div className="relative">
+                                        <DonutTotal
+                                            total={data.distribuicao_status.reduce((s, d) => s + Number(d.valor), 0)}
+                                            left={280}
+                                            top={110}
+                                        />
                                         <PieChart width={760} height={320}>
                                             <Pie
                                                 data={data.distribuicao_status}
@@ -1030,7 +1053,14 @@ export default function Dashboard() {
                                                 )}
                                             />
                                         </PieChart>
+                                        </div>
                                     ) : (
+                                        <div className="relative">
+                                        <DonutTotal
+                                            total={data.distribuicao_status.reduce((s, d) => s + Number(d.valor), 0)}
+                                            left="50%"
+                                            top="45%"
+                                        />
                                         <ResponsiveContainer width="100%" height={340}>
                                             <PieChart>
                                                 <Pie
@@ -1056,6 +1086,7 @@ export default function Dashboard() {
                                                 />
                                             </PieChart>
                                         </ResponsiveContainer>
+                                        </div>
                                     )}
                                 </SectionCard>
                             </div>
@@ -1080,8 +1111,8 @@ export default function Dashboard() {
                                     >
                                         <div className="px-6 pb-3 pt-6">
                                             <div className="flex items-center gap-3">
-                                                <div className="flex h-11 w-11 items-center justify-center rounded-2xl shadow-sm" style={{ background: "var(--cor-atrasoI)" }}>
-                                                    <AlertTriangle size={16} style={{ color: "#fff" }} />
+                                                <div className="flex h-11 w-11 items-center justify-center drop-shadow-[0_0_5px_currentColor]" style={{ color: "var(--cor-atrasoI)" }}>
+                                                    <AlertTriangle size={28} />
                                                 </div>
                                                 <span className="text-2xl font-bold" style={{ color: "var(--cor-logo)" }}>Tarefas Atrasadas</span>
                                             </div>
@@ -1124,8 +1155,8 @@ export default function Dashboard() {
                                     >
                                         <div className="px-6 pb-3 pt-6">
                                             <div className="flex items-center gap-3">
-                                                <div className="flex h-11 w-11 items-center justify-center rounded-2xl shadow-sm" style={{ background: "var(--cor-ausente)" }}>
-                                                    <CalendarClock size={16} style={{ color: "#fff" }} />
+                                                <div className="flex h-11 w-11 items-center justify-center drop-shadow-[0_0_5px_currentColor]" style={{ color: "var(--cor-ausente)" }}>
+                                                    <CalendarClock size={28} />
                                                 </div>
                                                 <span className="text-2xl font-bold" style={{ color: "var(--cor-logo)" }}>Vencendo em 7 dias</span>
                                             </div>
@@ -1168,8 +1199,8 @@ export default function Dashboard() {
                                     >
                                         <div className="px-6 pb-3 pt-6">
                                             <div className="flex items-center gap-3">
-                                                <div className="flex h-11 w-11 items-center justify-center rounded-2xl shadow-sm" style={{ background: "var(--cor-offline)" }}>
-                                                    <UserX size={16} style={{ color: "#f8fafc" }} />
+                                                <div className="flex h-11 w-11 items-center justify-center drop-shadow-[0_0_5px_currentColor]" style={{ color: "var(--cor-offline)" }}>
+                                                    <UserX size={28} />
                                                 </div>
                                                 <span className="text-2xl font-bold" style={{ color: "var(--cor-logo)" }}>Sem Responsável</span>
                                             </div>
