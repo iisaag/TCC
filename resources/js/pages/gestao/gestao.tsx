@@ -418,7 +418,7 @@ function CardSelect({
 
             {open ? (
                 <div
-                    className="animate-dropdown absolute z-[200] mt-2 w-full rounded-2xl border p-1.5 shadow-2xl"
+                    className="animate-dropdown absolute z-[200] mt-2 max-h-64 w-full overflow-y-auto overscroll-contain rounded-2xl border p-1.5 shadow-2xl"
                     style={{
                         backgroundColor: "var(--cor-widgets)",
                         borderColor: "var(--cor-borda)",

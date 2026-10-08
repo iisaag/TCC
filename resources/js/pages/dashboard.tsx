@@ -1310,12 +1310,12 @@ export default function Dashboard() {
 
                                 return (
                                     <div
-                                        className="fixed inset-0 z-[1200] flex items-center justify-center p-4"
+                                        className="animate-fade-in fixed inset-0 z-[1200] flex items-center justify-center p-4 backdrop-blur-sm"
                                         style={{ background: "rgba(15, 23, 42, 0.55)" }}
                                         onClick={() => setSelectedKpi(null)}
                                     >
                                         <div
-                                            className="max-h-[85vh] w-full max-w-3xl overflow-hidden rounded-2xl border shadow-2xl"
+                                            className="animate-pop-in max-h-[85vh] w-full max-w-3xl overflow-hidden rounded-2xl border shadow-2xl"
                                             style={{ background: "var(--cor-widgets)", borderColor: "var(--cor-borda)" }}
                                             onClick={(e) => e.stopPropagation()}
                                         >
