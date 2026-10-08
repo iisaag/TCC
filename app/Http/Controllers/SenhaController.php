@@ -7,9 +7,12 @@ use App\Models\Senha;
 use App\Models\UserPresence;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Session;
+use Illuminate\Support\Str;
 use Carbon\Carbon;
 use Inertia\Inertia;
 
@@ -211,23 +214,87 @@ class SenhaController extends Controller
         return redirect()->route('home');
     }
 
-    public function resetDireto(Request $request)
+    private const RESET_TOKEN_MINUTES = 60;
+
+    /**
+     * Envia por e-mail um link de redefinição. A resposta é sempre a mesma,
+     * para não revelar quais e-mails têm cadastro.
+     */
+    public function enviarLinkRedefinicao(Request $request)
     {
         $validated = $request->validate([
+            'email' => 'required|email',
+        ]);
+
+        $email = $validated['email'];
+
+        if (Senha::find($email)) {
+            $token = Str::random(64);
+
+            DB::table('password_reset_tokens')->updateOrInsert(
+                ['email' => $email],
+                ['token' => Hash::make($token), 'created_at' => now()],
+            );
+
+            $link = url('/redefinir-senha/' . $token) . '?email=' . urlencode($email);
+
+            Mail::send(
+                ['html' => 'emails.aviso', 'text' => 'emails.aviso-texto'],
+                [
+                    'preheader' => 'Use o link para criar uma nova senha do AivyPM.',
+                    'icone' => '🔒',
+                    'rotulo' => 'Redefinição de senha',
+                    'titulo' => 'Vamos criar uma nova senha?',
+                    'texto' => 'Recebemos uma solicitação para redefinir a senha da sua conta AivyPM. Clique no botão abaixo para continuar.',
+                    'botaoTexto' => 'Redefinir minha senha',
+                    'botaoUrl' => $link,
+                    'observacao' => 'Este link é válido por ' . self::RESET_TOKEN_MINUTES . ' minutos.',
+                    'caixaTitulo' => 'Não solicitou esta alteração?',
+                    'caixaTexto' => 'Ignore este e-mail. Sua senha atual continuará válida e sua conta permanecerá segura.',
+                ],
+                function ($message) use ($email) {
+                    $message->to($email)->subject('Redefinição de senha - AivyPM');
+                }
+            );
+        }
+
+        return redirect()->route('login')->with('success', 'Se o e-mail estiver cadastrado, enviamos um link para redefinir a senha.');
+    }
+
+    public function formRedefinicao(Request $request, string $token)
+    {
+        return Inertia::render('login/redefinir-senha', [
+            'token' => $token,
+            'email' => (string) $request->query('email', ''),
+        ]);
+    }
+
+    public function redefinir(Request $request)
+    {
+        $validated = $request->validate([
+            'token' => 'required|string',
             'email' => 'required|email',
             'senha' => 'required|string|min:6|confirmed',
         ]);
 
-        $registro = Senha::find($validated['email']);
+        $pedido = DB::table('password_reset_tokens')->where('email', $validated['email'])->first();
+
+        $valido = $pedido
+            && Hash::check($validated['token'], $pedido->token)
+            && Carbon::parse($pedido->created_at)->addMinutes(self::RESET_TOKEN_MINUTES)->isFuture();
+
+        $registro = $valido ? Senha::find($validated['email']) : null;
 
         if (! $registro) {
             return back()->withErrors([
-                'email' => 'Não encontramos uma conta com esse e-mail.',
+                'senha' => 'Este link de redefinição é inválido ou expirou. Solicite um novo.',
             ]);
         }
 
         $registro->senha = $validated['senha'];
         $registro->save();
+
+        DB::table('password_reset_tokens')->where('email', $validated['email'])->delete();
 
         return redirect()->route('login')->with('success', 'Senha atualizada com sucesso. Faça login com a nova senha.');
     }

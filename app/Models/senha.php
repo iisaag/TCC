@@ -28,6 +28,18 @@ class Senha extends Model
         $this->attributes['senha'] = Hash::needsRehash($value) ? Hash::make($value) : $value;
     }
 
+    /**
+     * O login reconhece apenas "adm"; a tela de Gestão envia "admin".
+     */
+    public function setNivelAcessoAttribute(?string $value): void
+    {
+        $nivel = strtolower(trim((string) $value));
+
+        $this->attributes['nivel_acesso'] = in_array($nivel, ['adm', 'admin', 'administrador', 'total'], true)
+            ? 'adm'
+            : 'usuario';
+    }
+
     public function usuario()
     {
         return $this->belongsTo(Usuario::class, 'email', 'email');

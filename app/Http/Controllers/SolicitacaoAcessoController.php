@@ -15,8 +15,19 @@ class SolicitacaoAcessoController extends Controller
 
         $adminEmail = config('mail.admin_address');
 
-        Mail::raw(
-            "Um novo pedido de acesso ao AivyPM foi enviado pelo e-mail: {$validated['email']}",
+        Mail::send(
+            ['html' => 'emails.aviso', 'text' => 'emails.aviso-texto'],
+            [
+                'preheader' => "{$validated['email']} pediu acesso ao AivyPM.",
+                'icone' => '👤',
+                'rotulo' => 'Solicitação de acesso',
+                'titulo' => 'Alguém quer entrar no AivyPM',
+                'texto' => "O e-mail {$validated['email']} pediu acesso ao sistema. Para liberar, cadastre a pessoa em Gestão → Adicionar funcionário.",
+                'botaoTexto' => 'Abrir a Gestão',
+                'botaoUrl' => url('/gestao'),
+                'caixaTitulo' => 'Não reconhece este pedido?',
+                'caixaTexto' => 'Ignore este e-mail. Nenhum acesso é liberado sem que um administrador cadastre a pessoa.',
+            ],
             function ($message) use ($adminEmail) {
                 $message->to($adminEmail)
                     ->subject('Nova solicitação de acesso - AivyPM');
