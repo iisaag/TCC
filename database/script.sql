@@ -592,4 +592,16 @@ FROM tarefas
 GROUP BY mes
 ORDER BY mes ASC;
 
+-- =====================================================
+-- NORMALIZA NIVEL DE ACESSO
+-- =====================================================
+-- o login so reconhece "adm"; a tela de Gestao gravava "admin"
+SET SQL_SAFE_UPDATES = 0;
+
+UPDATE senha
+SET nivel_acesso = 'adm'
+WHERE LOWER(TRIM(nivel_acesso)) IN ('admin', 'administrador', 'total');
+
+SET SQL_SAFE_UPDATES = 1;
+
 SET FOREIGN_KEY_CHECKS = 1;
