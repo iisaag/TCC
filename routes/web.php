@@ -8,21 +8,18 @@ use Illuminate\Support\Facades\Route;
 
 Route::redirect('/', '/login');
 
-// Debug route: return `senha` record for an email (temporary, remove after use)
-Route::get('/__debug/senha/{email}', function (string $email) {
-	$registro = \App\Models\Senha::find($email);
-	return response()->json([
-		'found' => $registro !== null,
-		'registro' => $registro,
-	]);
-});
-
 Route::post('/login', [SenhaController::class, 'authenticate'])->name('login.authenticate');
 
 Route::inertia('/login',      'login/login')->name('login');
 
 Route::inertia('/esqueci-senha', 'login/esqueci-senha')->name('senha.esqueci');
-Route::post('/esqueci-senha', [SenhaController::class, 'resetDireto'])->name('senha.esqueci.submit');
+Route::post('/esqueci-senha', [SenhaController::class, 'enviarLinkRedefinicao'])
+	->middleware('throttle:5,1')
+	->name('senha.esqueci.submit');
+Route::get('/redefinir-senha/{token}', [SenhaController::class, 'formRedefinicao'])->name('senha.redefinir');
+Route::post('/redefinir-senha', [SenhaController::class, 'redefinir'])
+	->middleware('throttle:5,1')
+	->name('senha.redefinir.submit');
 
 Route::inertia('/solicitar-acesso', 'login/solicitar-acesso')->name('acesso.solicitar');
 Route::post('/solicitar-acesso', [SolicitacaoAcessoController::class, 'store'])->name('acesso.solicitar.submit');

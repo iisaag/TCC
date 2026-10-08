@@ -2869,7 +2869,7 @@ export default function Projetos() {
 								</button>
 							</div>
 							<p className="mb-5 text-sm" style={{ color: "var(--cor-logo)" }}>
-								Tem certeza que deseja excluir a coluna <strong>{deletingColuna.nome}</strong>? Os cards dela ficam sem coluna definida.
+								Tem certeza que deseja excluir a coluna <strong>{deletingColuna.nome}</strong>? Só é possível excluir colunas sem cards.
 							</p>
 							<div className="flex justify-end gap-2">
 								<button
