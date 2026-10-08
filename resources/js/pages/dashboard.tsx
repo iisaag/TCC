@@ -3,6 +3,7 @@ import {
     CalendarClock,
     CheckCircle2,
     ChevronDown,
+    ChevronRight,
     Clock,
     Download,
     FolderOpen,
@@ -400,8 +401,9 @@ function KpiCard({
                 <span className="text-sm font-semibold" style={{ color: "var(--cor-logo2)" }}>{label}</span>
                 <span className="text-4xl font-bold" style={{ color: "var(--cor-logo)" }}>{value}</span>
                 {clickable && (
-                    <span className="mt-1 text-xs font-semibold" style={{ color: "var(--cor-logo2)" }}>
-                        Clique para ver detalhes
+                    <span className="mt-1 inline-flex w-fit items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold transition-colors group-hover:bg-slate-100 dark:group-hover:bg-slate-800" style={{ borderColor: "var(--cor-borda)", color: "var(--cor-logo2)" }}>
+                        Ver detalhes
+                        <ChevronRight size={14} aria-hidden="true" />
                     </span>
                 )}
             </div>
@@ -928,31 +930,13 @@ export default function Dashboard() {
                                 )}
                             </SectionCard>
 
-                            <div className="flex flex-col gap-8">
-                                <section>
-                                    <h2 className="mb-3 text-xl font-bold" style={{ color: "var(--cor-logo)" }}>Outros indicadores</h2>
-                                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                                        <KpiCard
-                                            label={`Concluídas (${dias}d)`}
-                                            value={data.kpis.tarefas_concluidas}
-                                            icon={<CheckCircle2 size={20} />}
-                                            iconBg="#22c55e"
-                                            onClick={() => setSelectedKpi("tarefas_concluidas")}
-                                        />
-                                        <KpiCard
-                                            label="Progresso Médio"
-                                            value={`${data.kpis.progresso_medio}%`}
-                                            icon={<TrendingUp size={20} />}
-                                            iconBg="#8b5cf6"
-                                            onClick={() => setSelectedKpi("progresso_medio")}
-                                        />
-                                    </div>
-                                </section>
-
                             {/* ── GRÁFICOS ── */}
                             <section>
-                            <h2 className="mb-3 text-xl font-bold" style={{ color: "var(--cor-logo)" }}>Análises do período</h2>
-                            <div className={isPrinting ? "grid grid-cols-1 gap-4" : "dashboard-print-chart-grid grid grid-cols-1 gap-4 lg:grid-cols-2"}>
+                            <div className="mb-4 text-left">
+                                <h2 className="text-xl font-bold" style={{ color: "var(--cor-logo)" }}>Análises do período</h2>
+                                <p className="mt-1 text-sm" style={{ color: "var(--cor-logo2)" }}>Uma visão visual do andamento e da distribuição do trabalho.</p>
+                            </div>
+                            <div className={isPrinting ? "dashboard-print-chart-grid mx-auto grid w-full max-w-6xl grid-cols-1 gap-4" : "dashboard-print-chart-grid mx-auto grid w-full max-w-none grid-cols-1 gap-5 lg:grid-cols-3"}>
                                 {/* Evolução de Tarefas */}
                                 <SectionCard>
                                     <h3 className="mb-3 text-2xl font-bold" style={{ color: "var(--cor-logo)" }}>
@@ -971,7 +955,7 @@ export default function Dashboard() {
                                             </LineChart>
                                         </ResponsiveContainer>
                                     ) : (
-                                        <ResponsiveContainer width="100%" height={280}>
+                                        <ResponsiveContainer width="100%" height={340}>
                                             <LineChart data={data.evolucao_semanal}>
                                                 <CartesianGrid strokeDasharray="3 3" stroke="var(--cor-borda)" />
                                                 <XAxis dataKey="semana" tick={{ fontSize: 12, fill: "var(--cor-logo2)" }} axisLine={false} tickLine={false} tickMargin={10} />
@@ -1004,8 +988,8 @@ export default function Dashboard() {
                                                 </BarChart>
                                             </ResponsiveContainer>
                                         ) : (
-                                            <ResponsiveContainer width="100%" height={300}>
-                                                <BarChart data={data.produtividade_equipe} barSize={36}>
+                                            <ResponsiveContainer width="100%" height={340}>
+                                                <BarChart data={data.produtividade_equipe} barSize={42}>
                                                     <CartesianGrid strokeDasharray="3 3" stroke="var(--cor-borda)" />
                                                     <XAxis dataKey="equipe" tick={{ fontSize: 12, fill: "var(--cor-logo2)" }} axisLine={false} tickLine={false} tickMargin={10} />
                                                     <YAxis tick={{ fontSize: 12, fill: "var(--cor-logo2)" }} axisLine={false} tickLine={false} width={40} />
@@ -1047,7 +1031,7 @@ export default function Dashboard() {
                                             />
                                         </PieChart>
                                     ) : (
-                                        <ResponsiveContainer width="100%" height={280}>
+                                        <ResponsiveContainer width="100%" height={340}>
                                             <PieChart>
                                                 <Pie
                                                     data={data.distribuicao_status}
@@ -1055,8 +1039,8 @@ export default function Dashboard() {
                                                     nameKey="status"
                                                     cx="50%"
                                                     cy="45%"
-                                                    innerRadius={58}
-                                                    outerRadius={85}
+                                                    innerRadius={68}
+                                                    outerRadius={105}
                                                     paddingAngle={3}
                                                 >
                                                     {data.distribuicao_status.map((_, idx) => (
@@ -1077,6 +1061,8 @@ export default function Dashboard() {
                             </div>
                             </section>
 
+                            <section className="overflow-hidden rounded-2xl border" style={{ borderColor: "var(--cor-borda)", background: "var(--cor-widgets)" }}>
+                                <div className="dashboard-extra-details-content flex flex-col gap-8 border-t p-5 sm:p-6" style={{ borderColor: "var(--cor-borda)" }}>
                             {/* ── RESUMO OPERACIONAL ── */}
                             <div>
                                 <h2 className="mb-3 text-2xl font-bold" style={{ color: "var(--cor-logo)" }}>Resumo Operacional</h2>
@@ -1281,6 +1267,7 @@ export default function Dashboard() {
                                 </div>
                             )}
                                 </div>
+                            </section>
 
                             {selectedKpi && !isPrinting && (() => {
                                 const modalData = getKpiModalData(selectedKpi, data);

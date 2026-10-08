@@ -402,6 +402,18 @@
             gap: 12px !important;
         }
 
+        .dashboard-extra-details > summary {
+            display: none !important;
+        }
+
+        .dashboard-extra-details > .dashboard-extra-details-content {
+            display: flex !important;
+        }
+
+        .dashboard-extra-details > .dashboard-extra-kpis {
+            display: grid !important;
+        }
+
         .dashboard-print-card,
         .dashboard-print-alert,
         .dashboard-print-summary-card {
