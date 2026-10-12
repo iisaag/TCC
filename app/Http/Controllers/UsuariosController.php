@@ -9,7 +9,6 @@ use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
-use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
@@ -46,32 +45,6 @@ class UsuariosController extends Controller
     private function usuariosTemEquipe(): bool
     {
         return Schema::hasTable('usuarios') && Schema::hasColumn('usuarios', 'id_equipe');
-    }
-
-    private function ensureDeletedUsersTable(): void
-    {
-        if (Schema::hasTable('usuarios_excluidos')) {
-            return;
-        }
-
-        Schema::create('usuarios_excluidos', function (Blueprint $table): void {
-            $table->id();
-            $table->unsignedInteger('id_usuario_original')->nullable();
-            $table->string('nome', 100);
-            $table->string('email', 150);
-            $table->string('telefone', 30)->nullable();
-            $table->string('localizacao', 120)->nullable();
-            $table->longText('foto_perfil')->nullable();
-            $table->string('cargo', 100)->nullable();
-            $table->string('nivel', 50)->nullable();
-            $table->string('status_atual', 40)->nullable();
-            $table->string('nivel_acesso', 50)->default('usuario');
-            $table->string('senha_hash', 255)->nullable();
-            $table->unsignedInteger('projetos_afetados')->default(0);
-            $table->unsignedInteger('equipes_afetadas')->default(0);
-            $table->dateTime('excluido_em');
-            $table->dateTime('expira_em')->index();
-        });
     }
 
     private function isAdmin(Request $request): bool
@@ -368,8 +341,6 @@ class UsuariosController extends Controller
         }
 
         try {
-            $this->ensureDeletedUsersTable();
-
             DB::transaction(function () use ($usuario): void {
                 $userId = (int) $usuario->id_usuario;
                 $userEmail = (string) $usuario->email;
@@ -394,6 +365,7 @@ class UsuariosController extends Controller
                     'cargo' => $usuario->getRawOriginal('cargo'),
                     'nivel' => $usuario->nivel,
                     'status_atual' => $usuario->status_atual,
+                    'id_equipe' => $usuario->id_equipe,
                     'nivel_acesso' => $senha?->nivel_acesso ?? 'usuario',
                     'senha_hash' => $senha?->getRawOriginal('senha'),
                     'projetos_afetados' => $projetosAfetados,
@@ -500,8 +472,6 @@ class UsuariosController extends Controller
 
     public function deletedHistory(): JsonResponse
     {
-        $this->ensureDeletedUsersTable();
-
         DB::table('usuarios_excluidos')
             ->where('expira_em', '<=', now())
             ->delete();
@@ -536,8 +506,6 @@ class UsuariosController extends Controller
 
     public function restoreDeleted(int $registro): JsonResponse
     {
-        $this->ensureDeletedUsersTable();
-
         $historico = DB::table('usuarios_excluidos')->where('id', $registro)->first();
 
         if (! $historico) {
@@ -569,8 +537,14 @@ class UsuariosController extends Controller
                 'email' => $historico->email,
                 'telefone' => $historico->telefone,
                 'localizacao' => $historico->localizacao,
-                'cargo' => $historico->cargo,
+                // Cargo ou equipe podem ter sido excluídos enquanto a pessoa estava na lixeira.
+                'cargo' => $historico->cargo && DB::table('cargos')->where('nome_cargo', $historico->cargo)->exists()
+                    ? $historico->cargo
+                    : null,
                 'nivel' => $historico->nivel,
+                'id_equipe' => ! empty($historico->id_equipe) && DB::table('equipes')->where('id_equipe', $historico->id_equipe)->exists()
+                    ? (int) $historico->id_equipe
+                    : null,
             ];
 
             if ($this->usuariosTemStatusAtual()) {

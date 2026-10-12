@@ -3,13 +3,12 @@
 namespace App\Support;
 
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 
 class Notificacoes
 {
     public static function logSistema(?int $autorId, string $acao, string $descricao): void
     {
-        if ($autorId === null || $autorId <= 0 || !Schema::hasTable('log_sistema')) {
+        if ($autorId === null || $autorId <= 0) {
             return;
         }
 
@@ -27,8 +26,7 @@ class Notificacoes
             $autorId === null ||
             $autorId <= 0 ||
             $projetoId === null ||
-            $projetoId <= 0 ||
-            !Schema::hasTable('log_projeto')
+            $projetoId <= 0
         ) {
             return;
         }
@@ -49,10 +47,6 @@ class Notificacoes
         string $mensagem,
         ?string $url = null
     ): void {
-        if (!Schema::hasTable('notificacoes_usuario')) {
-            return;
-        }
-
         $ids = collect($destinatarios)
             ->map(static fn ($id): int => (int) $id)
             ->filter(static function (int $id) use ($autorId): bool {

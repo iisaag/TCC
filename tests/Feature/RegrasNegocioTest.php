@@ -322,6 +322,64 @@ class RegrasNegocioTest extends TestCase
         $this->assertSame('adm', Senha::find($lider->email)->nivel_acesso);
     }
 
+    public function test_ex_lider_volta_a_usuario_mas_quem_ja_era_admin_continua(): void
+    {
+        $admin = $this->criarUsuario('adm');
+        $outroAdmin = $this->criarUsuario('adm');
+        $lider = $this->criarUsuario();
+
+        $equipe = $this->logarComo($admin)->postJson('/api/equipes', [
+            'nome' => 'Backend',
+            'criado_por' => $admin->id_usuario,
+            'id_lider' => $lider->id_usuario,
+        ])->json('data.equipe.id_equipe');
+
+        $this->assertSame('adm', Senha::find($lider->email)->nivel_acesso);
+
+        // Troca o líder por quem já era administrador antes.
+        $this->logarComo($admin)->putJson("/api/equipes/{$equipe}", [
+            'nome' => 'Backend',
+            'criado_por' => $admin->id_usuario,
+            'id_lider' => $outroAdmin->id_usuario,
+        ])->assertOk();
+
+        $this->assertSame('usuario', Senha::find($lider->email)->nivel_acesso);
+
+        // Excluir a equipe não tira o acesso de quem já era admin.
+        $this->logarComo($admin)->deleteJson("/api/equipes/{$equipe}")->assertOk();
+        $this->assertSame('adm', Senha::find($outroAdmin->email)->nivel_acesso);
+    }
+
+    public function test_funcionario_restaurado_volta_para_a_mesma_equipe(): void
+    {
+        $admin = $this->criarUsuario('adm');
+        $equipe = Equipe::create(['nome' => 'Design', 'tipo' => 'SUBEQUIPE', 'criado_por' => $admin->id_usuario]);
+        $usuario = $this->criarUsuario('usuario', ['id_equipe' => $equipe->id_equipe]);
+
+        $this->logarComo($admin)->deleteJson("/api/usuarios/{$usuario->id_usuario}")->assertOk();
+        $registro = DB::table('usuarios_excluidos')->where('email', $usuario->email)->value('id');
+        $this->logarComo($admin)->postJson("/api/usuarios/excluidos/{$registro}/restaurar")->assertOk();
+
+        $this->assertSame($equipe->id_equipe, (int) Usuario::where('email', $usuario->email)->value('id_equipe'));
+    }
+
+    public function test_status_do_projeto_aceita_so_os_valores_da_tela(): void
+    {
+        $admin = $this->criarUsuario('adm');
+
+        $id = $this->logarComo($admin)->postJson('/api/projetos', ['nome_projeto' => 'Sem status'])
+            ->assertCreated()
+            ->json('data.projeto.id_projeto');
+        $this->assertSame('Planejamento', Projeto::find($id)->status_projeto);
+
+        $this->logarComo($admin)->putJson("/api/projetos/{$id}", ['nome_projeto' => 'Sem status', 'status_projeto' => 'concluido'])
+            ->assertOk();
+        $this->assertSame('Concluído', Projeto::find($id)->status_projeto);
+
+        $this->logarComo($admin)->putJson("/api/projetos/{$id}", ['nome_projeto' => 'Sem status', 'status_projeto' => 'Qualquer coisa'])
+            ->assertStatus(422);
+    }
+
     // ------------------------------------------------------------------
     // Lixeira de projetos, dashboard e notificações
     // ------------------------------------------------------------------

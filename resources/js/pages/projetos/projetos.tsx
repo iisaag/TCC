@@ -162,11 +162,19 @@ const EMPTY_FORM: FormState = {
 	relacionados: [],
 };
 
+// Os mesmos valores aceitos pela API (ProjetosController::STATUS_PERMITIDOS).
+const PROJECT_STATUS_OPTIONS: SelectOption[] = [
+	{ value: "Planejamento", label: "Planejamento" },
+	{ value: "Em andamento", label: "Em andamento" },
+	{ value: "Concluído", label: "Concluído" },
+	{ value: "Cancelado", label: "Cancelado" },
+];
+
 const EMPTY_PROJECT_FORM: ProjectFormState = {
 	nome_projeto: "",
 	descricao: "",
 	prioridade_proj: "",
-	status_projeto: "",
+	status_projeto: "Planejamento",
 	id_responsavel: "",
 	kanban_padrao: true,
 };
@@ -458,10 +466,12 @@ function computeMenuPlacement(trigger: HTMLElement, preferredHeight = 256) {
 
 	if (spaceBelow < 160 && spaceAbove > spaceBelow) {
 		const maxHeight = Math.max(Math.min(preferredHeight, spaceAbove), 120);
+
 		return { top: rect.top - maxHeight - 4, left: rect.left, width: rect.width, maxHeight };
 	}
 
 	const maxHeight = Math.max(Math.min(preferredHeight, spaceBelow), 120);
+
 	return { top: rect.bottom + 4, left: rect.left, width: rect.width, maxHeight };
 }
 
@@ -480,14 +490,22 @@ function toIsoDate(date: Date) {
 }
 
 function parseIsoDate(iso: string): Date | null {
-	if (!iso) return null;
+	if (!iso) {
+return null;
+}
+
 	const [y, m, d] = iso.split("-").map(Number);
-	if (!y || !m || !d) return null;
+
+	if (!y || !m || !d) {
+return null;
+}
+
 	return new Date(y, m - 1, d);
 }
 
 function formatDateDisplay(iso: string): string {
 	const date = parseIsoDate(iso);
+
 	return date ? `${pad2(date.getDate())}/${pad2(date.getMonth() + 1)}/${date.getFullYear()}` : "";
 }
 
@@ -507,12 +525,17 @@ function DatePicker({ value, onChange, placeholder = "Selecionar data" }: {
 
 	const updateMenuRect = () => {
 		const rect = ref.current?.getBoundingClientRect();
-		if (!rect) return;
+
+		if (!rect) {
+return;
+}
+
 		const margin = 12;
 		const panelHeight = 360;
 		const spaceBelow = window.innerHeight - rect.bottom - margin;
 		const spaceAbove = rect.top - margin;
 		const left = Math.min(rect.left, window.innerWidth - panelWidth - margin);
+
 		if (spaceBelow < panelHeight && spaceAbove > spaceBelow) {
 			setMenuRect({ top: rect.top - panelHeight - 4, left });
 		} else {
@@ -521,7 +544,9 @@ function DatePicker({ value, onChange, placeholder = "Selecionar data" }: {
 	};
 
 	useEffect(() => {
-		if (!open) return;
+		if (!open) {
+return;
+}
 
 		setViewDate(parseIsoDate(value) ?? new Date());
 		ref.current?.scrollIntoView({ block: "center", behavior: "auto" });
@@ -553,6 +578,7 @@ function DatePicker({ value, onChange, placeholder = "Selecionar data" }: {
 	const days = useMemo(() => {
 		const firstOfMonth = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1);
 		const gridStart = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1 - firstOfMonth.getDay());
+
 		return Array.from({ length: 42 }, (_, i) => new Date(gridStart.getFullYear(), gridStart.getMonth(), gridStart.getDate() + i));
 	}, [viewDate]);
 
@@ -619,11 +645,14 @@ function DatePicker({ value, onChange, placeholder = "Selecionar data" }: {
 							const outside = day.getMonth() !== viewDate.getMonth();
 							const isSelected = selected ? isSameDay(day, selected) : false;
 							const isToday = isSameDay(day, today);
+
 							return (
 								<button
 									key={day.toISOString()}
 									type="button"
-									onClick={() => { onChange(toIsoDate(day)); setOpen(false); }}
+									onClick={() => {
+ onChange(toIsoDate(day)); setOpen(false); 
+}}
 									className="flex h-8 w-8 items-center justify-center rounded-lg text-sm transition hover:shadow-sm"
 									style={{
 										color: isSelected ? "#fff" : outside ? "var(--cor-logo2)" : "var(--cor-logo)",
@@ -641,7 +670,9 @@ function DatePicker({ value, onChange, placeholder = "Selecionar data" }: {
 					<div className="mt-2 flex items-center justify-between border-t pt-2" style={{ borderColor: "var(--cor-borda)" }}>
 						<button
 							type="button"
-							onClick={() => { onChange(""); setOpen(false); }}
+							onClick={() => {
+ onChange(""); setOpen(false); 
+}}
 							className="text-sm font-medium transition hover:opacity-75"
 							style={{ color: "var(--cor-logo2)" }}
 						>
@@ -649,7 +680,9 @@ function DatePicker({ value, onChange, placeholder = "Selecionar data" }: {
 						</button>
 						<button
 							type="button"
-							onClick={() => { onChange(toIsoDate(today)); setOpen(false); }}
+							onClick={() => {
+ onChange(toIsoDate(today)); setOpen(false); 
+}}
 							className="text-sm font-medium transition hover:opacity-75"
 							style={{ color: "var(--cor-accent)" }}
 						>
@@ -824,7 +857,9 @@ function RelatedPeoplePicker({ usuarios, selectedIds, onToggle }: {
 	};
 
 	useEffect(() => {
-		if (!open) return;
+		if (!open) {
+return;
+}
 
 		inputRef.current?.scrollIntoView({ block: "center", behavior: "auto" });
 		updateMenuRect();
@@ -855,6 +890,7 @@ function RelatedPeoplePicker({ usuarios, selectedIds, onToggle }: {
 
 	const filtered = useMemo(() => {
 		const q = search.trim().toLowerCase();
+
 		return q ? usuarios.filter((usuario) => usuario.nome.toLowerCase().includes(q)) : usuarios;
 	}, [usuarios, search]);
 
@@ -887,7 +923,9 @@ function RelatedPeoplePicker({ usuarios, selectedIds, onToggle }: {
 				ref={inputRef}
 				type="text"
 				value={search}
-				onChange={(e) => { setSearch(e.target.value); setOpen(true); }}
+				onChange={(e) => {
+ setSearch(e.target.value); setOpen(true); 
+}}
 				onFocus={() => setOpen(true)}
 				placeholder="Buscar pessoa pelo nome..."
 				className="w-full rounded-xl border px-3 py-2 text-sm outline-none transition focus:ring-2"
@@ -1519,7 +1557,7 @@ export default function Projetos() {
 			nome_projeto: projeto.nome_projeto ?? "",
 			descricao: projeto.descricao ?? "",
 			prioridade_proj: normalizeProjectPriorityValue(projeto.prioridade_proj),
-			status_projeto: projeto.status_projeto ?? "",
+			status_projeto: projeto.status_projeto ?? "Planejamento",
 			id_responsavel: projeto.id_responsavel ? String(projeto.id_responsavel) : "",
 			kanban_padrao: projeto.kanban_padrao !== false,
 		});
@@ -1650,6 +1688,7 @@ export default function Projetos() {
 
 		if (!sprintForm.data_inicio || !sprintForm.data_fim) {
 			setError("Informe a data de inicio e de finalizacao da sprint.");
+
 			return;
 		}
 
@@ -2079,6 +2118,7 @@ export default function Projetos() {
 
 			if (!response.ok) {
 				const payloadError = (await response.json().catch(() => null)) as { message?: string } | null;
+
 				throw new Error(payloadError?.message || "Nao foi possivel excluir a coluna.");
 			}
 
@@ -3052,6 +3092,15 @@ export default function Projetos() {
 									/>
 								</label>
 
+								<label className="flex flex-col gap-1 text-base" style={{ color: "var(--cor-logo)" }}>
+									Status
+									<CustomSelect
+										value={projectForm.status_projeto}
+										onChange={(v) => setProjectForm((c) => ({ ...c, status_projeto: v }))}
+										options={PROJECT_STATUS_OPTIONS}
+									/>
+								</label>
+
 								<label className="flex flex-col gap-1 text-base md:col-span-2" style={{ color: "var(--cor-logo)" }}>
 									Responsavel do projeto
 									<CustomSelect
@@ -3270,7 +3319,9 @@ export default function Projetos() {
 
 								<button
 									type="button"
-									onClick={() => { setIsModalOpen(false); setAttemptedTaskSubmit(false); }}
+									onClick={() => {
+ setIsModalOpen(false); setAttemptedTaskSubmit(false); 
+}}
 									className="rounded-xl border px-4 py-2 text-sm transition-transform duration-200 hover:-translate-y-0.5"
 									style={{ color: "var(--cor-logo)", borderColor: "var(--cor-borda)" }}
 								>
@@ -3406,7 +3457,9 @@ export default function Projetos() {
 							<div className="mt-6 flex justify-end gap-3">
 								<button
 									type="button"
-									onClick={() => { setIsModalOpen(false); setAttemptedTaskSubmit(false); }}
+									onClick={() => {
+ setIsModalOpen(false); setAttemptedTaskSubmit(false); 
+}}
 									className="rounded-xl border px-5 py-2.5 text-base transition-transform duration-200 hover:-translate-y-0.5"
 									style={{ borderColor: "var(--cor-borda)", color: "var(--cor-logo)" }}
 								>

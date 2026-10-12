@@ -90,9 +90,37 @@ class EquipesController extends Controller
 
         if (!$email) return;
 
-        \DB::table('senha')
+        // Só marca como "admin por liderança" quem ainda não era administrador.
+        DB::table('senha')
             ->where('email', $email)
-            ->update(['nivel_acesso' => 'adm']);
+            ->where('nivel_acesso', '!=', 'adm')
+            ->update(['nivel_acesso' => 'adm', 'admin_por_lideranca' => true]);
+    }
+
+    /**
+     * Quem virou administrador só por liderar volta a ser usuário comum
+     * quando não lidera mais nenhuma equipe (nunca o último administrador).
+     */
+    private function rebaixarExLider(?int $idLider): void
+    {
+        if ($idLider === null || DB::table('equipes')->where('id_lider', $idLider)->exists()) {
+            return;
+        }
+
+        $email = DB::table('usuarios')->where('id_usuario', $idLider)->value('email');
+        $registro = $email ? DB::table('senha')->where('email', $email)->first() : null;
+
+        if (! $registro || ! $registro->admin_por_lideranca || $registro->nivel_acesso !== 'adm') {
+            return;
+        }
+
+        if (DB::table('senha')->where('nivel_acesso', 'adm')->count() <= 1) {
+            return;
+        }
+
+        DB::table('senha')
+            ->where('email', $email)
+            ->update(['nivel_acesso' => 'usuario', 'admin_por_lideranca' => false]);
     }
 
     private function regras(): array
@@ -208,9 +236,15 @@ class EquipesController extends Controller
         unset($validated['membros']);
 
         DB::transaction(function () use ($equipe, $validated, $membros): void {
+            $liderAnterior = $equipe->id_lider ? (int) $equipe->id_lider : null;
+
             $this->promoverLiderAdmin($validated['id_lider'] ?? null);
 
             $equipe->update($validated);
+
+            if ($liderAnterior !== ($equipe->id_lider ? (int) $equipe->id_lider : null)) {
+                $this->rebaixarExLider($liderAnterior);
+            }
 
             DB::table('usuarios')
                 ->where('id_equipe', $equipe->id_equipe)
@@ -253,8 +287,12 @@ class EquipesController extends Controller
         }
 
         DB::transaction(function () use ($equipe): void {
+            $liderAnterior = $equipe->id_lider ? (int) $equipe->id_lider : null;
+
             DB::table('usuarios')->where('id_equipe', $equipe->id_equipe)->update(['id_equipe' => null]);
             $equipe->delete();
+
+            $this->rebaixarExLider($liderAnterior);
         });
 
         return response()->json([

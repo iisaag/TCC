@@ -19,6 +19,7 @@ return new class extends Migration
             Schema::create($tabela, $definicao);
         }
     }
+
     public function up(): void
     {
         $this->criarSeNaoExistir('jobs', function (Blueprint $table) {

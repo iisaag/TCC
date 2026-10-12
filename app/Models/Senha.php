@@ -62,6 +62,17 @@ class Senha extends Model
         return null;
     }
 
+    protected static function booted(): void
+    {
+        // Mudança manual de nível (Gestão) vale como decisão do administrador:
+        // a pessoa deixa de ser "admin por liderança" e não é rebaixada sozinha depois.
+        static::saving(function (Senha $registro): void {
+            if ($registro->exists && $registro->isDirty('nivel_acesso')) {
+                $registro->admin_por_lideranca = false;
+            }
+        });
+    }
+
     public function usuario()
     {
         return $this->belongsTo(Usuario::class, 'email', 'email');

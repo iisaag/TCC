@@ -6,7 +6,6 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 
 class NotificacoesController extends Controller
 {
@@ -38,7 +37,7 @@ class NotificacoesController extends Controller
 
         $sources = [];
 
-        if ($authUserId !== null && Schema::hasTable('notificacoes_usuario')) {
+        if ($authUserId !== null) {
             $sources[] = DB::table('notificacoes_usuario as nu')
                 ->selectRaw("CONCAT('usuario:', nu.id_notificacao) as id")
                 ->selectRaw("'sistema' as source")
@@ -50,7 +49,7 @@ class NotificacoesController extends Controller
         }
 
         // Log de ações do sistema inteiro: só para administradores (auditoria).
-        if ($isAdmin && Schema::hasTable('log_sistema')) {
+        if ($isAdmin) {
             $sources[] = DB::table('log_sistema')
                 ->selectRaw("CONCAT('sistema:', id_log_sistema) as id")
                 ->selectRaw("'sistema' as source")
@@ -62,7 +61,7 @@ class NotificacoesController extends Controller
         }
 
         // Atividade de projeto: só dos projetos em que a pessoa é responsável ou tem tarefa.
-        if ($authUserId !== null && Schema::hasTable('log_projeto') && Schema::hasTable('projetos')) {
+        if ($authUserId !== null) {
             $sources[] = DB::table('log_projeto as lp')
                 ->leftJoin('projetos as p', 'p.id_projeto', '=', 'lp.id_projeto')
                 ->selectRaw("CONCAT('projeto:', lp.id_log_projeto) as id")

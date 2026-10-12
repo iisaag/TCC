@@ -19,6 +19,7 @@ return new class extends Migration
             Schema::create($tabela, $definicao);
         }
     }
+
     public function up(): void
     {
         $this->criarSeNaoExistir('cache', function (Blueprint $table) {

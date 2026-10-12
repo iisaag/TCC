@@ -33,6 +33,32 @@ class Projeto extends Model
         'kanban_padrao' => 'boolean',
     ];
 
+    /** Status que a tela oferece e a API aceita. */
+    public const STATUS_PERMITIDOS = ['Planejamento', 'Em andamento', 'Concluído', 'Cancelado'];
+
+    /**
+     * Converte variações ("em andamento", "Concluido", "cancelada"...) para o valor oficial.
+     * Valores desconhecidos voltam como vieram, para a validação recusar.
+     */
+    public static function normalizarStatus(?string $status): ?string
+    {
+        $limpo = trim((string) $status);
+
+        if ($limpo === '') {
+            return null;
+        }
+
+        $chave = mb_strtolower(\Illuminate\Support\Str::ascii($limpo));
+
+        return match (true) {
+            str_starts_with($chave, 'planej') => 'Planejamento',
+            str_contains($chave, 'andamento') => 'Em andamento',
+            str_starts_with($chave, 'conclu') => 'Concluído',
+            str_starts_with($chave, 'cancel') => 'Cancelado',
+            default => $limpo,
+        };
+    }
+
     /** Projetos fora da lixeira. Projetos sem status também entram. */
     public function scopeNaoExcluidos(Builder $query): Builder
     {

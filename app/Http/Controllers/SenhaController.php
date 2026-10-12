@@ -11,7 +11,6 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Str;
 use Carbon\Carbon;
@@ -155,12 +154,6 @@ class SenhaController extends Controller
             'senha' => 'required|string',
         ]);
 
-        if (! Schema::hasTable('usuarios') || ! Schema::hasTable('senha')) {
-            return back()->withErrors([
-                'email' => 'Base de usuários não está disponível no ambiente atual.',
-            ]);
-        }
-
         $email = strtolower(trim($validated['email']));
         $registro = Senha::with('usuario')->find($email);
         $usuario = $registro?->usuario ?? Usuario::query()->where('email', $email)->first();
@@ -191,15 +184,13 @@ class SenhaController extends Controller
             'nivel_acesso' => $nivelAcessoOriginal,
         ]);
 
-        if (Schema::hasTable('user_presences')) {
-            UserPresence::updateOrCreate(
-                ['session_id' => $request->session()->getId()],
-                [
-                    'user_id' => (int) $usuario->id_usuario,
-                    'last_seen' => Carbon::now(),
-                ]
-            );
-        }
+        UserPresence::updateOrCreate(
+            ['session_id' => $request->session()->getId()],
+            [
+                'user_id' => (int) $usuario->id_usuario,
+                'last_seen' => Carbon::now(),
+            ]
+        );
 
         return redirect()->route('home');
     }
@@ -296,13 +287,7 @@ class SenhaController extends Controller
 
     public function logout(Request $request)
     {
-        try {
-            if (Schema::hasTable('user_presences')) {
-                UserPresence::query()->where('session_id', $request->session()->getId())->delete();
-            }
-        } catch (\Exception $e) {
-            // Ignore presence cleanup errors (missing table or DB access issues in local env)
-        }
+        UserPresence::query()->where('session_id', $request->session()->getId())->delete();
 
         $request->session()->forget('auth.user');
         $request->session()->invalidate();

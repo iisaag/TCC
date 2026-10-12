@@ -12,29 +12,12 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Schema;
 
 class TarefasController extends Controller
 {
-    private function hasSprintsTable(): bool
-    {
-        return Schema::hasTable('sprints');
-    }
-
-    private function hasHistoricoColumn(): bool
-    {
-        return Schema::hasColumn('tarefas', 'em_historico');
-    }
-
     private function tarefaRelations(): array
     {
-        $relations = ['projeto', 'responsavel', 'relacionados'];
-
-        if ($this->hasSprintsTable()) {
-            $relations[] = 'sprint';
-        }
-
-        return $relations;
+        return ['projeto', 'responsavel', 'relacionados', 'sprint'];
     }
 
     private function authUserId(Request $request): ?int
@@ -88,7 +71,7 @@ class TarefasController extends Controller
             }
         }
 
-        if (! empty($dados['id_sprint']) && $this->hasSprintsTable()) {
+        if (! empty($dados['id_sprint'])) {
             $sprint = Sprint::find($dados['id_sprint']);
 
             if ((int) $sprint?->id_projeto !== (int) $idProjeto) {
@@ -105,7 +88,7 @@ class TarefasController extends Controller
 
     private function archiveApprovedTask(Tarefa $tarefa): void
     {
-        if ($this->hasHistoricoColumn() && $this->isArchiveStatus((string) $tarefa->status_task)) {
+        if ($this->isArchiveStatus((string) $tarefa->status_task)) {
             $tarefa->update([
                 'em_historico' => true,
                 'id_sprint' => null,
@@ -116,15 +99,12 @@ class TarefasController extends Controller
     private function rules(bool $isUpdate = false): array
     {
         $tituloRule = $isUpdate ? 'sometimes|required|string|min:2|max:255' : 'required|string|min:2|max:255';
-        $sprintRule = $this->hasSprintsTable()
-            ? 'nullable|integer|exists:sprints,id_sprint'
-            : 'nullable|integer';
 
         return [
             'titulo'                => $tituloRule,
             'descricao'             => 'nullable|string',
             'id_projeto'            => 'nullable|integer|exists:projetos,id_projeto',
-            'id_sprint'             => $sprintRule,
+            'id_sprint'             => 'nullable|integer|exists:sprints,id_sprint',
             'id_responsavel'        => 'nullable|integer|exists:usuarios,id_usuario',
             'prioridade_task'       => 'nullable|string|in:BAIXA,MEDIA,ALTA,CRITICA',
             'tipo_task'             => 'nullable|string|in:FRONT,BACK,FULLSTACK',
@@ -212,15 +192,11 @@ class TarefasController extends Controller
             $validated['prazo'] = $validated['data_prevista_termino'];
         }
 
-        if ($this->isArchiveStatus($validated['status_task'] ?? null) && $this->hasHistoricoColumn()) {
+        if ($this->isArchiveStatus($validated['status_task'] ?? null)) {
             $validated['em_historico'] = true;
             $validated['id_sprint'] = null;
-        } elseif ($this->hasHistoricoColumn() && array_key_exists('id_sprint', $validated) && $validated['id_sprint']) {
+        } elseif (array_key_exists('id_sprint', $validated) && $validated['id_sprint']) {
             $validated['em_historico'] = false;
-        }
-
-        if (!$this->hasHistoricoColumn()) {
-            unset($validated['em_historico']);
         }
 
         if ($erro = $this->vinculoInvalido($validated)) {
@@ -287,12 +263,8 @@ class TarefasController extends Controller
             $validated['prazo'] = $validated['data_prevista_termino'];
         }
 
-        if ($this->hasHistoricoColumn() && array_key_exists('id_sprint', $validated) && $validated['id_sprint']) {
+        if (array_key_exists('id_sprint', $validated) && $validated['id_sprint']) {
             $validated['em_historico'] = false;
-        }
-
-        if (!$this->hasHistoricoColumn()) {
-            unset($validated['em_historico']);
         }
 
         // Tarefa movida para outro projeto não pode levar coluna nem sprint do projeto antigo.

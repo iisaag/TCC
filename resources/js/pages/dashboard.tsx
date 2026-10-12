@@ -8,7 +8,6 @@ import {
     Download,
     FolderOpen,
     TrendingDown,
-    TrendingUp,
     UserX,
     Users,
 } from "lucide-react";
@@ -148,14 +147,22 @@ const AVATAR_PALETTE = [
 // ---------------------------------------------------------------------------
 
 function formatDate(date: string | null | undefined): string {
-    if (!date) return "-";
+    if (!date) {
+return "-";
+}
+
     const d = new Date(date.includes("T") ? date : date + "T00:00:00");
+
     return d.toLocaleDateString("pt-BR");
 }
 
 function formatDateShort(date: string | null | undefined): string {
-    if (!date) return "-";
+    if (!date) {
+return "-";
+}
+
     const d = new Date(date.includes("T") ? date : date + "T00:00:00");
+
     return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
 }
 
@@ -171,28 +178,54 @@ function statusLabel(s: ProjetoSaude["status"]): { label: string; color: string;
 }
 
 function progressColor(p: number): string {
-    if (p >= 75) return "#22c55e";
-    if (p >= 40) return "#f59e0b";
+    if (p >= 75) {
+return "#22c55e";
+}
+
+    if (p >= 40) {
+return "#f59e0b";
+}
+
     return "#ef4444";
 }
 
 function avatarColor(name: string | null | undefined): string {
-    if (!name) return "#94a3b8";
+    if (!name) {
+return "#94a3b8";
+}
+
     let hash = 0;
-    for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+
+    for (let i = 0; i < name.length; i++) {
+hash = name.charCodeAt(i) + ((hash << 5) - hash);
+}
+
     return AVATAR_PALETTE[Math.abs(hash) % AVATAR_PALETTE.length];
 }
 
 function initials(name: string | null | undefined): string {
-    if (!name) return "?";
+    if (!name) {
+return "?";
+}
+
     const parts = name.trim().split(" ");
-    if (parts.length === 1) return parts[0][0].toUpperCase();
+
+    if (parts.length === 1) {
+return parts[0][0].toUpperCase();
+}
+
     return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
 function alertIcon(nivel: Alerta["nivel"]) {
-    if (nivel === "danger") return <AlertTriangle size={16} className="mt-0.5 shrink-0" style={{ color: "#ef4444" }} />;
-    if (nivel === "warning") return <TrendingDown size={16} className="mt-0.5 shrink-0" style={{ color: "#f59e0b" }} />;
+    if (nivel === "danger") {
+return <AlertTriangle size={16} className="mt-0.5 shrink-0" style={{ color: "#ef4444" }} />;
+}
+
+    if (nivel === "warning") {
+return <TrendingDown size={16} className="mt-0.5 shrink-0" style={{ color: "#f59e0b" }} />;
+}
+
     return <Users size={16} className="mt-0.5 shrink-0" style={{ color: "#3b82f6" }} />;
 }
 
@@ -205,6 +238,7 @@ function alertStyle(nivel: Alerta["nivel"]) {
             text: "var(--cor-atrasoI)",
         };
     }
+
     if (nivel === "warning") {
         return {
             bg: "color-mix(in srgb, var(--cor-ausente) 14%, var(--cor-widgets))",
@@ -213,6 +247,7 @@ function alertStyle(nivel: Alerta["nivel"]) {
             text: "var(--cor-logo2)",
         };
     }
+
     return {
         bg: "color-mix(in srgb, var(--cor-accent) 12%, var(--cor-widgets))",
         border: "color-mix(in srgb, var(--cor-accent) 34%, var(--cor-borda))",
@@ -223,14 +258,17 @@ function alertStyle(nivel: Alerta["nivel"]) {
 
 function hashText(value: string): number {
     let hash = 0;
+
     for (let i = 0; i < value.length; i++) {
         hash = value.charCodeAt(i) + ((hash << 5) - hash);
     }
+
     return Math.abs(hash);
 }
 
 function hypotheticalDaysForAlert(alerta: Alerta, index: number): number {
     const seed = `${alerta.tipo}|${alerta.titulo}|${alerta.mensagem}|${index}`;
+
     return (hashText(seed) % 12) + 1;
 }
 
@@ -390,7 +428,10 @@ function KpiCard({
             tabIndex={clickable ? 0 : undefined}
             onClick={onClick}
             onKeyDown={(e) => {
-                if (!clickable) return;
+                if (!clickable) {
+return;
+}
+
                 if (e.key === "Enter" || e.key === " ") {
                     e.preventDefault();
                     onClick?.();
@@ -472,7 +513,9 @@ function SelectFilter({
     const ref = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-        if (!open) return;
+        if (!open) {
+return;
+}
 
         const handleOutsideClick = (e: MouseEvent) => {
             if (ref.current && !ref.current.contains(e.target as Node)) {
@@ -575,8 +618,11 @@ export default function Dashboard() {
         fetch(`/api/dashboard?dias=${dias}`, { credentials: 'same-origin' })
             .then((r) => r.json())
             .then((json) => {
-                if (json.success) setData(json.data as DashboardData);
-                else setError(json.message ?? "Erro desconhecido");
+                if (json.success) {
+setData(json.data as DashboardData);
+} else {
+setError(json.message ?? "Erro desconhecido");
+}
             })
             .catch(() => setError("Falha ao conectar com o servidor"))
             .finally(() => setLoading(false));
@@ -603,7 +649,9 @@ export default function Dashboard() {
     }, []);
 
     useEffect(() => {
-        if (!selectedKpi) return;
+        if (!selectedKpi) {
+return;
+}
 
         const handleEscape = (event: KeyboardEvent) => {
             if (event.key === "Escape") {
@@ -634,14 +682,18 @@ export default function Dashboard() {
     }, [dias]);
 
     useEffect(() => {
-        if (!data) return;
+        if (!data) {
+return;
+}
 
         const totalPages = Math.max(1, Math.ceil(data.saude_projetos.length / PROJECT_HEALTH_PAGE_SIZE));
         setProjectHealthPage((prev) => Math.min(prev, totalPages));
     }, [data?.saude_projetos.length]);
 
     useEffect(() => {
-        if (!data) return;
+        if (!data) {
+return;
+}
 
         const totalPages = Math.max(1, Math.ceil(data.alertas.length / ALERTS_PAGE_SIZE));
         setAlertsPage((prev) => Math.min(prev, totalPages));
@@ -866,6 +918,7 @@ export default function Dashboard() {
                                             <tbody>
                                                 {projectHealthItems.map((p) => {
                                                     const st = statusLabel(p.status);
+
                                                     return (
                                                         <tr
                                                             key={p.id}
@@ -1249,6 +1302,7 @@ export default function Dashboard() {
                                             const s = alertStyle(a.nivel);
                                             const hypotheticalDays = hypotheticalDaysForAlert(a, i);
                                             const normalizedMessage = normalizeAlertMessage(a.mensagem, hypotheticalDays);
+
                                             return (
                                                 <div
                                                     key={i}

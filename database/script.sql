@@ -63,6 +63,7 @@ CREATE TABLE senha (
     email VARCHAR(150) PRIMARY KEY,
     senha VARCHAR(100) NOT NULL,
     nivel_acesso VARCHAR(50) NOT NULL,
+    admin_por_lideranca BOOLEAN NOT NULL DEFAULT FALSE,
     FOREIGN KEY (email) REFERENCES usuarios(email)
         ON UPDATE CASCADE
         ON DELETE CASCADE
@@ -82,6 +83,7 @@ CREATE TABLE usuarios_excluidos (
     cargo VARCHAR(100),
     nivel VARCHAR(50),
     status_atual VARCHAR(40),
+    id_equipe INT NULL,
     nivel_acesso VARCHAR(50) NOT NULL DEFAULT 'usuario',
     senha_hash VARCHAR(255),
     projetos_afetados INT UNSIGNED NOT NULL DEFAULT 0,
@@ -441,7 +443,7 @@ VALUES
 -- SENHAS
 -- =====================================================
 -- senhas originais (hash bcrypt): belli=123, ana=0809, bela=0906, bruno=2222, carla=3333, daniel=4444, eva=5555
-INSERT INTO senha VALUES
+INSERT INTO senha (email, senha, nivel_acesso) VALUES
 ('belli@ivyteam.com','$2y$10$.zl9R8NJxNBsYaXjUQlIQOfh0/.jmJ/mhRYLy0Cm3Bhd1q9sq3M1C','adm'),
 ('ana@ivyteam.com','$2y$10$QjB.GWn4yGMJ2G/qrBq8ReQ1jTWbegnsRd/qrbiH3CcNTG/Vjc7h.','adm'),
 ('bela@ivyteam.com','$2y$10$AJvaTaQSQ6jA7iMgX5/SXOHrDATnmkWk7hxszP5/9Qb6seQO79eK2','adm'),
@@ -462,8 +464,8 @@ INSERT INTO equipes (nome,criado_por,tipo,id_lider) VALUES
 -- PROJETOS
 -- =====================================================
 INSERT INTO projetos (nome_projeto,descricao,data_inicio,prazo_final,status_projeto,kanban_padrao,prioridade_proj,id_responsavel) VALUES
-('Sistema de Gestao','Plataforma de controle','2026-03-10','2026-06-30','Em andamento',TRUE,'Alta',3),
-('Aplicativo Mobile','App de tarefas','2026-04-01','2026-08-01','Planejamento',TRUE,'Média',2);
+('Sistema de Gestao','Plataforma de controle','2026-03-10','2026-06-30','Em andamento',TRUE,'ALTA',3),
+('Aplicativo Mobile','App de tarefas','2026-04-01','2026-08-01','Planejamento',TRUE,'MEDIA',2);
 
 -- =====================================================
 -- BOARD COLUNAS (colunas padrao para os projetos acima)

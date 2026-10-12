@@ -1,6 +1,5 @@
 <?php
 
-use App\Models\User;
 
 return [
 
@@ -64,7 +63,9 @@ return [
     'providers' => [
         'users' => [
             'driver' => 'eloquent',
-            'model' => env('AUTH_MODEL', User::class),
+            // Não usado: o AivyPM autentica por sessão própria (SenhaController::authenticate,
+            // chave "auth.user") com as tabelas usuarios e senha. Mantido só para o Laravel iniciar.
+            'model' => env('AUTH_MODEL', App\Models\Usuario::class),
         ],
 
         // 'users' => [

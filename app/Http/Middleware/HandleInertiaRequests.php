@@ -7,7 +7,6 @@ use App\Models\UserPresence;
 use App\Models\Usuario;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Schema;
 use Inertia\Inertia;
 use Inertia\Middleware;
 
@@ -54,17 +53,14 @@ class HandleInertiaRequests extends Middleware
     {
         $authUser = $request->session()->get('auth.user');
         $authUserId = is_array($authUser) && isset($authUser['id']) ? (int) $authUser['id'] : null;
-        $hasSenhaTable = Schema::hasTable('senha');
-        $hasUsuariosTable = Schema::hasTable('usuarios');
-        $hasUserPresencesTable = Schema::hasTable('user_presences');
 
 
-        if ($hasUsuariosTable && is_array($authUser) && isset($authUser['id'])) {
+        if (is_array($authUser) && isset($authUser['id'])) {
             $usuario = Usuario::find($authUser['id']);
 
             if ($usuario) {
                 $cargoTexto = $usuario->getRawOriginal('cargo');
-                $registroSenha = $hasSenhaTable ? Senha::find($usuario->email) : null;
+                $registroSenha = Senha::find($usuario->email);
                 $nivelAcesso = strtolower((string) ($registroSenha?->nivel_acesso ?? ($authUser['nivel_acesso'] ?? '')));
                 $temPermissaoTotal = in_array($nivelAcesso, ['adm'], true);
 
@@ -88,46 +84,37 @@ class HandleInertiaRequests extends Middleware
             $authUser['role'] = $authUser['role']->nome_cargo;
         }
 
-        $onlineIds = [];
+        UserPresence::query()->where('last_seen', '<', Carbon::now()->subMinutes(10))->delete();
 
-        if ($hasUserPresencesTable) {
-            UserPresence::query()->where('last_seen', '<', Carbon::now()->subMinutes(10))->delete();
+        // Usuários com sinal nos últimos 45s; o próprio usuário conta como online nesta requisição.
+        $onlineIds = UserPresence::query()
+            ->where('last_seen', '>=', Carbon::now()->subSeconds(45))
+            ->pluck('user_id')
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
 
-            $onlineIds = UserPresence::query()
-                ->where('last_seen', '>=', Carbon::now()->subSeconds(45))
-                ->pluck('user_id')
-                ->map(fn ($id) => (int) $id)
-                ->unique()
-                ->values()
-                ->all();
+        if ($authUserId !== null) {
+            UserPresence::updateOrCreate(
+                ['session_id' => $request->session()->getId()],
+                [
+                    'user_id' => $authUserId,
+                    'last_seen' => Carbon::now(),
+                ]
+            );
 
-            if ($authUserId !== null) {
-                UserPresence::updateOrCreate(
-                    ['session_id' => $request->session()->getId()],
-                    [
-                        'user_id' => $authUserId,
-                        'last_seen' => Carbon::now(),
-                    ]
-                );
-
-                if (! in_array($authUserId, $onlineIds, true)) {
-                    $onlineIds[] = $authUserId;
-                }
+            if (! in_array($authUserId, $onlineIds, true)) {
+                $onlineIds[] = $authUserId;
             }
         }
 
         // Lista de pessoas (com fotos) enviada uma vez e renovada a cada 5 minutos;
         // o status online é atualizado à parte pela consulta leve de presença.
-        $projectUsers = Inertia::once(function () use ($hasUsuariosTable, $hasSenhaTable, $onlineIds) {
-            if (! $hasUsuariosTable) {
-                return collect();
-            }
-
-            $nivelAcessoPorEmail = $hasSenhaTable
-                ? Senha::query()
-                    ->pluck('nivel_acesso', 'email')
-                    ->mapWithKeys(fn ($nivelAcesso, $email) => [strtolower((string) $email) => strtolower((string) $nivelAcesso)])
-                : collect();
+        $projectUsers = Inertia::once(function () use ($onlineIds) {
+            $nivelAcessoPorEmail = Senha::query()
+                ->pluck('nivel_acesso', 'email')
+                ->mapWithKeys(fn ($nivelAcesso, $email) => [strtolower((string) $email) => strtolower((string) $nivelAcesso)]);
 
             return Usuario::with('equipeRelation')->orderBy('nome', 'asc')->get()->map(function (Usuario $usuario) use ($onlineIds, $nivelAcessoPorEmail) {
                 $cargoTexto = $usuario->getRawOriginal('cargo');
