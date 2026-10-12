@@ -7,7 +7,7 @@ use App\Models\Projeto;
 use App\Models\Usuario;  
 class LogProjeto extends Model
 {
-    protected $table      = 'log_projetos';
+    protected $table      = 'log_projeto';
     protected $primaryKey = 'id_log_projeto';
     public    $timestamps = false;
 

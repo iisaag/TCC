@@ -135,8 +135,6 @@ class PerfilController extends Controller
         $usuario->foto_perfil = $fotoData;
         $usuario->save();
 
-        $request->session()->put('auth.user.avatar', $usuario->foto_perfil ?: null);
-
         return back()->with('success', 'Foto de perfil atualizada com sucesso.');
     }
 }

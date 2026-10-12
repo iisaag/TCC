@@ -797,28 +797,18 @@ export default function UsuariosAdminPage() {
                     status_atual: form.status_atual,
                     telefone: form.telefone || null,
                     localizacao: form.localizacao || null,
+                    nivel_acesso: form.nivel_acesso,
+                    senha: form.senha.trim() || null,
                 }),
             });
             if (!uRes.ok) {
                 throw new Error(await readApiMessage(uRes, "Não foi possível atualizar o funcionário."));
             }
-            await fetch(`${apiRoutes.senhas}/${encodeURIComponent(form.email)}/nivel-acesso`, {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json", Accept: "application/json", "X-Requested-With": "XMLHttpRequest", "X-CSRF-TOKEN": csrfToken },
-                body: JSON.stringify({ nivel_acesso: form.nivel_acesso }),
-            });
-            if (form.senha.trim()) {
-                await fetch(`${apiRoutes.senhas}/${encodeURIComponent(form.email)}/senha`, {
-                    method: "PATCH",
-                    headers: { "Content-Type": "application/json", Accept: "application/json", "X-Requested-With": "XMLHttpRequest", "X-CSRF-TOKEN": csrfToken },
-                    body: JSON.stringify({ senha: form.senha.trim() }),
-                });
-            }
             closeModal();
             setSuccess("Funcionário atualizado com sucesso.");
             await fetchData();
-        } catch {
-            setError("Não foi possível atualizar o funcionário.");
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Não foi possível atualizar o funcionário.");
         } finally {
             setSaving(false);
         }
@@ -835,12 +825,6 @@ export default function UsuariosAdminPage() {
             });
             if (!uRes.ok) {
                 throw new Error(await readApiMessage(uRes, "Não foi possível desativar o funcionário."));
-            }
-            if (deletingUser.email) {
-                await fetch(`${apiRoutes.senhas}/${encodeURIComponent(deletingUser.email)}`, {
-                    method: "DELETE",
-                    headers: { Accept: "application/json", "X-Requested-With": "XMLHttpRequest", "X-CSRF-TOKEN": csrfToken },
-                });
             }
             setIsDeleteOpen(false);
             setDeletingUser(null);

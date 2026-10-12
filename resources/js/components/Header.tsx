@@ -236,7 +236,7 @@ export default function Header({ user }: HeaderProps) {
 
         const interval = window.setInterval(() => {
             void fetchNotifications();
-        }, 5000);
+        }, 15000);
 
         return () => {
             isMounted = false;

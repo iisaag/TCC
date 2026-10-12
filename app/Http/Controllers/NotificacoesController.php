@@ -10,6 +10,9 @@ use Illuminate\Support\Facades\Schema;
 
 class NotificacoesController extends Controller
 {
+    /** Logs mais antigos que isso não entram no sino (a consulta não cresce sem limite). */
+    private const DIAS_HISTORICO = 30;
+
     private function authUserId(Request $request): ?int
     {
         $authUser = $request->session()->get('auth.user');
@@ -26,6 +29,7 @@ class NotificacoesController extends Controller
     public function index(Request $request): JsonResponse
     {
         $authUserId = $this->authUserId($request);
+        $isAdmin = (bool) data_get($request->session()->get('auth.user'), 'permissions.total', false);
         $page = (int) $request->query('page', 1);
         $page = max(1, $page);
 
@@ -45,17 +49,20 @@ class NotificacoesController extends Controller
                 ->whereNotNull('nu.criado_em');
         }
 
-        if (Schema::hasTable('log_sistema')) {
+        // Log de ações do sistema inteiro: só para administradores (auditoria).
+        if ($isAdmin && Schema::hasTable('log_sistema')) {
             $sources[] = DB::table('log_sistema')
                 ->selectRaw("CONCAT('sistema:', id_log_sistema) as id")
                 ->selectRaw("'sistema' as source")
                 ->selectRaw('COALESCE(acao, "Atualizacao do sistema") as title')
                 ->selectRaw('COALESCE(descricao, "Sem detalhes") as description')
                 ->selectRaw('data_hora as occurred_at')
-                ->whereNotNull('data_hora');
+                ->whereNotNull('data_hora')
+                ->where('data_hora', '>=', now()->subDays(self::DIAS_HISTORICO));
         }
 
-        if (Schema::hasTable('log_projeto') && Schema::hasTable('projetos')) {
+        // Atividade de projeto: só dos projetos em que a pessoa é responsável ou tem tarefa.
+        if ($authUserId !== null && Schema::hasTable('log_projeto') && Schema::hasTable('projetos')) {
             $sources[] = DB::table('log_projeto as lp')
                 ->leftJoin('projetos as p', 'p.id_projeto', '=', 'lp.id_projeto')
                 ->selectRaw("CONCAT('projeto:', lp.id_log_projeto) as id")
@@ -63,7 +70,16 @@ class NotificacoesController extends Controller
                 ->selectRaw('COALESCE(p.nome_projeto, "Projeto") as title')
                 ->selectRaw('COALESCE(lp.mensagem, "Atualizacao de projeto") as description')
                 ->selectRaw('lp.data_hora as occurred_at')
-                ->whereNotNull('lp.data_hora');
+                ->whereNotNull('lp.data_hora')
+                ->where(function ($q) use ($authUserId): void {
+                    $q->where('p.id_responsavel', $authUserId)
+                        ->orWhereIn('lp.id_projeto', DB::table('tarefas')->where('id_responsavel', $authUserId)->select('id_projeto'))
+                        ->orWhereIn('lp.id_projeto', DB::table('tarefas as tr')
+                            ->join('tarefa_usuarios_relacionados as tur', 'tur.id_tarefa', '=', 'tr.id_tarefa')
+                            ->where('tur.id_usuario', $authUserId)
+                            ->select('tr.id_projeto'));
+                })
+                ->where('lp.data_hora', '>=', now()->subDays(self::DIAS_HISTORICO));
         }
 
         if (empty($sources)) {

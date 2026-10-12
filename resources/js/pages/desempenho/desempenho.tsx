@@ -19,7 +19,6 @@ import {
     YAxis,
 } from "recharts";
 import DashboardLayout from "@/layouts/DashboardLayout";
-import { downloadExcelFile  } from "@/lib/excelExport";
 import type {ExcelSheetDefinition} from "@/lib/excelExport";
 import { apiRoutes } from "@/lib/routes";
 
@@ -574,7 +573,9 @@ export default function Desempenho() {
         ];
     }, [tarefasFiltradas]);
 
-    const handleExportExcel = () => {
+    const handleExportExcel = async () => {
+        // A biblioteca de planilhas é grande; só é baixada quando alguém exporta.
+        const { downloadExcelFile } = await import("@/lib/excelExport");
         const fileName = `desempenho_${new Date().toISOString().slice(0, 10)}.xlsx`;
         downloadExcelFile(fileName, buildPerformanceExcelSheets({
             tarefasFiltradas,
@@ -607,7 +608,7 @@ export default function Desempenho() {
                                 color: "var(--cor-logo)",
                             }}
                             type="button"
-                            onClick={handleExportExcel}
+                            onClick={() => void handleExportExcel()}
                         >
                             <Download size={18} />
                             Exportar Excel

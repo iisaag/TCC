@@ -57,7 +57,7 @@ class EquipesController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Erro ao listar equipes: ' . $e->getMessage(),
+                'message' => 'Erro ao listar equipes' . $this->detalheErro($e),
             ], 400);
         }
     }
@@ -95,9 +95,9 @@ class EquipesController extends Controller
             ->update(['nivel_acesso' => 'adm']);
     }
 
-    public function store(Request $request): JsonResponse
+    private function regras(): array
     {
-        $validated = $request->validate([
+        return [
             'nome'       => 'required|string|min:2|max:100',
             'criado_por' => 'required|integer|exists:usuarios,id_usuario',
             'equipe_pai' => 'nullable|integer|exists:equipes,id_equipe',
@@ -105,22 +105,75 @@ class EquipesController extends Controller
             'id_lider'   => 'nullable|integer|exists:usuarios,id_usuario',
             'membros'    => 'nullable|array',
             'membros.*'  => 'integer|exists:usuarios,id_usuario',
-        ]);
+        ];
+    }
 
-        $this->promoverLiderAdmin($validated['id_lider'] ?? null);
+    /**
+     * Regras da hierarquia: só uma equipe principal (EMPRESA), sem equipe pai,
+     * e nenhuma equipe pode ficar abaixo dela mesma (ciclo).
+     */
+    private function problemaHierarquia(array $dados, ?Equipe $equipe = null): ?string
+    {
+        $tipo = strtoupper((string) ($dados['tipo'] ?? $equipe?->tipo ?? 'SUBEQUIPE'));
+        $equipePai = array_key_exists('equipe_pai', $dados) ? $dados['equipe_pai'] : $equipe?->equipe_pai;
 
+        if ($tipo === 'EMPRESA') {
+            if ($equipePai !== null) {
+                return 'A equipe principal (empresa) não pode ter equipe pai.';
+            }
+
+            $outraEmpresa = Equipe::query()
+                ->where('tipo', 'EMPRESA')
+                ->when($equipe, fn ($q) => $q->where('id_equipe', '!=', $equipe->id_equipe))
+                ->value('nome');
+
+            if ($outraEmpresa !== null) {
+                return "Já existe uma equipe principal: {$outraEmpresa}. Cadastre esta como subequipe.";
+            }
+        }
+
+        if ($equipe && $equipePai !== null) {
+            $atual = (int) $equipePai;
+            $visitados = [];
+
+            while ($atual > 0 && ! in_array($atual, $visitados, true)) {
+                if ($atual === (int) $equipe->id_equipe) {
+                    return 'Uma equipe não pode ficar abaixo dela mesma nem de uma das suas subequipes.';
+                }
+
+                $visitados[] = $atual;
+                $atual = (int) DB::table('equipes')->where('id_equipe', $atual)->value('equipe_pai');
+            }
+        }
+
+        return null;
+    }
+
+    public function store(Request $request): JsonResponse
+    {
+        $validated = $request->validate($this->regras());
         $validated['tipo'] = $validated['tipo'] ?? 'SUBEQUIPE';
+
+        if ($erro = $this->problemaHierarquia($validated)) {
+            return response()->json(['success' => false, 'message' => $erro], 422);
+        }
 
         $membros = $validated['membros'] ?? [];
         unset($validated['membros']);
 
-        $equipe = Equipe::create($validated);
+        $equipe = DB::transaction(function () use ($validated, $membros): Equipe {
+            $this->promoverLiderAdmin($validated['id_lider'] ?? null);
 
-        if (!empty($membros)) {
-            \DB::table('usuarios')
-                ->whereIn('id_usuario', $membros)
-                ->update(['id_equipe' => $equipe->id_equipe]);
-        }
+            $equipe = Equipe::create($validated);
+
+            if (!empty($membros)) {
+                DB::table('usuarios')
+                    ->whereIn('id_usuario', $membros)
+                    ->update(['id_equipe' => $equipe->id_equipe]);
+            }
+
+            return $equipe;
+        });
 
         return response()->json([
             'success' => true,
@@ -140,33 +193,36 @@ class EquipesController extends Controller
             ], 404);
         }
 
-        $validated = $request->validate([
-            'nome'       => 'required|string|min:2|max:100',
-            'criado_por' => 'required|integer|exists:usuarios,id_usuario',
-            'equipe_pai' => 'nullable|integer|exists:equipes,id_equipe',
-            'tipo'       => 'nullable|string|in:EMPRESA,SUBEQUIPE',
-            'id_lider'   => 'nullable|integer|exists:usuarios,id_usuario',
-            'membros'    => 'nullable|array',
-            'membros.*'  => 'integer|exists:usuarios,id_usuario',
-        ]);
+        $validated = $request->validate($this->regras());
 
-        $this->promoverLiderAdmin($validated['id_lider'] ?? null);
+        // Sem tipo informado, mantém o atual (o model não aceita tipo vazio).
+        if (empty($validated['tipo'])) {
+            unset($validated['tipo']);
+        }
+
+        if ($erro = $this->problemaHierarquia($validated, $equipe)) {
+            return response()->json(['success' => false, 'message' => $erro], 422);
+        }
 
         $membros = $validated['membros'] ?? [];
         unset($validated['membros']);
 
-        $equipe->update($validated);
+        DB::transaction(function () use ($equipe, $validated, $membros): void {
+            $this->promoverLiderAdmin($validated['id_lider'] ?? null);
 
-        \DB::table('usuarios')
-            ->where('id_equipe', $equipe->id_equipe)
-            ->whereNotIn('id_usuario', $membros)
-            ->update(['id_equipe' => null]);
+            $equipe->update($validated);
 
-        if (!empty($membros)) {
-            \DB::table('usuarios')
-                ->whereIn('id_usuario', $membros)
-                ->update(['id_equipe' => $equipe->id_equipe]);
-        }
+            DB::table('usuarios')
+                ->where('id_equipe', $equipe->id_equipe)
+                ->whereNotIn('id_usuario', $membros)
+                ->update(['id_equipe' => null]);
+
+            if (!empty($membros)) {
+                DB::table('usuarios')
+                    ->whereIn('id_usuario', $membros)
+                    ->update(['id_equipe' => $equipe->id_equipe]);
+            }
+        });
 
         return response()->json([
             'success' => true,
@@ -223,7 +279,7 @@ class EquipesController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => $e->getMessage(),
+                'message' => 'Não foi possível calcular os totais' . $this->detalheErro($e),
             ], 400);
         }
     }

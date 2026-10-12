@@ -8,7 +8,9 @@ use Illuminate\Support\Facades\Route;
 
 Route::redirect('/', '/login');
 
-Route::post('/login', [SenhaController::class, 'authenticate'])->name('login.authenticate');
+Route::post('/login', [SenhaController::class, 'authenticate'])
+	->middleware('throttle:10,1')
+	->name('login.authenticate');
 
 Route::inertia('/login',      'login/login')->name('login');
 
@@ -22,7 +24,9 @@ Route::post('/redefinir-senha', [SenhaController::class, 'redefinir'])
 	->name('senha.redefinir.submit');
 
 Route::inertia('/solicitar-acesso', 'login/solicitar-acesso')->name('acesso.solicitar');
-Route::post('/solicitar-acesso', [SolicitacaoAcessoController::class, 'store'])->name('acesso.solicitar.submit');
+Route::post('/solicitar-acesso', [SolicitacaoAcessoController::class, 'store'])
+	->middleware('throttle:3,1')
+	->name('acesso.solicitar.submit');
 
 Route::middleware('session.auth')->group(function () {
 	Route::post('/logout', [SenhaController::class, 'logout'])->name('logout');

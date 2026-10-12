@@ -40,6 +40,28 @@ class Senha extends Model
             : 'usuario';
     }
 
+    /**
+     * Motivo que impede tirar o acesso de administrador deste e-mail, ou null se puder.
+     */
+    public static function bloqueioRemoverAdmin(string $email, ?string $emailDoAutor): ?string
+    {
+        $registro = static::find($email);
+
+        if (! $registro || $registro->nivel_acesso !== 'adm') {
+            return null;
+        }
+
+        if ($emailDoAutor !== null && strcasecmp($email, $emailDoAutor) === 0) {
+            return 'Você não pode remover o seu próprio acesso de administrador.';
+        }
+
+        if (static::query()->where('nivel_acesso', 'adm')->count() <= 1) {
+            return 'Não é possível remover o acesso do último administrador do sistema.';
+        }
+
+        return null;
+    }
+
     public function usuario()
     {
         return $this->belongsTo(Usuario::class, 'email', 'email');

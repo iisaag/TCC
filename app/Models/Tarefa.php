@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Support\StatusTarefa;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 
 class Tarefa extends Model
@@ -26,6 +28,7 @@ class Tarefa extends Model
         'status_task',
         'em_historico',
         'id_coluna',
+        'concluida_em',
     ];
 
     protected $casts = [
@@ -35,6 +38,7 @@ class Tarefa extends Model
         'bloqueada' => 'boolean',
         'progresso' => 'integer',
         'em_historico' => 'boolean',
+        'concluida_em' => 'datetime',
     ];
 
     public function setTituloAttribute(string $value): void
@@ -49,6 +53,49 @@ class Tarefa extends Model
     public function setPrioridadeTaskAttribute(?string $value): void
     {
         $this->attributes['prioridade_task'] = $value ? strtoupper(trim($value)) : null;
+    }
+
+    public function setStatusTaskAttribute(?string $value): void
+    {
+        $this->attributes['status_task'] = StatusTarefa::canonico($value);
+    }
+
+    public function estaConcluida(): bool
+    {
+        return (bool) $this->em_historico
+            || (int) ($this->progresso ?? 0) >= 100
+            || StatusTarefa::statusConcluido($this->status_task);
+    }
+
+    protected static function booted(): void
+    {
+        // Registra quando a tarefa foi concluída, para métricas por período.
+        static::saving(function (Tarefa $tarefa): void {
+            if ($tarefa->estaConcluida()) {
+                $tarefa->concluida_em ??= now();
+            } else {
+                $tarefa->concluida_em = null;
+            }
+        });
+    }
+
+    /** Ignora tarefas de projetos que estão na lixeira. */
+    public function scopeDeProjetosAtivos(Builder $query): Builder
+    {
+        return $query->where(function (Builder $q): void {
+            $q->whereNull('tarefas.id_projeto')
+                ->orWhereIn('tarefas.id_projeto', Projeto::query()->naoExcluidos()->select('id_projeto'));
+        });
+    }
+
+    public function scopeConcluidas(Builder $query): Builder
+    {
+        return $query->whereRaw(StatusTarefa::sqlConcluida('tarefas.'));
+    }
+
+    public function scopeAbertas(Builder $query): Builder
+    {
+        return $query->whereRaw(StatusTarefa::sqlAberta('tarefas.'));
     }
 
     public function projeto()

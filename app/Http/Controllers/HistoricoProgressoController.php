@@ -38,7 +38,7 @@ class HistoricoProgressoController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Erro ao listar histórico: ' . $e->getMessage(),
+                'message' => 'Erro ao listar histórico' . $this->detalheErro($e),
             ], 400);
         }
     }
@@ -134,7 +134,7 @@ class HistoricoProgressoController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => $e->getMessage(),
+                'message' => 'Não foi possível calcular os totais' . $this->detalheErro($e),
             ], 400);
         }
     }
@@ -154,7 +154,7 @@ class HistoricoProgressoController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => $e->getMessage(),
+                'message' => 'Não foi possível calcular os totais' . $this->detalheErro($e),
             ], 400);
         }
     }

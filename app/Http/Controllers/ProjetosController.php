@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\BoardColuna;
 use App\Models\Projeto;
+use App\Support\LixeiraProjetos;
 use App\Support\Notificacoes;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -15,7 +16,7 @@ use Illuminate\Database\Schema\Blueprint;
 class ProjetosController extends Controller
 {
     private const DELETION_RETENTION_DAYS = 7;
-    private const TEMP_DELETED_STATUS = '__EXCLUIDO_TEMP__';
+    private const TEMP_DELETED_STATUS = Projeto::STATUS_EXCLUIDO;
 
     private function authUserId(Request $request): ?int
     {
@@ -126,14 +127,14 @@ class ProjetosController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Erro ao listar projetos: ' . $e->getMessage(),
+                'message' => 'Erro ao listar projetos' . $this->detalheErro($e),
             ], 400);
         }
     }
 
     public function show(int $id): JsonResponse
     {
-        $projeto = Projeto::find($id);
+        $projeto = Projeto::query()->naoExcluidos()->find($id);
 
         if (!$projeto) {
             return response()->json([
@@ -200,7 +201,7 @@ class ProjetosController extends Controller
 
     public function update(Request $request, int $id): JsonResponse
     {
-        $projeto = Projeto::find($id);
+        $projeto = Projeto::query()->naoExcluidos()->find($id);
 
         if (!$projeto) {
             return response()->json([
@@ -268,7 +269,8 @@ class ProjetosController extends Controller
 
     public function destroy(int $id): JsonResponse
     {
-        $projeto = Projeto::find($id);
+        // Excluir de novo um projeto da lixeira sobrescreveria a cópia com o status interno.
+        $projeto = Projeto::query()->naoExcluidos()->find($id);
 
         if (!$projeto) {
             return response()->json([
@@ -323,7 +325,7 @@ class ProjetosController extends Controller
         } catch (\Throwable $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Nao foi possivel excluir o projeto: ' . $e->getMessage(),
+                'message' => 'Nao foi possivel excluir o projeto' . $this->detalheErro($e),
             ], 422);
         }
     }
@@ -331,10 +333,7 @@ class ProjetosController extends Controller
     public function deletedHistory(): JsonResponse
     {
         $this->ensureDeletedProjectsTable();
-
-        DB::table('projetos_excluidos')
-            ->where('expira_em', '<=', now())
-            ->delete();
+        LixeiraProjetos::purgarExpirados();
 
         $historico = DB::table('projetos_excluidos')
             ->orderByDesc('excluido_em')
@@ -379,7 +378,7 @@ class ProjetosController extends Controller
         }
 
         if (Carbon::parse((string) $historico->expira_em)->lte(now())) {
-            DB::table('projetos_excluidos')->where('id', $registro)->delete();
+            LixeiraProjetos::purgarExpirados();
 
             return response()->json([
                 'success' => false,
@@ -448,7 +447,7 @@ class ProjetosController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => $e->getMessage(),
+                'message' => 'Não foi possível calcular os totais' . $this->detalheErro($e),
             ], 400);
         }
     }

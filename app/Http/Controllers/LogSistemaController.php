@@ -28,7 +28,7 @@ class LogSistemaController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Erro ao listar logs: ' . $e->getMessage(),
+                'message' => 'Erro ao listar logs' . $this->detalheErro($e),
             ], 400);
         }
     }
@@ -103,7 +103,7 @@ class LogSistemaController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => $e->getMessage(),
+                'message' => 'Não foi possível calcular os totais' . $this->detalheErro($e),
             ], 400);
         }
     }
@@ -123,7 +123,7 @@ class LogSistemaController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => $e->getMessage(),
+                'message' => 'Não foi possível calcular os totais' . $this->detalheErro($e),
             ], 400);
         }
     }

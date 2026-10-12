@@ -12,6 +12,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 
 class UsuariosController extends Controller
 {
@@ -159,7 +160,7 @@ class UsuariosController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Erro ao listar usuários: ' . $e->getMessage(),
+                'message' => 'Erro ao listar usuários' . $this->detalheErro($e),
             ], 400);
         }
     }
@@ -269,18 +270,24 @@ class UsuariosController extends Controller
             'id_equipe'   => 'nullable|integer|exists:equipes,id_equipe',
             'telefone'    => 'nullable|string|max:30',
             'localizacao' => 'nullable|string|max:120',
+            'senha'       => 'nullable|string|min:6',
+            'nivel_acesso' => 'nullable|string',
         ]);
 
         // Only update allowed fields explicitly to avoid unexpected mass-assignment
         $updateData = [
             'nome' => $validated['nome'],
             'email' => $validated['email'],
-            'foto_perfil' => $validated['foto_perfil'] ?? null,
             'cargo' => $validated['cargo'] ?? null,
             'nivel' => $validated['nivel'] ?? null,
             'telefone' => $validated['telefone'] ?? null,
             'localizacao' => $validated['localizacao'] ?? null,
         ];
+
+        // A foto só muda quando é enviada; a tela de Gestão não envia e antes a apagava.
+        if (array_key_exists('foto_perfil', $validated)) {
+            $updateData['foto_perfil'] = $validated['foto_perfil'];
+        }
 
         if ($this->usuariosTemEquipe()) {
             $updateData['id_equipe'] = $validated['id_equipe'] ?? null;
@@ -290,7 +297,47 @@ class UsuariosController extends Controller
             $updateData['status_atual'] = $this->normalizarStatusAtual($validated['status_atual'] ?? null);
         }
 
-        $usuario->update($updateData);
+        $registroSenha = Senha::find($usuario->email);
+
+        if ($registroSenha && isset($validated['nivel_acesso'])) {
+            $registroSenha->nivel_acesso = $validated['nivel_acesso'];
+
+            if ($registroSenha->isDirty('nivel_acesso') && $registroSenha->nivel_acesso !== 'adm') {
+                $bloqueio = Senha::bloqueioRemoverAdmin(
+                    $usuario->email,
+                    data_get($request->session()->get('auth.user'), 'email')
+                );
+
+                if ($bloqueio !== null) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => $bloqueio,
+                    ], 422);
+                }
+            }
+        }
+
+        // Dados, e-mail (propagado para "senha" pela chave estrangeira), permissão e senha numa só transação.
+        DB::transaction(function () use ($usuario, $updateData, $validated, $registroSenha): void {
+            $usuario->update($updateData);
+
+            if (! $registroSenha) {
+                return;
+            }
+
+            $acesso = Senha::find($usuario->email);
+
+            if (isset($validated['nivel_acesso'])) {
+                $acesso->nivel_acesso = $validated['nivel_acesso'];
+            }
+
+            if (! empty($validated['senha'])) {
+                $acesso->senha = $validated['senha'];
+            }
+
+            $acesso->save();
+        });
+
         $usuario->load(['cargoRelation', 'equipeRelation']);
 
         return response()->json([
@@ -367,16 +414,17 @@ class UsuariosController extends Controller
                     DB::table('tarefas')->where('id_responsavel', $userId)->update(['id_responsavel' => null]);
                 }
 
+                // Histórico e logs são mantidos para auditoria; só perdem o vínculo com a pessoa.
                 if (Schema::hasTable('historico_progresso') && Schema::hasColumn('historico_progresso', 'id_usuario')) {
-                    DB::table('historico_progresso')->where('id_usuario', $userId)->delete();
+                    DB::table('historico_progresso')->where('id_usuario', $userId)->update(['id_usuario' => null]);
                 }
 
                 if (Schema::hasTable('log_projeto') && Schema::hasColumn('log_projeto', 'id_usuario')) {
-                    DB::table('log_projeto')->where('id_usuario', $userId)->delete();
+                    DB::table('log_projeto')->where('id_usuario', $userId)->update(['id_usuario' => null]);
                 }
 
                 if (Schema::hasTable('log_sistema') && Schema::hasColumn('log_sistema', 'id_usuario')) {
-                    DB::table('log_sistema')->where('id_usuario', $userId)->delete();
+                    DB::table('log_sistema')->where('id_usuario', $userId)->update(['id_usuario' => null]);
                 }
 
                 if (Schema::hasTable('user_presences') && Schema::hasColumn('user_presences', 'user_id')) {
@@ -540,7 +588,8 @@ class UsuariosController extends Controller
             Senha::updateOrCreate(
                 ['email' => (string) $historico->email],
                 [
-                    'senha' => $historico->senha_hash ?: 'Temp@123456',
+                    // Sem senha guardada, gera uma aleatória; a pessoa usa "Esqueci a senha" para definir outra.
+                    'senha' => $historico->senha_hash ?: Str::random(40),
                     'nivel_acesso' => $historico->nivel_acesso ?: 'usuario',
                 ]
             );
@@ -613,7 +662,7 @@ class UsuariosController extends Controller
                 'data'    => $total,
             ]);
         } catch (\Exception $e) {
-            return response()->json(['success' => false, 'message' => $e->getMessage()], 400);
+            return response()->json(['success' => false, 'message' => 'Não foi possível calcular os totais' . $this->detalheErro($e)], 400);
         }
     }
 
@@ -630,7 +679,7 @@ class UsuariosController extends Controller
                 'data'    => $total,
             ]);
         } catch (\Exception $e) {
-            return response()->json(['success' => false, 'message' => $e->getMessage()], 400);
+            return response()->json(['success' => false, 'message' => 'Não foi possível calcular os totais' . $this->detalheErro($e)], 400);
         }
     }
 }

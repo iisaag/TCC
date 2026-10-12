@@ -17,47 +17,40 @@ use App\Http\Controllers\DatabaseController;
 use App\Http\Controllers\UsuariosController;
 use Illuminate\Support\Facades\Route;
 
-// Senhas / Auth
-Route::post('auth/verificar',                    [SenhaController::class, 'verificarSenha']);
-
 Route::middleware(['web', 'session.auth'])->group(function (): void {
 	// Dashboard
 	Route::get('dashboard', [DashboardController::class, 'index']);
 	Route::get('busca/global', [DashboardController::class, 'globalSearch']);
 	Route::get('notificacoes', [NotificacoesController::class, 'index']);
 
-	// Equipes
+	// Equipes (leitura)
 	Route::get('equipes/subequipes/total',           [EquipesController::class, 'totalSubequipes']);
 	Route::get('equipes',                            [EquipesController::class, 'index']);
 	Route::get('equipes/{equipe}',                    [EquipesController::class, 'show']);
 
-	// Historico de Progresso
+	// Historico de Progresso (gravado automaticamente ao alterar o progresso das tarefas)
 	Route::get('historico-progresso/tarefa/{id}/ultimo', [HistoricoProgressoController::class, 'showUltimo']);
 	Route::get('historico-progresso/total/por-tarefa',   [HistoricoProgressoController::class, 'totalPorTarefa']);
 	Route::get('historico-progresso/total/por-usuario',  [HistoricoProgressoController::class, 'totalPorUsuario']);
-	Route::apiResource('historico-progresso', HistoricoProgressoController::class);
+	Route::apiResource('historico-progresso', HistoricoProgressoController::class)->only(['index', 'show']);
 
-	// Metas
+	// Metas (leitura)
 	Route::get('metas/total/por-status',             [MetasController::class, 'totalPorStatus']);
 	Route::get('metas/total/por-projeto',            [MetasController::class, 'totalPorProjeto']);
-	Route::patch('metas/{id}/concluir',              [MetasController::class, 'concluir']);
-	Route::apiResource('metas', MetasController::class);
+	Route::apiResource('metas', MetasController::class)->only(['index', 'show']);
 
-	// Projetos
+	// Projetos (leitura)
 	Route::get('projetos/total/por-status',          [ProjetosController::class, 'totalPorStatus']);
-	Route::get('projetos/excluidos/historico',       [ProjetosController::class, 'deletedHistory']);
-	Route::post('projetos/excluidos/{registro}/restaurar', [ProjetosController::class, 'restoreDeleted']);
-	Route::apiResource('projetos', ProjetosController::class);
+	Route::apiResource('projetos', ProjetosController::class)->only(['index', 'show']);
 	Route::get('sprints',                             [SprintsController::class, 'index']);
 
-	// Colunas do quadro kanban
+	// Colunas do quadro kanban (criar, editar e reordenar: colaborativo)
 	Route::get('projetos/{idProjeto}/colunas',       [BoardColunasController::class, 'index']);
 	Route::post('projetos/{idProjeto}/colunas',      [BoardColunasController::class, 'store']);
 	Route::patch('projetos/{idProjeto}/colunas/reordenar', [BoardColunasController::class, 'reorder']);
 	Route::put('colunas/{id}',                       [BoardColunasController::class, 'update']);
-	Route::delete('colunas/{id}',                    [BoardColunasController::class, 'destroy']);
 
-	// Tarefas
+	// Tarefas (colaborativo: qualquer pessoa logada cria, edita, move e exclui cards)
 	Route::get('tarefas/total/por-status',           [TarefasController::class, 'totalPorStatus']);
 	Route::get('tarefas/total/por-projeto',          [TarefasController::class, 'totalPorProjeto']);
 	Route::get('tarefas/total/por-responsavel',      [TarefasController::class, 'totalPorResponsavel']);
@@ -70,6 +63,21 @@ Route::middleware(['web', 'session.auth'])->group(function (): void {
 	Route::get('usuarios/{usuario}',                 [UsuariosController::class, 'show']);
 
 	Route::middleware('admin.access')->group(function (): void {
+		// Projetos (gestao)
+		Route::get('projetos/excluidos/historico',       [ProjetosController::class, 'deletedHistory']);
+		Route::post('projetos/excluidos/{registro}/restaurar', [ProjetosController::class, 'restoreDeleted']);
+		Route::apiResource('projetos', ProjetosController::class)->only(['store', 'update', 'destroy']);
+
+		// Colunas (exclusao)
+		Route::delete('colunas/{id}',                [BoardColunasController::class, 'destroy']);
+
+		// Metas (gestao)
+		Route::patch('metas/{id}/concluir',          [MetasController::class, 'concluir']);
+		Route::apiResource('metas', MetasController::class)->only(['store', 'update', 'destroy']);
+
+		// Historico de Progresso (correcao manual)
+		Route::apiResource('historico-progresso', HistoricoProgressoController::class)->only(['store', 'destroy']);
+
 		// Sprints
 		Route::post('sprints',                         [SprintsController::class, 'store']);
 		Route::patch('sprints/{id}/encerrar',          [SprintsController::class, 'encerrar']);

@@ -29,7 +29,7 @@ import {
     YAxis,
 } from "recharts";
 import DashboardLayout from "@/layouts/DashboardLayout";
-import { downloadExcelFile, type ExcelSheetDefinition } from "@/lib/excelExport";
+import type { ExcelSheetDefinition } from "@/lib/excelExport";
 
 // ---------------------------------------------------------------------------
 // TYPES
@@ -647,11 +647,13 @@ export default function Dashboard() {
         setAlertsPage((prev) => Math.min(prev, totalPages));
     }, [data?.alertas.length]);
 
-    const handleExportExcel = () => {
+    const handleExportExcel = async () => {
         if (!data) {
             return;
         }
 
+        // A biblioteca de planilhas é grande; só é baixada quando alguém exporta.
+        const { downloadExcelFile } = await import("@/lib/excelExport");
         const fileName = `dashboard_${new Date().toISOString().slice(0, 10)}.xlsx`;
         downloadExcelFile(fileName, buildDashboardExcelSheets(data, dias));
     };
@@ -783,7 +785,7 @@ export default function Dashboard() {
                             <button
                                 className="flex h-10 items-center gap-2 rounded-xl border px-4 text-base font-semibold shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md hover:opacity-95"
                                 style={{ background: "var(--cor-botao)", borderColor: "var(--cor-borda)", color: "var(--cor-logo)" }}
-                                onClick={handleExportExcel}
+                                onClick={() => void handleExportExcel()}
                             >
                                 <Download size={16} />
                                 Exportar Excel

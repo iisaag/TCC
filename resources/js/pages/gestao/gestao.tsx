@@ -960,21 +960,11 @@ export default function GestaoPage() {
                     status_atual: userForm.status_atual,
                     telefone: userForm.telefone || null,
                     localizacao: userForm.localizacao || null,
+                    nivel_acesso: userForm.nivel_acesso,
+                    senha: userForm.senha.trim() || null,
                 }),
             });
             if (!res.ok) throw new Error(await readApiMessage(res, "Não foi possível atualizar o funcionário."));
-            await fetch(`${apiRoutes.senhas}/${encodeURIComponent(userForm.email)}/nivel-acesso`, {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json", ...authHeaders },
-                body: JSON.stringify({ nivel_acesso: userForm.nivel_acesso }),
-            });
-            if (userForm.senha.trim()) {
-                await fetch(`${apiRoutes.senhas}/${encodeURIComponent(userForm.email)}/senha`, {
-                    method: "PATCH",
-                    headers: { "Content-Type": "application/json", ...authHeaders },
-                    body: JSON.stringify({ senha: userForm.senha.trim() }),
-                });
-            }
             closeUserModal();
             setSuccess("Funcionário atualizado com sucesso.");
             await fetchData();
@@ -994,11 +984,6 @@ export default function GestaoPage() {
                 method: "DELETE", headers: authHeaders,
             });
             if (!res.ok) throw new Error(await readApiMessage(res, "Não foi possível desativar o funcionário."));
-            if (deletingUser.email) {
-                await fetch(`${apiRoutes.senhas}/${encodeURIComponent(deletingUser.email)}`, {
-                    method: "DELETE", headers: authHeaders,
-                });
-            }
             setIsDeleteOpen(false);
             setDeletingUser(null);
             setSuccess("Funcionário desativado com sucesso.");

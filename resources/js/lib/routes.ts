@@ -25,7 +25,6 @@ export const apiRoutes = {
     projetoColunas: (idProjeto: number | string) => `/api/projetos/${idProjeto}/colunas`,
     projetoColunasReordenar: (idProjeto: number | string) => `/api/projetos/${idProjeto}/colunas/reordenar`,
     colunas: (id: number | string) => `/api/colunas/${id}`,
-    authVerificar: '/api/auth/verificar',
     senhas: '/api/senhas',
     tarefas: '/api/tarefas',
     sprints: '/api/sprints',

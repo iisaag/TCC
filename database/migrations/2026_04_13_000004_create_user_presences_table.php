@@ -7,6 +7,10 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
     public function up(): void
     {
+        if (Schema::hasTable('user_presences')) {
+            return;
+        }
+
         Schema::create('user_presences', function (Blueprint $table): void {
             $table->string('session_id', 255)->primary();
             $table->unsignedBigInteger('user_id');

@@ -69,9 +69,11 @@ function resolveAvatarUrl(avatar?: string | null): string | undefined {
     return undefined;
 }
 
+const PRESENCE_INTERVAL_MS = 15000;
+
 const DEFAULT_USER = {
-    name: "Isabelli Arantes",
-    role: "Chefe - Design & Front",
+    name: "Usuário",
+    role: "Sem cargo",
     status: "online",
     avatar: undefined as string | undefined,
 };
@@ -125,7 +127,8 @@ export default function DashboardLayout({ children, currentPage }: DashboardLayo
                     },
                 });
 
-                const response = await fetch('/presence/users', {
+                // Só id e status: nomes, fotos e contatos já chegam pelos props da página.
+                const response = await fetch('/presence/users?somente_status=1', {
                     headers: {
                         Accept: 'application/json',
                     },
@@ -136,36 +139,22 @@ export default function DashboardLayout({ children, currentPage }: DashboardLayo
                 }
 
                 const payload = (await response.json()) as PresenceUsersResponse;
-                const users = payload.data?.users ?? [];
+                const statusPorId = new Map(
+                    (payload.data?.users ?? []).map((usuario) => [usuario.id, usuario.status || 'offline']),
+                );
 
-                const mappedUsers = users.map((usuario) => ({
-                    id: usuario.id,
-                    name: usuario.name,
-                    role: resolveRoleLabel(usuario.role),
-                    status: usuario.status || 'offline',
-                    email: usuario.email,
-                    phone: usuario.phone,
-                    location: usuario.location,
-                    profileTags: usuario.profileTags,
-                    profileBio: usuario.profileBio,
-                    avatar: resolveAvatarUrl(usuario.avatar),
-                    bannerColor: usuario.bannerColor ?? null,
-                }));
+                if (statusPorId.size === 0) {
+                    return;
+                }
 
-                if (mappedUsers.length > 0) {
-                    setActiveUsers(mappedUsers);
+                setActiveUsers((current) => current.map((user) => (
+                    statusPorId.has(user.id) ? { ...user, status: statusPorId.get(user.id) as string } : user
+                )));
 
-                    const me = mappedUsers.find((item) => item.id === sessionUser.id);
+                const meuStatus = statusPorId.get(sessionUser.id);
 
-                    if (me) {
-                        setHeaderUser((current) => ({
-                            ...current,
-                            name: me.name,
-                            role: me.role,
-                            status: me.status,
-                            avatar: me.avatar,
-                        }));
-                    }
+                if (meuStatus) {
+                    setHeaderUser((current) => ({ ...current, status: meuStatus }));
                 }
             } catch {
                 // Mantem os status atuais se o polling falhar.
@@ -174,9 +163,10 @@ export default function DashboardLayout({ children, currentPage }: DashboardLayo
 
         void syncPresence();
 
+        // Online = sinal nos últimos 45s no servidor; 15s deixa margem de duas falhas.
         const interval = window.setInterval(() => {
             void syncPresence();
-        }, 3000);
+        }, PRESENCE_INTERVAL_MS);
 
         return () => {
             isMounted = false;

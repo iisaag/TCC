@@ -2,8 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\BoardColuna;
+use App\Models\HistoricoProgresso;
+use App\Models\Sprint;
 use App\Models\Tarefa;
 use App\Support\Notificacoes;
+use App\Support\StatusTarefa;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -48,13 +52,55 @@ class TarefasController extends Controller
 
     private function isArchiveStatus(?string $status): bool
     {
-        if ($status === null) {
-            return false;
+        return StatusTarefa::statusConcluido($status);
+    }
+
+    /** Grava no histórico cada mudança de progresso, com quem fez. */
+    private function registrarProgresso(Tarefa $tarefa, ?int $progressoAnterior, ?int $autorId): void
+    {
+        $progressoAtual = $tarefa->progresso !== null ? (int) $tarefa->progresso : null;
+
+        if ($progressoAtual === null || $progressoAtual === $progressoAnterior) {
+            return;
         }
 
-        $status = strtoupper(trim($status));
+        HistoricoProgresso::create([
+            'id_tarefa' => $tarefa->id_tarefa,
+            'id_usuario' => $autorId,
+            'progresso' => $progressoAtual,
+            'data_atualizacao' => now(),
+        ]);
+    }
 
-        return in_array($status, ['APROVADO', 'DONE', 'CONCLUIDA', 'CONCLUÍDA'], true);
+    /**
+     * A coluna e a sprint escolhidas precisam ser do mesmo projeto da tarefa.
+     * Retorna a mensagem de erro, ou null se estiver tudo certo.
+     */
+    private function vinculoInvalido(array $dados, ?Tarefa $atual = null): ?string
+    {
+        $idProjeto = array_key_exists('id_projeto', $dados) ? $dados['id_projeto'] : $atual?->id_projeto;
+
+        if (! empty($dados['id_coluna'])) {
+            $projetoDaColuna = BoardColuna::whereKey($dados['id_coluna'])->value('id_projeto');
+
+            if ((int) $projetoDaColuna !== (int) $idProjeto) {
+                return 'A coluna escolhida não pertence ao projeto da tarefa.';
+            }
+        }
+
+        if (! empty($dados['id_sprint']) && $this->hasSprintsTable()) {
+            $sprint = Sprint::find($dados['id_sprint']);
+
+            if ((int) $sprint?->id_projeto !== (int) $idProjeto) {
+                return 'A sprint escolhida não pertence ao projeto da tarefa.';
+            }
+
+            if ($sprint->status_sprint !== 'ATIVA') {
+                return 'Só é possível colocar tarefas em uma sprint ativa.';
+            }
+        }
+
+        return null;
     }
 
     private function archiveApprovedTask(Tarefa $tarefa): void
@@ -99,6 +145,7 @@ class TarefasController extends Controller
     {
         try {
             $query = Tarefa::with($this->tarefaRelations())
+                ->deProjetosAtivos()
                 ->orderByRaw('COALESCE(data_prevista_termino, prazo) asc');
 
             $porProjeto     = $request->filled('id_projeto')     ? (int) $request->id_projeto     : null;
@@ -117,8 +164,7 @@ class TarefasController extends Controller
             } elseif ($request->filled('prioridade')) {
                 $query->where('prioridade_task', strtoupper($request->prioridade));
             } elseif ($request->has('atrasadas')) {
-                $query->whereDate('prazo', '<', now())
-                      ->whereNotIn('status_task', ['Concluída', 'Cancelada']);
+                $query->whereDate('prazo', '<', now())->abertas();
             } elseif ($request->has('sem_responsavel')) {
                 $query->whereNull('id_responsavel');
             }
@@ -131,7 +177,7 @@ class TarefasController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Erro ao listar tarefas: ' . $e->getMessage(),
+                'message' => 'Erro ao listar tarefas' . $this->detalheErro($e),
             ], 400);
         }
     }
@@ -177,7 +223,12 @@ class TarefasController extends Controller
             unset($validated['em_historico']);
         }
 
+        if ($erro = $this->vinculoInvalido($validated)) {
+            return response()->json(['success' => false, 'message' => $erro], 422);
+        }
+
         $tarefa = Tarefa::create($validated);
+        $this->registrarProgresso($tarefa, null, $autorId);
 
         if (!empty($relacionados)) {
             $tarefa->relacionados()->sync($relacionados);
@@ -224,6 +275,7 @@ class TarefasController extends Controller
         $autorId = $this->authUserId($request);
         $statusAnterior = (string) ($tarefa->status_task ?? '');
         $responsavelAnterior = $tarefa->id_responsavel ? (int) $tarefa->id_responsavel : null;
+        $progressoAnterior = $tarefa->progresso !== null ? (int) $tarefa->progresso : null;
 
         $validated = $request->validate($this->rules(true));
 
@@ -243,8 +295,19 @@ class TarefasController extends Controller
             unset($validated['em_historico']);
         }
 
+        // Tarefa movida para outro projeto não pode levar coluna nem sprint do projeto antigo.
+        if (array_key_exists('id_projeto', $validated) && (int) $validated['id_projeto'] !== (int) $tarefa->id_projeto) {
+            $validated['id_coluna'] ??= null;
+            $validated['id_sprint'] ??= null;
+        }
+
+        if ($erro = $this->vinculoInvalido($validated, $tarefa)) {
+            return response()->json(['success' => false, 'message' => $erro], 422);
+        }
+
         $tarefa->update($validated);
         $this->archiveApprovedTask($tarefa);
+        $this->registrarProgresso($tarefa, $progressoAnterior, $autorId);
 
         if ($hasRelacionados) {
             $tarefa->relacionados()->sync($relacionados);
@@ -316,9 +379,19 @@ class TarefasController extends Controller
 
         $autorId = $this->authUserId($request);
         $statusAnterior = (string) ($tarefa->status_task ?? '');
+        $progressoAnterior = $tarefa->progresso !== null ? (int) $tarefa->progresso : null;
 
-        $tarefa->update(['status_task' => $validated['status_task']]);
+        $dados = ['status_task' => $validated['status_task']];
+        $progressoDoStatus = StatusTarefa::progressoPadrao($validated['status_task']);
+
+        // No quadro padrão o progresso acompanha o status, igual ao arrastar o card.
+        if ($progressoDoStatus !== null) {
+            $dados['progresso'] = $progressoDoStatus;
+        }
+
+        $tarefa->update($dados);
         $this->archiveApprovedTask($tarefa);
+        $this->registrarProgresso($tarefa, $progressoAnterior, $autorId);
 
         $titulo = trim((string) $tarefa->titulo);
         Notificacoes::logSistema($autorId, 'editar_status_tarefa', sprintf('Alterou status da tarefa "%s".', $titulo));
@@ -431,7 +504,7 @@ class TarefasController extends Controller
                 'data'    => $total,
             ]);
         } catch (\Exception $e) {
-            return response()->json(['success' => false, 'message' => $e->getMessage()], 400);
+            return response()->json(['success' => false, 'message' => 'Não foi possível calcular os totais' . $this->detalheErro($e)], 400);
         }
     }
 
@@ -447,7 +520,7 @@ class TarefasController extends Controller
                 'data'    => $total,
             ]);
         } catch (\Exception $e) {
-            return response()->json(['success' => false, 'message' => $e->getMessage()], 400);
+            return response()->json(['success' => false, 'message' => 'Não foi possível calcular os totais' . $this->detalheErro($e)], 400);
         }
     }
 
@@ -463,7 +536,7 @@ class TarefasController extends Controller
                 'data'    => $total,
             ]);
         } catch (\Exception $e) {
-            return response()->json(['success' => false, 'message' => $e->getMessage()], 400);
+            return response()->json(['success' => false, 'message' => 'Não foi possível calcular os totais' . $this->detalheErro($e)], 400);
         }
     }
 }

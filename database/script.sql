@@ -48,7 +48,8 @@ CREATE TABLE usuarios (
     cargo VARCHAR(100),
 
     nivel VARCHAR(50),
-    status_atual VARCHAR(40) DEFAULT 'Ativo',
+    status_atual VARCHAR(40) DEFAULT 'online',
+    cor_banner VARCHAR(7) NULL,
     id_equipe INT DEFAULT NULL,
     data_criacao DATETIME DEFAULT CURRENT_TIMESTAMP,
 
@@ -63,6 +64,8 @@ CREATE TABLE senha (
     senha VARCHAR(100) NOT NULL,
     nivel_acesso VARCHAR(50) NOT NULL,
     FOREIGN KEY (email) REFERENCES usuarios(email)
+        ON UPDATE CASCADE
+        ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
 -- =====================================================
@@ -133,6 +136,7 @@ CREATE TABLE sprints (
     data_inicio DATE,
     data_fim DATE,
     status_sprint VARCHAR(20),
+    encerrada_em DATETIME NULL,
 
     FOREIGN KEY (id_projeto)
         REFERENCES projetos(id_projeto)
@@ -175,6 +179,9 @@ CREATE TABLE tarefas (
     prazo DATE,
     status_task VARCHAR(50),
     id_coluna INT NULL,
+    em_historico BOOLEAN DEFAULT FALSE,
+    concluida_em DATETIME NULL,
+    INDEX idx_tarefas_concluida_em (concluida_em),
 
     FOREIGN KEY (id_projeto)
         REFERENCES projetos(id_projeto),
@@ -354,6 +361,50 @@ CREATE TABLE IF NOT EXISTS tarefa_usuarios_relacionados (
         ON UPDATE CASCADE
 ) ENGINE=InnoDB;
 -- =====================================================
+-- METAS (por projeto)
+-- =====================================================
+CREATE TABLE metas (
+    id_meta INT AUTO_INCREMENT PRIMARY KEY,
+    id_projeto INT NOT NULL,
+    titulo_meta VARCHAR(255) NOT NULL,
+    prazo_meta DATE NOT NULL,
+    data_conclusao_meta DATE NULL,
+    status_meta VARCHAR(30) NOT NULL DEFAULT 'Pendente',
+    INDEX idx_metas_projeto_status (id_projeto, status_meta),
+    FOREIGN KEY (id_projeto) REFERENCES projetos(id_projeto) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+-- =====================================================
+-- HISTORICO DE PROJETOS EXCLUIDOS (restauracao em ate 7 dias)
+-- =====================================================
+CREATE TABLE projetos_excluidos (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    id_projeto_original INT UNSIGNED NULL,
+    nome_projeto VARCHAR(255) NOT NULL,
+    descricao TEXT,
+    data_inicio DATE,
+    prazo_final DATE,
+    status_projeto VARCHAR(100),
+    prioridade_proj VARCHAR(20),
+    id_responsavel INT UNSIGNED NULL,
+    tarefas_afetadas INT UNSIGNED NOT NULL DEFAULT 0,
+    metas_afetadas INT UNSIGNED NOT NULL DEFAULT 0,
+    excluido_em DATETIME NOT NULL,
+    expira_em DATETIME NOT NULL,
+    INDEX idx_projetos_excluidos_expira_em (expira_em)
+) ENGINE=InnoDB;
+
+-- =====================================================
+-- PRESENCA ONLINE (uma linha por sessao)
+-- =====================================================
+CREATE TABLE user_presences (
+    session_id VARCHAR(191) PRIMARY KEY,
+    user_id INT NOT NULL,
+    last_seen TIMESTAMP NULL,
+    INDEX idx_user_presences_last_seen (last_seen),
+    INDEX idx_user_presences_user_id (user_id)
+) ENGINE=InnoDB;
+-- =====================================================
 -- USUARIOS (SEUS DADOS COMPLETOS)
 -- =====================================================
 INSERT INTO usuarios
@@ -452,7 +503,7 @@ DATE_ADD(CURDATE(),INTERVAL 7 DAY),
 50,
 FALSE,
 DATE_ADD(CURDATE(),INTERVAL 7 DAY),
-'Em andamento'
+'DOING'
 FROM projetos p;
 
 -- =====================================================
@@ -624,6 +675,11 @@ SET SQL_SAFE_UPDATES = 0;
 UPDATE senha
 SET nivel_acesso = 'adm'
 WHERE LOWER(TRIM(nivel_acesso)) IN ('admin', 'administrador', 'total');
+
+-- tarefas de exemplo ja concluidas: data de conclusao = prazo
+UPDATE tarefas
+SET concluida_em = prazo
+WHERE status_task = 'APROVADO' AND concluida_em IS NULL;
 
 SET SQL_SAFE_UPDATES = 1;
 

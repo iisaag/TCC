@@ -21,7 +21,8 @@ return new class extends Migration
 
     private function recreateCargoForeignKey(string $onUpdate): void
     {
-        if (! Schema::hasTable('usuarios') || ! Schema::hasTable('cargos')) {
+        // Em outros bancos a chave já nasce com CASCADE na migration do esquema base.
+        if (DB::getDriverName() !== 'mysql' || ! Schema::hasTable('usuarios') || ! Schema::hasTable('cargos')) {
             return;
         }
 

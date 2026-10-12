@@ -1366,6 +1366,12 @@ export default function Projetos() {
 		}));
 	};
 
+	// Fotos vêm da lista de pessoas (carregada uma vez); a API de tarefas não repete as fotos em cada card.
+	const usuariosPorId = useMemo(
+		() => new Map(usuarios.map((usuario) => [getUsuarioId(usuario), usuario])),
+		[usuarios],
+	);
+
 	const selectedRelatedUsers = useMemo(
 		() => {
 			const relatedIds = detailsForm.relacionados
@@ -2524,15 +2530,17 @@ export default function Projetos() {
 															>
 																<Pencil size={13} />
 															</button>
-															<button
-																type="button"
-																onClick={() => setDeletingColuna(coluna)}
-																title="Excluir coluna"
-																className="inline-flex h-7 w-7 items-center justify-center rounded-lg border transition hover:shadow-sm"
-																style={{ borderColor: "color-mix(in srgb, var(--cor-atrasoI) 40%, var(--cor-borda))", color: "var(--cor-atrasoI)" }}
-															>
-																<Trash2 size={13} />
-															</button>
+															{isAdmin ? (
+																<button
+																	type="button"
+																	onClick={() => setDeletingColuna(coluna)}
+																	title="Excluir coluna"
+																	className="inline-flex h-7 w-7 items-center justify-center rounded-lg border transition hover:shadow-sm"
+																	style={{ borderColor: "color-mix(in srgb, var(--cor-atrasoI) 40%, var(--cor-borda))", color: "var(--cor-atrasoI)" }}
+																>
+																	<Trash2 size={13} />
+																</button>
+															) : null}
 														</div>
 													</div>
 
@@ -2572,7 +2580,7 @@ export default function Projetos() {
 																	</p>
 																	<div className="mt-2 flex items-center gap-1">
 																		{(tarefa.relacionados ?? []).slice(0, 5).map((usuario) => (
-																			<AvatarPill key={`${tarefa.id_tarefa}-${usuario.id_usuario}`} usuario={usuario} size={30} />
+																			<AvatarPill key={`${tarefa.id_tarefa}-${usuario.id_usuario}`} usuario={usuariosPorId.get(usuario.id_usuario) ?? usuario} size={30} />
 																		))}
 																		{(tarefa.relacionados ?? []).length > 5 ? (
 																			<span className="rounded-full border px-2 py-1 text-sm" style={{ color: "#4b5f75", borderColor: "#c6d0db" }}>
@@ -2716,7 +2724,7 @@ export default function Projetos() {
 											</p>
 											<div className="mt-2 flex items-center gap-1">
 												{(tarefa.relacionados ?? []).slice(0, 5).map((usuario) => (
-													<AvatarPill key={`${tarefa.id_tarefa}-${usuario.id_usuario}`} usuario={usuario} size={30} />
+													<AvatarPill key={`${tarefa.id_tarefa}-${usuario.id_usuario}`} usuario={usuariosPorId.get(usuario.id_usuario) ?? usuario} size={30} />
 												))}
 												{(tarefa.relacionados ?? []).length > 5 ? (
 													<span className="rounded-full border px-2 py-1 text-sm" style={{ color: "#4b5f75", borderColor: "#c6d0db" }}>
