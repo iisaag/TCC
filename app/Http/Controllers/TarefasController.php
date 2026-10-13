@@ -86,9 +86,13 @@ class TarefasController extends Controller
         return null;
     }
 
+    /**
+     * Card aprovado dentro de uma sprint fica na coluna Aprovado até a sprint ser
+     * encerrada (SprintsController::encerrar arquiva). Fora de sprint, vai direto para o histórico.
+     */
     private function archiveApprovedTask(Tarefa $tarefa): void
     {
-        if ($this->isArchiveStatus((string) $tarefa->status_task)) {
+        if (empty($tarefa->id_sprint) && $this->isArchiveStatus((string) $tarefa->status_task)) {
             $tarefa->update([
                 'em_historico' => true,
                 'id_sprint' => null,
@@ -192,9 +196,8 @@ class TarefasController extends Controller
             $validated['prazo'] = $validated['data_prevista_termino'];
         }
 
-        if ($this->isArchiveStatus($validated['status_task'] ?? null)) {
+        if (empty($validated['id_sprint']) && $this->isArchiveStatus($validated['status_task'] ?? null)) {
             $validated['em_historico'] = true;
-            $validated['id_sprint'] = null;
         } elseif (array_key_exists('id_sprint', $validated) && $validated['id_sprint']) {
             $validated['em_historico'] = false;
         }

@@ -159,8 +159,9 @@ class RegrasNegocioTest extends TestCase
         $this->assertFalse((bool) $aberta->fresh()->em_historico);
     }
 
-    public function test_mover_card_para_aprovado_arquiva_registra_conclusao_e_historico(): void
+    public function test_card_aprovado_fica_na_sprint_ate_ela_ser_encerrada(): void
     {
+        $admin = $this->criarUsuario('adm');
         $usuario = $this->criarUsuario();
         $projeto = $this->criarProjeto();
         $sprint = Sprint::create(['id_projeto' => $projeto->id_projeto, 'nome_sprint' => 'S1', 'data_inicio' => '2026-10-01', 'data_fim' => '2026-10-15', 'status_sprint' => 'ATIVA']);
@@ -174,12 +175,42 @@ class RegrasNegocioTest extends TestCase
             'progresso' => 100,
         ])->assertOk();
 
+        // Continua na coluna Aprovado da sprint, já contando como concluído.
         $tarefa->refresh();
         $this->assertSame('APROVADO', $tarefa->status_task);
-        $this->assertTrue($tarefa->em_historico);
-        $this->assertNull($tarefa->id_sprint);
+        $this->assertFalse($tarefa->em_historico);
+        $this->assertSame($sprint->id_sprint, (int) $tarefa->id_sprint);
         $this->assertNotNull($tarefa->concluida_em);
         $this->assertDatabaseHas('historico_progresso', ['id_tarefa' => $tarefa->id_tarefa, 'progresso' => 100, 'id_usuario' => $usuario->id_usuario]);
+
+        // Criar outro card não mexe no card aprovado.
+        $this->logarComo($usuario)->postJson('/api/tarefas', [
+            'titulo' => 'Outro card',
+            'id_projeto' => $projeto->id_projeto,
+            'status_task' => 'To Do',
+            'progresso' => 0,
+        ])->assertCreated();
+        $this->assertFalse($tarefa->fresh()->em_historico);
+
+        // Só ao encerrar a sprint ele vai para o histórico.
+        $this->logarComo($admin)->patchJson("/api/sprints/{$sprint->id_sprint}/encerrar")->assertOk();
+        $this->assertTrue($tarefa->fresh()->em_historico);
+        $this->assertNull($tarefa->fresh()->id_sprint);
+    }
+
+    public function test_card_aprovado_fora_de_sprint_vai_direto_para_o_historico(): void
+    {
+        $usuario = $this->criarUsuario();
+        $projeto = $this->criarProjeto();
+
+        $id = $this->logarComo($usuario)->postJson('/api/tarefas', [
+            'titulo' => 'Já pronto',
+            'id_projeto' => $projeto->id_projeto,
+            'status_task' => 'Aprovado',
+            'progresso' => 100,
+        ])->assertCreated()->json('data.tarefa.id_tarefa');
+
+        $this->assertTrue(Tarefa::find($id)->em_historico);
     }
 
     public function test_tarefa_nao_aceita_coluna_de_outro_projeto(): void
