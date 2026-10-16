@@ -141,6 +141,8 @@ const EMPTY_FORM: UserForm = {
     status_atual: "offline",
 };
 
+const NIVEIS = ["Júnior", "Pleno", "Sênior"] as const;
+
 const PRESENCE_STATUS_OPTIONS: { value: PresenceStatusValue; label: string }[] = [
     { value: "online", label: "Online" },
     { value: "ausente", label: "Ausente" },
@@ -1531,7 +1533,6 @@ throw new Error(await readApiMessage(res, "Não foi possível excluir o cargo.")
                                     [
                                         { label: "Nome", field: "nome" as const, type: "text", required: true, placeholder: "Ex: João Silva" },
                                         { label: "Email", field: "email" as const, type: "email", required: true, placeholder: "Ex: joao@email.com" },
-                                        { label: "Nível", field: "nivel" as const, type: "text", required: false, placeholder: "Ex: Pleno" },
                                     ] as const
                                 ).map(({ label, field, type, required, placeholder }) => (
                                     <label key={field} className="flex flex-col gap-1.5 text-sm font-medium" style={{ color: "var(--cor-logo)" }}>
@@ -1547,6 +1548,29 @@ throw new Error(await readApiMessage(res, "Não foi possível excluir o cargo.")
                                         />
                                     </label>
                                 ))}
+
+                                <label className="flex flex-col gap-1.5 text-sm font-medium" style={{ color: "var(--cor-logo)" }}>
+                                    Nível
+                                    <Select
+                                        value={form.nivel || "__none__"}
+                                        onValueChange={(v) => setForm((f) => ({ ...f, nivel: v === "__none__" ? "" : v }))}
+                                    >
+                                        <SelectTrigger
+                                            className="w-full rounded-xl border text-sm"
+                                            style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-fundo)", color: "var(--cor-logo)" }}
+                                        >
+                                            <SelectValue placeholder="Selecione um nível" />
+                                        </SelectTrigger>
+                                        <SelectContent className="border" style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-widgets)", color: "var(--cor-logo)" }}>
+                                            <SelectItem value="__none__" style={{ color: "var(--cor-logo2)" }}>Sem nível</SelectItem>
+                                            {NIVEIS.map((nivel) => (
+                                                <SelectItem key={nivel} value={nivel} style={{ color: "var(--cor-logo)" }}>
+                                                    {nivel}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </label>
 
                                 <label className="flex flex-col gap-1.5 text-sm font-medium" style={{ color: "var(--cor-logo)" }}>
                                     Telefone
