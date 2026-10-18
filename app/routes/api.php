@@ -90,6 +90,7 @@ Route::middleware(['web', 'session.auth'])->group(function (): void {
 		Route::put('equipes/{equipe}',               [EquipesController::class, 'update']);
 		Route::patch('equipes/{equipe}',             [EquipesController::class, 'update']);
 		Route::delete('equipes/{equipe}',            [EquipesController::class, 'destroy']);
+		Route::get('equipes/{equipe}/exclusao',      [EquipesController::class, 'impactoExclusao']);
 
 		// Log Projeto
 		Route::get('log-projeto/total/por-projeto',  [LogProjetoController::class, 'totalPorProjeto']);
@@ -115,6 +116,7 @@ Route::middleware(['web', 'session.auth'])->group(function (): void {
 		Route::patch('usuarios/{usuario}',            [UsuariosController::class, 'update']);
 		Route::patch('usuarios/{usuario}/status',     [UsuariosController::class, 'updateStatus']);
 		Route::delete('usuarios/{usuario}',           [UsuariosController::class, 'destroy']);
+		Route::get('usuarios/{usuario}/exclusao',     [UsuariosController::class, 'impactoExclusao']);
 
 		// Database
 		Route::get('database/backup',                [DatabaseController::class, 'backup']);

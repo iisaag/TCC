@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Senha;
+use App\Models\Tarefa;
 use App\Models\Usuario;
 use App\Models\UserPresence;
 use Illuminate\Database\QueryException;
@@ -432,17 +433,26 @@ class UsuariosController extends Controller
      */
     private function deletionBlocker(Request $request, Usuario $usuario): ?string
     {
+        return $this->motivosBloqueio($request, $usuario)[0] ?? null;
+    }
+
+    /**
+     * Todos os motivos que impedem a desativação (vazio se puder desativar).
+     */
+    private function motivosBloqueio(Request $request, Usuario $usuario): array
+    {
         $userId = (int) $usuario->id_usuario;
+        $motivos = [];
 
         if ((int) data_get($request->session()->get('auth.user'), 'id') === $userId) {
-            return 'Você não pode desativar o seu próprio usuário.';
+            $motivos[] = 'Você não pode desativar o seu próprio usuário.';
         }
 
         if (Schema::hasTable('senha')) {
             $ehAdm = Senha::query()->where('email', $usuario->email)->value('nivel_acesso') === 'adm';
 
             if ($ehAdm && Senha::query()->where('nivel_acesso', 'adm')->count() <= 1) {
-                return 'Não é possível desativar o último administrador do sistema.';
+                $motivos[] = 'Não é possível desativar o último administrador do sistema.';
             }
         }
 
@@ -453,7 +463,7 @@ class UsuariosController extends Controller
                 ->pluck('nome_projeto');
 
             if ($projetos->isNotEmpty()) {
-                return 'Este funcionário é responsável pelo(s) projeto(s): ' . $projetos->implode(', ')
+                $motivos[] = 'Este funcionário é responsável pelo(s) projeto(s): ' . $projetos->implode(', ')
                     . '. Defina outro responsável antes de desativar.';
             }
         }
@@ -462,12 +472,51 @@ class UsuariosController extends Controller
             $equipes = DB::table('equipes')->where('id_lider', $userId)->pluck('nome');
 
             if ($equipes->isNotEmpty()) {
-                return 'Este funcionário é líder da(s) equipe(s): ' . $equipes->implode(', ')
+                $motivos[] = 'Este funcionário é líder da(s) equipe(s): ' . $equipes->implode(', ')
                     . '. Defina outro líder antes de desativar.';
             }
         }
 
-        return null;
+        return $motivos;
+    }
+
+    /**
+     * O que depende do funcionário, para a tela avisar antes de desativar.
+     * "bloqueios" impedem a desativação; o resto só gera aviso.
+     */
+    public function impactoExclusao(Request $request, int $id): JsonResponse
+    {
+        $usuario = Usuario::find($id);
+
+        if (!$usuario) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Usuário não encontrado',
+            ], 404);
+        }
+
+        $tarefas = Tarefa::query()
+            ->deProjetosAtivos()
+            ->abertas()
+            ->where('id_responsavel', $usuario->id_usuario)
+            ->orderBy('titulo')
+            ->pluck('titulo');
+
+        $tarefasRelacionadas = Schema::hasTable('tarefa_usuarios_relacionados')
+            ? (int) DB::table('tarefa_usuarios_relacionados')->where('id_usuario', $usuario->id_usuario)->count()
+            : 0;
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'bloqueios' => $this->motivosBloqueio($request, $usuario),
+                'tarefas' => $tarefas,
+                'tarefas_relacionadas' => $tarefasRelacionadas,
+                'equipe' => $usuario->id_equipe
+                    ? DB::table('equipes')->where('id_equipe', $usuario->id_equipe)->value('nome')
+                    : null,
+            ],
+        ]);
     }
 
     public function deletedHistory(): JsonResponse

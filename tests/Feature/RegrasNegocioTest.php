@@ -288,6 +288,31 @@ class RegrasNegocioTest extends TestCase
         $this->logarComo($admin)->deleteJson("/api/usuarios/{$admin->id_usuario}")->assertStatus(422);
     }
 
+    public function test_antes_de_desativar_mostra_bloqueios_e_avisos(): void
+    {
+        $admin = $this->criarUsuario('adm');
+        $equipe = Equipe::create(['nome' => 'Design', 'tipo' => 'SUBEQUIPE', 'criado_por' => $admin->id_usuario]);
+        $usuario = $this->criarUsuario('usuario', ['id_equipe' => $equipe->id_equipe]);
+        $projeto = $this->criarProjeto();
+        Tarefa::create(['titulo' => 'Tela de login', 'id_projeto' => $projeto->id_projeto, 'id_responsavel' => $usuario->id_usuario, 'status_task' => 'TO_DO', 'progresso' => 0]);
+
+        // Só avisos: pode desativar.
+        $this->logarComo($admin)->getJson("/api/usuarios/{$usuario->id_usuario}/exclusao")
+            ->assertOk()
+            ->assertJsonPath('data.bloqueios', [])
+            ->assertJsonPath('data.tarefas', ['Tela De Login'])
+            ->assertJsonPath('data.equipe', 'Design');
+
+        // Responsável por projeto: vira bloqueio, igual à regra da exclusão.
+        $projeto->update(['id_responsavel' => $usuario->id_usuario]);
+        $bloqueios = $this->logarComo($admin)->getJson("/api/usuarios/{$usuario->id_usuario}/exclusao")->json('data.bloqueios');
+        $this->assertCount(1, $bloqueios);
+        $this->assertStringContainsString('Projeto Teste', $bloqueios[0]);
+
+        // A própria pessoa logada também aparece como bloqueio.
+        $this->assertNotEmpty($this->logarComo($admin)->getJson("/api/usuarios/{$admin->id_usuario}/exclusao")->json('data.bloqueios'));
+    }
+
     public function test_desativar_mantem_logs_e_restaurar_devolve_o_acesso(): void
     {
         $admin = $this->criarUsuario('adm');
@@ -379,6 +404,27 @@ class RegrasNegocioTest extends TestCase
         // Excluir a equipe não tira o acesso de quem já era admin.
         $this->logarComo($admin)->deleteJson("/api/equipes/{$equipe}")->assertOk();
         $this->assertSame('adm', Senha::find($outroAdmin->email)->nivel_acesso);
+    }
+
+    public function test_antes_de_excluir_equipe_mostra_subequipes_membros_e_projetos(): void
+    {
+        $admin = $this->criarUsuario('adm');
+        $equipe = Equipe::create(['nome' => 'Produto', 'tipo' => 'SUBEQUIPE', 'criado_por' => $admin->id_usuario]);
+        $membro = $this->criarUsuario('usuario', ['nome' => 'Maria Membro', 'id_equipe' => $equipe->id_equipe]);
+        $this->criarProjeto(['nome_projeto' => 'App Novo', 'id_responsavel' => $membro->id_usuario]);
+
+        $this->logarComo($admin)->getJson("/api/equipes/{$equipe->id_equipe}/exclusao")
+            ->assertOk()
+            ->assertJsonPath('data.subequipes', [])
+            ->assertJsonPath('data.membros', ['Maria Membro'])
+            ->assertJsonPath('data.projetos', ['App Novo']);
+
+        Equipe::create(['nome' => 'Mobile', 'tipo' => 'SUBEQUIPE', 'equipe_pai' => $equipe->id_equipe, 'criado_por' => $admin->id_usuario]);
+
+        $this->logarComo($admin)->getJson("/api/equipes/{$equipe->id_equipe}/exclusao")
+            ->assertJsonPath('data.subequipes', ['Mobile']);
+        $this->logarComo($admin)->deleteJson("/api/equipes/{$equipe->id_equipe}")->assertStatus(422);
+        $this->logarComo($membro)->getJson("/api/equipes/{$equipe->id_equipe}/exclusao")->assertStatus(403);
     }
 
     public function test_funcionario_restaurado_volta_para_a_mesma_equipe(): void

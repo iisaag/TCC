@@ -3392,7 +3392,7 @@ export default function Projetos() {
 											<div
 												key={registro.id}
 												className="rounded-xl border p-4"
-												style={{ borderColor: "var(--cor-borda)", backgroundColor: "#f9fbfd" }}
+												style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-fundo)" }}
 											>
 												<div className="flex flex-wrap items-start justify-between gap-3">
 													<div>

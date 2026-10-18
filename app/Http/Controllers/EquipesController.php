@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Equipe;
+use App\Models\Projeto;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -298,6 +299,51 @@ class EquipesController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Equipe excluída com sucesso',
+        ]);
+    }
+
+    /**
+     * O que depende da equipe, para a tela avisar antes de excluir.
+     * Subequipes bloqueiam a exclusão; membros e projetos só geram aviso.
+     * Projeto não tem equipe no banco: conta os projetos cujo responsável é membro ou líder.
+     */
+    public function impactoExclusao(int $id): JsonResponse
+    {
+        $equipe = Equipe::find($id);
+
+        if (!$equipe) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Equipe não encontrada',
+            ], 404);
+        }
+
+        $membros = DB::table('usuarios')
+            ->where('id_equipe', $equipe->id_equipe)
+            ->orderBy('nome')
+            ->get(['id_usuario', 'nome']);
+
+        $idsResponsaveis = $membros->pluck('id_usuario')
+            ->push($equipe->id_lider)
+            ->filter()
+            ->unique()
+            ->values();
+
+        $projetos = $idsResponsaveis->isEmpty()
+            ? collect()
+            : Projeto::query()
+                ->naoExcluidos()
+                ->whereIn('id_responsavel', $idsResponsaveis)
+                ->orderBy('nome_projeto')
+                ->pluck('nome_projeto');
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'subequipes' => DB::table('equipes')->where('equipe_pai', $equipe->id_equipe)->orderBy('nome')->pluck('nome'),
+                'membros' => $membros->pluck('nome'),
+                'projetos' => $projetos,
+            ],
         ]);
     }
 

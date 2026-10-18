@@ -67,13 +67,6 @@ interface CargoItem {
     nome_cargo: string;
 }
 
-interface ProjetoItem {
-    id_projeto: number;
-    nome_projeto: string;
-    status_projeto?: string | null;
-    id_responsavel?: number | null;
-}
-
 interface EquipeItem {
     id_equipe: number;
     nome: string;
@@ -666,6 +659,213 @@ function ConfirmDeleteModal({ title, message, onCancel, onConfirm, loading }: {
     );
 }
 
+interface ImpactoExclusaoEquipe {
+    subequipes: string[];
+    membros: string[];
+    projetos: string[];
+}
+
+function listarNomes(nomes: string[], limite = 5): string {
+    const visiveis = nomes.slice(0, limite).join(", ");
+
+    return nomes.length > limite ? `${visiveis} e mais ${nomes.length - limite}` : visiveis;
+}
+
+function AvisoExclusao({ titulo, texto, nomes }: { titulo: string; texto: string; nomes: string[] }) {
+    return (
+        <div className="rounded-xl border px-3 py-2.5 text-sm"
+            style={{
+                borderColor: "color-mix(in srgb, var(--cor-ausente) 45%, var(--cor-borda))",
+                backgroundColor: "color-mix(in srgb, var(--cor-ausente) 10%, transparent)",
+                color: "var(--cor-logo)",
+            }}>
+            <p className="font-semibold">{titulo}</p>
+            {nomes.length > 0 ? (
+                <p className="mt-0.5" style={{ color: "var(--cor-logo2)" }}>{listarNomes(nomes)}</p>
+            ) : null}
+            <p className="mt-1 text-xs" style={{ color: "var(--cor-logo2)" }}>{texto}</p>
+        </div>
+    );
+}
+
+interface ImpactoExclusaoUsuario {
+    bloqueios: string[];
+    tarefas: string[];
+    tarefas_relacionadas: number;
+    equipe: string | null;
+}
+
+interface AvisoImpacto {
+    titulo: string;
+    nomes: string[];
+    texto: string;
+}
+
+// Modal padrão de exclusão: bloqueios impedem a ação; avisos só pedem confirmação.
+function ConfirmImpactoModal({ titulo, verificando, verificandoTexto, bloqueioTexto, bloqueios, pergunta, avisos, confirmarTexto, executandoTexto, onCancel, onConfirm, loading }: {
+    titulo: string;
+    verificando: boolean;
+    verificandoTexto: string;
+    bloqueioTexto: React.ReactNode;
+    bloqueios: { titulo: string; detalhe?: string }[];
+    pergunta: React.ReactNode;
+    avisos: AvisoImpacto[];
+    confirmarTexto: string;
+    executandoTexto: string;
+    onCancel: () => void;
+    onConfirm: () => void;
+    loading: boolean;
+}) {
+    const bloqueado = !verificando && bloqueios.length > 0;
+    const temAvisos = avisos.length > 0;
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-[2px] animate-fade-in">
+            <div className="w-full max-w-md rounded-2xl border p-6 shadow-2xl animate-pop-in"
+                style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-widgets)" }}>
+                <div className="mb-4 flex items-center justify-between">
+                    <h2 className="text-lg font-semibold" style={{ color: "#9f2f2f" }}>
+                        {bloqueado ? "Não é possível continuar" : titulo}
+                    </h2>
+                    <button type="button" onClick={onCancel}
+                        className="rounded-lg border p-1.5 transition hover:shadow-md"
+                        style={{ borderColor: "var(--cor-borda)" }}>
+                        <X size={14} style={{ color: "var(--cor-logo2)" }} />
+                    </button>
+                </div>
+
+                {verificando ? (
+                    <p className="mb-5 flex items-center gap-2 text-sm" style={{ color: "var(--cor-logo2)" }}>
+                        <RefreshCw size={14} className="animate-spin" /> {verificandoTexto}
+                    </p>
+                ) : bloqueado ? (
+                    <div className="mb-5 space-y-3 text-sm" style={{ color: "var(--cor-logo)" }}>
+                        <p>{bloqueioTexto}</p>
+                        {bloqueios.map((bloqueio) => (
+                            <div key={bloqueio.titulo} className="rounded-xl border px-3 py-2.5"
+                                style={{ borderColor: "var(--cor-perigo-borda)", backgroundColor: "color-mix(in srgb, var(--cor-atrasoI) 10%, transparent)" }}>
+                                <p className="font-semibold">{bloqueio.titulo}</p>
+                                {bloqueio.detalhe ? (
+                                    <p className="mt-0.5" style={{ color: "var(--cor-logo2)" }}>{bloqueio.detalhe}</p>
+                                ) : null}
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    <div className="mb-5 space-y-3 text-sm" style={{ color: "var(--cor-logo)" }}>
+                        <p>{pergunta}</p>
+                        {avisos.map((aviso) => (
+                            <AvisoExclusao key={aviso.titulo} titulo={aviso.titulo} nomes={aviso.nomes} texto={aviso.texto} />
+                        ))}
+                    </div>
+                )}
+
+                <div className="flex justify-end gap-2">
+                    {bloqueado ? (
+                        <button type="button" onClick={onCancel}
+                            className="rounded-xl border px-4 py-2 text-sm font-semibold"
+                            style={{ borderColor: "var(--cor-borda)", color: "var(--cor-logo)" }}>Entendi</button>
+                    ) : (
+                        <>
+                            <button type="button" onClick={onCancel}
+                                className="rounded-xl border px-4 py-2 text-sm"
+                                style={{ borderColor: "var(--cor-borda)", color: "var(--cor-logo)" }}>Cancelar</button>
+                            <button type="button" onClick={onConfirm} disabled={loading || verificando}
+                                className="rounded-xl border px-4 py-2 text-sm font-semibold text-white transition-all duration-200 hover:-translate-y-px hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60"
+                                style={{ borderColor: "#9f2a21", background: "linear-gradient(140deg, #c43a2f 0%, #a42c22 100%)" }}>
+                                {loading ? executandoTexto : temAvisos ? `${confirmarTexto} mesmo assim` : confirmarTexto}
+                            </button>
+                        </>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+}
+
+// Subequipes bloqueiam; membros e projetos só avisam.
+function ConfirmDeleteEquipeModal({ equipeNome, impacto, verificando, onCancel, onConfirm, loading }: {
+    equipeNome: string;
+    impacto: ImpactoExclusaoEquipe | null;
+    verificando: boolean;
+    onCancel: () => void;
+    onConfirm: () => void;
+    loading: boolean;
+}) {
+    const subequipes = impacto?.subequipes ?? [];
+    const membros = impacto?.membros ?? [];
+    const projetos = impacto?.projetos ?? [];
+    const avisos: AvisoImpacto[] = [];
+
+    if (membros.length > 0) {
+        avisos.push({ titulo: `${membros.length} membro(s) nesta equipe`, nomes: membros, texto: "Eles continuam no sistema, mas ficam sem equipe até serem realocados." });
+    }
+
+    if (projetos.length > 0) {
+        avisos.push({ titulo: `${projetos.length} projeto(s) com responsável desta equipe`, nomes: projetos, texto: "Os projetos não são excluídos e continuam com o mesmo responsável." });
+    }
+
+    return (
+        <ConfirmImpactoModal
+            titulo="Excluir equipe"
+            verificando={verificando}
+            verificandoTexto="Verificando o que depende desta equipe..."
+            bloqueioTexto={<>A equipe <strong>{equipeNome}</strong> possui subequipes. Exclua ou mova as subequipes para outra equipe antes de excluí-la.</>}
+            bloqueios={subequipes.length > 0 ? [{ titulo: `Subequipes (${subequipes.length})`, detalhe: listarNomes(subequipes) }] : []}
+            pergunta={<>Tem certeza que deseja excluir a equipe <strong>{equipeNome}</strong>?</>}
+            avisos={avisos}
+            confirmarTexto="Excluir"
+            executandoTexto="Excluindo..."
+            onCancel={onCancel}
+            onConfirm={onConfirm}
+            loading={loading}
+        />
+    );
+}
+
+// Projetos sob responsabilidade e liderança de equipe bloqueiam; tarefas e equipe só avisam.
+function ConfirmDeleteUsuarioModal({ usuarioNome, impacto, verificando, onCancel, onConfirm, loading }: {
+    usuarioNome: string;
+    impacto: ImpactoExclusaoUsuario | null;
+    verificando: boolean;
+    onCancel: () => void;
+    onConfirm: () => void;
+    loading: boolean;
+}) {
+    const tarefas = impacto?.tarefas ?? [];
+    const relacionadas = impacto?.tarefas_relacionadas ?? 0;
+    const avisos: AvisoImpacto[] = [];
+
+    if (tarefas.length > 0) {
+        avisos.push({ titulo: `${tarefas.length} tarefa(s) em aberto sob responsabilidade`, nomes: tarefas, texto: "As tarefas continuam no quadro, mas ficam sem responsável." });
+    }
+
+    if (relacionadas > 0) {
+        avisos.push({ titulo: `Relacionado em ${relacionadas} tarefa(s)`, nomes: [], texto: "Ele deixa de aparecer como pessoa relacionada nesses cards." });
+    }
+
+    if (impacto?.equipe) {
+        avisos.push({ titulo: "Membro de equipe", nomes: [impacto.equipe], texto: "Se for restaurado em até 7 dias, volta para a mesma equipe." });
+    }
+
+    return (
+        <ConfirmImpactoModal
+            titulo="Desativar funcionário"
+            verificando={verificando}
+            verificandoTexto="Verificando o que depende deste funcionário..."
+            bloqueioTexto={<>Resolva os pontos abaixo antes de desativar <strong>{usuarioNome}</strong>.</>}
+            bloqueios={(impacto?.bloqueios ?? []).map((motivo) => ({ titulo: motivo }))}
+            pergunta={<>Deseja desativar <strong>{usuarioNome}</strong>? Ele perderá o acesso e poderá ser restaurado pelo histórico durante 7 dias.</>}
+            avisos={avisos}
+            confirmarTexto="Desativar"
+            executandoTexto="Desativando..."
+            onCancel={onCancel}
+            onConfirm={onConfirm}
+            loading={loading}
+        />
+    );
+}
+
 function EmptyState({ text }: { text: string }) {
     return (
         <div className="rounded-2xl border border-dashed px-4 py-6 text-sm" style={{ borderColor: "var(--cor-borda)", color: "var(--cor-logo2)" }}>
@@ -695,7 +895,6 @@ export default function GestaoPage() {
     // ── Usuários state ───────────────────────────────────────────
     const [usuarios, setUsuarios] = useState<Usuario[]>([]);
     const [permissoes, setPermissoes] = useState<Record<string, AccessLevel>>({});
-    const [projetos, setProjetos] = useState<ProjetoItem[]>([]);
     const [savingUser, setSavingUser] = useState(false);
     const [deletingUserId, setDeletingUserId] = useState<number | null>(null);
     const [query, setQuery] = useState("");
@@ -713,6 +912,8 @@ export default function GestaoPage() {
     const [userForm, setUserForm] = useState<UserForm>(EMPTY_USER_FORM);
     const [editingUser, setEditingUser] = useState<Usuario | null>(null);
     const [deletingUser, setDeletingUser] = useState<Usuario | null>(null);
+    const [impactoUsuario, setImpactoUsuario] = useState<ImpactoExclusaoUsuario | null>(null);
+    const [verificandoUsuario, setVerificandoUsuario] = useState(false);
     const [statusUser, setStatusUser] = useState<Usuario | null>(null);
     const [statusDraft, setStatusDraft] = useState<PresenceStatusValue>("offline");
     const [statusUpdatingId, setStatusUpdatingId] = useState<number | null>(null);
@@ -721,6 +922,8 @@ export default function GestaoPage() {
     const [restoringDeletedId, setRestoringDeletedId] = useState<number | null>(null);
     const [deletingCargo, setDeletingCargo] = useState<CargoItem | null>(null);
     const [deletingEquipe, setDeletingEquipe] = useState<EquipeItem | null>(null);
+    const [impactoExclusao, setImpactoExclusao] = useState<ImpactoExclusaoEquipe | null>(null);
+    const [verificandoExclusao, setVerificandoExclusao] = useState(false);
 
     // ── Cargos state ─────────────────────────────────────────────
     const [cargos, setCargos] = useState<CargoItem[]>([]);
@@ -807,10 +1010,7 @@ export default function GestaoPage() {
             setEquipes(ePayload.data?.equipes ?? []);
 
             try {
-                const [senhasRes, projetosRes] = await Promise.all([
-                    fetch(apiRoutes.senhas, { headers: { Accept: "application/json" } }),
-                    fetch(apiRoutes.projetos, { headers: { Accept: "application/json" } }),
-                ]);
+                const senhasRes = await fetch(apiRoutes.senhas, { headers: { Accept: "application/json" } });
 
                 if (senhasRes.ok) {
                     const sPayload = (await senhasRes.json()) as ApiEnvelope<{ senhas?: SenhaRegistro[] }>;
@@ -820,12 +1020,7 @@ export default function GestaoPage() {
 });
                     setPermissoes(map);
                 }
-
-                if (projetosRes.ok) {
-                    const pPayload = (await projetosRes.json()) as ApiEnvelope<{ projetos?: ProjetoItem[] }>;
-                    setProjetos(pPayload.data?.projetos ?? []);
-                }
-            } catch { /* permissoes e projetos são opcionais */ }
+            } catch { /* permissoes são opcionais */ }
         } catch {
             if (!silent) {
                 setError("Não foi possível carregar os dados.");
@@ -1030,19 +1225,6 @@ return false;
         setIsEditOpen(true);
     };
 
-    const getImpactoExclusao = (user: Usuario) => {
-        const projetosAssociados = projetos.filter((p) => p.id_responsavel === user.id_usuario);
-        const equipesAssociadas = equipes.filter((e) => e.criado_por === user.id_usuario);
-        const projetosAtivos = projetosAssociados.filter((p) => {
-            const s = (p.status_projeto ?? "").trim().toLowerCase();
-
-            return !["concluído", "concluida", "cancelado", "cancelada"].includes(s);
-        });
-        const score = projetosAtivos.length * 5 + equipesAssociadas.length * 2;
-
-        return { projetosAssociados, equipesAssociadas, projetosAtivos, nivel: score >= 10 ? "Alto" : score >= 4 ? "Médio" : "Baixo" };
-    };
-
     const onCreate = async (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         setSavingUser(true);
@@ -1117,6 +1299,26 @@ throw new Error(await readApiMessage(res, "Não foi possível atualizar o funcio
             setError(err instanceof Error ? err.message : "Não foi possível atualizar o funcionário.");
         } finally {
             setSavingUser(false);
+        }
+    };
+
+    const openDeleteUser = async (user: Usuario) => {
+        setDeletingUser(user);
+        setIsDeleteOpen(true);
+        setImpactoUsuario(null);
+        setVerificandoUsuario(true);
+
+        try {
+            const res = await fetch(apiRoutes.usuarioImpactoExclusao(user.id_usuario), { headers: authHeaders });
+            const payload = (await res.json().catch(() => null)) as ApiEnvelope<ImpactoExclusaoUsuario> | null;
+
+            if (res.ok && payload?.data) {
+                setImpactoUsuario(payload.data);
+            }
+        } catch {
+            // Sem a verificação o modal segue com a confirmação simples; o servidor ainda bloqueia.
+        } finally {
+            setVerificandoUsuario(false);
         }
     };
 
@@ -1384,6 +1586,25 @@ return;
         }
     };
 
+    const openDeleteEquipe = async (equipe: EquipeItem) => {
+        setDeletingEquipe(equipe);
+        setImpactoExclusao(null);
+        setVerificandoExclusao(true);
+
+        try {
+            const res = await fetch(apiRoutes.equipeImpactoExclusao(equipe.id_equipe), { headers: authHeaders });
+            const payload = (await res.json().catch(() => null)) as ApiEnvelope<ImpactoExclusaoEquipe> | null;
+
+            if (res.ok && payload?.data) {
+                setImpactoExclusao(payload.data);
+            }
+        } catch {
+            // Sem a verificação o modal segue com a confirmação simples; o servidor ainda bloqueia subequipes.
+        } finally {
+            setVerificandoExclusao(false);
+        }
+    };
+
     const removeEquipe = async (id: number) => {
         setDeletingEquipeId(id);
         setError(null);
@@ -1589,9 +1810,7 @@ return;
                                                                     <IconButton onClick={() => openEdit(user)} title="Editar">
                                                                         <Pencil size={14} />
                                                                     </IconButton>
-                                                                    <IconButton onClick={() => {
- setDeletingUser(user); setIsDeleteOpen(true); 
-}} title="Desativar funcionário">
+                                                                    <IconButton onClick={() => void openDeleteUser(user)} title="Desativar funcionário">
                                                                         <UserMinus size={14} />
                                                                     </IconButton>
                                                                 </div>
@@ -1714,7 +1933,7 @@ return;
                                                 <div className="flex items-center gap-2">
                                                     <IconButton onClick={() => openViewEquipe(equipe)} title="Visualizar equipe"><Eye size={14} /></IconButton>
                                                     <IconButton onClick={() => openEditEquipe(equipe)} title="Editar equipe"><Pencil size={14} /></IconButton>
-                                                    <IconButton onClick={() => setDeletingEquipe(equipe)} title="Excluir equipe" danger disabled={deletingEquipeId === equipe.id_equipe}>
+                                                    <IconButton onClick={() => void openDeleteEquipe(equipe)} title="Excluir equipe" danger disabled={deletingEquipeId === equipe.id_equipe}>
                                                         {deletingEquipeId === equipe.id_equipe ? <RefreshCw size={14} className="animate-spin" /> : <Trash2 size={14} />}
                                                     </IconButton>
                                                 </div>
@@ -1842,47 +2061,17 @@ return;
 
                 {/* Delete User */}
                 {isDeleteOpen && deletingUser && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-[2px] animate-fade-in">
-                        <div className="w-full max-w-md rounded-2xl border p-6 shadow-2xl animate-pop-in"
-                            style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-widgets)" }}>
-                            <div className="mb-4 flex items-center justify-between">
-                                <h2 className="text-lg font-semibold" style={{ color: "var(--cor-logo)" }}>Desativar funcionário</h2>
-                                <button type="button" onClick={() => {
- setIsDeleteOpen(false); setDeletingUser(null); 
-}}
-                                    className="rounded-lg border p-1.5 transition hover:shadow-md"
-                                    style={{ borderColor: "var(--cor-borda)" }}>
-                                    <X size={14} style={{ color: "var(--cor-logo2)" }} />
-                                </button>
-                            </div>
-                            <p className="mb-3 text-sm" style={{ color: "var(--cor-logo)" }}>
-                                Deseja desativar <strong>{deletingUser.nome}</strong>? Ele perderá o acesso e poderá ser restaurado pelo histórico durante 7 dias.
-                            </p>
-                            {(() => {
-                                const impacto = getImpactoExclusao(deletingUser);
-
-                                return impacto.projetosAtivos.length > 0 || impacto.equipesAssociadas.length > 0 ? (
-                                    <div className="mb-4 rounded-xl border px-4 py-3 text-sm" style={{ borderColor: "rgba(218,165,32,0.5)", backgroundColor: "rgba(218,165,32,0.1)", color: "#b8900a" }}>
-                                        <p className="font-medium">Impacto: {impacto.nivel}</p>
-                                        {impacto.projetosAtivos.length > 0 && <p>• {impacto.projetosAtivos.length} projeto(s) ativo(s) afetado(s)</p>}
-                                        {impacto.equipesAssociadas.length > 0 && <p>• {impacto.equipesAssociadas.length} equipe(s) afetada(s)</p>}
-                                    </div>
-                                ) : null;
-                            })()}
-                            <div className="flex justify-end gap-2">
-                                <button type="button" onClick={() => {
- setIsDeleteOpen(false); setDeletingUser(null); 
-}}
-                                    className="rounded-xl border px-4 py-2 text-sm"
-                                    style={{ borderColor: "var(--cor-borda)", color: "var(--cor-logo)" }}>Cancelar</button>
-                                <button type="button" onClick={() => void onDeleteUser()} disabled={deletingUserId === deletingUser.id_usuario}
-                                    className="rounded-xl border px-4 py-2 text-sm font-semibold text-white transition-all duration-200 hover:-translate-y-px hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60"
-                                    style={{ borderColor: "#9f2a21", background: "linear-gradient(140deg, #c43a2f 0%, #a42c22 100%)" }}>
-                                    {deletingUserId === deletingUser.id_usuario ? "Desativando..." : "Desativar funcionário"}
-                                </button>
-                            </div>
-                        </div>
-                    </div>
+                    <ConfirmDeleteUsuarioModal
+                        usuarioNome={deletingUser.nome}
+                        impacto={impactoUsuario}
+                        verificando={verificandoUsuario}
+                        loading={deletingUserId === deletingUser.id_usuario}
+                        onCancel={() => {
+                            setIsDeleteOpen(false);
+                            setDeletingUser(null);
+                        }}
+                        onConfirm={() => void onDeleteUser()}
+                    />
                 )}
 
                 {deletingCargo && (
@@ -1899,9 +2088,10 @@ return;
                 )}
 
                 {deletingEquipe && (
-                    <ConfirmDeleteModal
-                        title="Excluir equipe"
-                        message={<>Tem certeza que deseja excluir a equipe <strong>{deletingEquipe.nome}</strong>?</>}
+                    <ConfirmDeleteEquipeModal
+                        equipeNome={deletingEquipe.nome}
+                        impacto={impactoExclusao}
+                        verificando={verificandoExclusao}
                         loading={deletingEquipeId === deletingEquipe.id_equipe}
                         onCancel={() => setDeletingEquipe(null)}
                         onConfirm={async () => {
