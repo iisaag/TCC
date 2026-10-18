@@ -447,6 +447,35 @@ class RegrasNegocioTest extends TestCase
             ->assertJsonPath('data.kpis.tarefas_concluidas', 1);
     }
 
+    public function test_arrastar_card_no_quadro_personalizado_conclui_e_reabre(): void
+    {
+        $usuario = $this->criarUsuario();
+        $projeto = Projeto::create(['nome_projeto' => 'Custom', 'kanban_padrao' => false]);
+        $ideias = BoardColuna::create(['id_projeto' => $projeto->id_projeto, 'nome' => 'Ideias', 'progresso' => 10, 'ordem' => 1, 'arquiva_ao_concluir' => false]);
+        $publicado = BoardColuna::create(['id_projeto' => $projeto->id_projeto, 'nome' => 'Publicado', 'progresso' => 100, 'ordem' => 2, 'arquiva_ao_concluir' => true]);
+        $tarefa = Tarefa::create(['titulo' => 'Card', 'id_projeto' => $projeto->id_projeto, 'id_coluna' => $ideias->id_coluna, 'status_task' => 'Ideias', 'progresso' => 10]);
+
+        // Mesmo payload que a tela envia ao soltar o card em outra coluna.
+        $mover = fn (BoardColuna $coluna) => $this->logarComo($usuario)->patchJson("/api/tarefas/{$tarefa->id_tarefa}", [
+            'id_coluna' => $coluna->id_coluna,
+            'status_task' => $coluna->nome,
+            'progresso' => $coluna->progresso,
+            'em_historico' => $coluna->arquiva_ao_concluir,
+        ])->assertOk();
+
+        $mover($publicado);
+        $tarefa->refresh();
+        $this->assertSame($publicado->id_coluna, (int) $tarefa->id_coluna);
+        $this->assertTrue($tarefa->em_historico);
+        $this->assertNotNull($tarefa->concluida_em);
+
+        $mover($ideias);
+        $tarefa->refresh();
+        $this->assertSame(10, (int) $tarefa->progresso);
+        $this->assertFalse($tarefa->em_historico);
+        $this->assertNull($tarefa->concluida_em);
+    }
+
     public function test_usuario_comum_nao_ve_log_do_sistema_no_sino(): void
     {
         $usuario = $this->criarUsuario();

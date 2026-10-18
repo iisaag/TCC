@@ -1042,6 +1042,7 @@ export default function Projetos() {
 	const [savingColuna, setSavingColuna] = useState(false);
 	const [deletingColuna, setDeletingColuna] = useState<BoardColunaApi | null>(null);
 	const [deletingColunaId, setDeletingColunaId] = useState<number | null>(null);
+	const [hiddenColunaIds, setHiddenColunaIds] = useState<number[]>([]);
 
 	const csrfToken = useMemo(() => {
 		const tokenFromMeta = document.querySelector('meta[name="csrf-token"]')?.getAttribute("content") ?? "";
@@ -1402,6 +1403,24 @@ export default function Projetos() {
 			...current,
 			[key]: !current[key],
 		}));
+	};
+
+	const visibleColunasCustom = useMemo(
+		() => colunasCustom.filter((coluna) => !hiddenColunaIds.includes(coluna.id_coluna)),
+		[colunasCustom, hiddenColunaIds],
+	);
+
+	const hiddenColunasCustom = useMemo(
+		() => colunasCustom.filter((coluna) => hiddenColunaIds.includes(coluna.id_coluna)),
+		[colunasCustom, hiddenColunaIds],
+	);
+
+	const toggleColunaCustomVisibility = (idColuna: number) => {
+		setHiddenColunaIds((current) => (
+			current.includes(idColuna)
+				? current.filter((id) => id !== idColuna)
+				: [...current, idColuna]
+		));
 	};
 
 	// Fotos vêm da lista de pessoas (carregada uma vez); a API de tarefas não repete as fotos em cada card.
@@ -2036,6 +2055,50 @@ export default function Projetos() {
 		}
 	};
 
+	// Quadro personalizado: a coluna define status, progresso e se o card vai para o histórico.
+	const moveTaskToColunaCustom = async (taskId: number, coluna: BoardColunaApi) => {
+		const tarefaAtual = tarefas.find((item) => item.id_tarefa === taskId);
+
+		if (!tarefaAtual || Number(tarefaAtual.id_coluna) === coluna.id_coluna) {
+			return;
+		}
+
+		setMovingTaskId(taskId);
+		setError(null);
+
+		const patchPayload = {
+			id_coluna: coluna.id_coluna,
+			status_task: coluna.nome,
+			progresso: coluna.progresso,
+			em_historico: Boolean(coluna.arquiva_ao_concluir),
+		};
+
+		const previous = [...tarefas];
+		setTarefas((current) => current.map((item) => (
+			item.id_tarefa === taskId ? { ...item, ...patchPayload } : item
+		)));
+
+		try {
+			const response = await fetch(`${apiRoutes.tarefas}/${taskId}`, {
+				method: "PATCH",
+				headers: {
+					"Content-Type": "application/json",
+					...mutationHeaders,
+				},
+				body: JSON.stringify(patchPayload),
+			});
+
+			if (!response.ok) {
+				throw new Error("Falha ao mover card");
+			}
+		} catch {
+			setTarefas(previous);
+			setError("Nao foi possivel mover o card. Tente novamente.");
+		} finally {
+			setMovingTaskId(null);
+		}
+	};
+
 	// ── Colunas customizadas: CRUD ──────────────────────────────────
 
 	const openCreateColuna = () => {
@@ -2455,20 +2518,38 @@ export default function Projetos() {
 
 								<details className="relative sm:ml-auto">
 									<summary
-										className="inline-flex h-9 w-9 cursor-pointer list-none items-center justify-center rounded-xl border"
+										className="coluna-menu-btn inline-flex h-9 w-9 cursor-pointer list-none items-center justify-center rounded-xl border"
 										style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-fundo)", color: "var(--cor-logo2)" }}
 										title="Mostrar colunas"
 									>
 										<MoreVertical size={16} />
 									</summary>
 									<div
-										className="absolute right-0 z-20 mt-2 min-w-[220px] rounded-xl border p-2 shadow-lg"
+										className="animate-dropdown absolute right-0 z-20 mt-2 min-w-[220px] rounded-xl border p-2 shadow-lg"
 										style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-widgets)", color: "var(--cor-logo)" }}
 									>
 										<p className="px-2 py-1 text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--cor-logo2)" }}>
 											Mostrar colunas
 										</p>
-										{hiddenBoardColumns.length === 0 ? (
+										{selectedProject?.kanban_padrao === false ? (
+											hiddenColunasCustom.length === 0 ? (
+												<p className="px-2 py-2 text-xs" style={{ color: "var(--cor-logo2)" }}>
+													Nenhuma coluna oculta.
+												</p>
+											) : (
+												hiddenColunasCustom.map((coluna) => (
+													<button
+														key={coluna.id_coluna}
+														type="button"
+														onClick={() => toggleColunaCustomVisibility(coluna.id_coluna)}
+														className="coluna-menu-item w-full rounded-lg px-2 py-2 text-left text-sm"
+														style={{ color: "var(--cor-logo)" }}
+													>
+														Mostrar {coluna.nome}
+													</button>
+												))
+											)
+										) : hiddenBoardColumns.length === 0 ? (
 											<p className="px-2 py-2 text-xs" style={{ color: "var(--cor-logo2)" }}>
 												Nenhuma coluna oculta.
 											</p>
@@ -2478,7 +2559,7 @@ export default function Projetos() {
 													key={column.key}
 													type="button"
 													onClick={() => toggleColumnVisibility(column.key)}
-													className="w-full rounded-lg px-2 py-2 text-left text-sm transition"
+													className="coluna-menu-item w-full rounded-lg px-2 py-2 text-left text-sm"
 													style={{ color: "var(--cor-logo)" }}
 												>
 													Mostrar {column.label}
@@ -2536,7 +2617,7 @@ export default function Projetos() {
 									</div>
 								) : (
 									<div className="flex gap-4 overflow-x-auto pb-3">
-										{colunasCustom.map((coluna) => {
+										{visibleColunasCustom.map((coluna) => {
 											const tasksDaColuna = tasksOfSelectedProject.filter(
 												(tarefa) => Number(tarefa.id_coluna) === coluna.id_coluna,
 											);
@@ -2545,6 +2626,15 @@ export default function Projetos() {
 												<section
 													key={coluna.id_coluna}
 													className="w-[290px] min-w-[290px] rounded-2xl border p-3"
+													onDragOver={(event) => event.preventDefault()}
+													onDrop={(event) => {
+														event.preventDefault();
+														const taskId = Number(event.dataTransfer.getData("text/plain"));
+
+														if (Number.isFinite(taskId)) {
+															void moveTaskToColunaCustom(taskId, coluna);
+														}
+													}}
 													style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-fundo)" }}
 												>
 													<div className="mb-3 flex items-start justify-between gap-2">
@@ -2554,13 +2644,35 @@ export default function Projetos() {
 															</h2>
 															<p className="text-xs" style={{ color: "var(--cor-logo2)" }}>
 																{coluna.progresso}% de progresso
-																{coluna.arquiva_ao_concluir ? " · arquiva ao concluir" : ""}
+																{coluna.arquiva_ao_concluir ? " · conclui a tarefa" : ""}
 															</p>
 														</div>
 														<div className="flex items-center gap-1">
 															<span className="rounded-full px-2.5 py-1 text-sm" style={{ backgroundColor: "var(--cor-widgets)", color: "var(--cor-logo2)" }}>
 																{tasksDaColuna.length}
 															</span>
+															<details className="relative">
+																<summary
+																	className="coluna-menu-btn inline-flex h-7 w-7 cursor-pointer list-none items-center justify-center rounded-lg border"
+																	style={{ borderColor: "var(--cor-borda)", color: "var(--cor-logo2)" }}
+																	title="Opcoes da coluna"
+																>
+																	<MoreVertical size={14} />
+																</summary>
+																<div
+																	className="animate-dropdown absolute right-0 z-20 mt-2 min-w-[140px] rounded-xl border p-1.5 shadow-lg"
+																	style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-widgets)" }}
+																>
+																	<button
+																		type="button"
+																		onClick={() => toggleColunaCustomVisibility(coluna.id_coluna)}
+																		className="coluna-menu-item w-full rounded-lg px-2 py-2 text-left text-sm"
+																		style={{ color: "var(--cor-logo)" }}
+																	>
+																		Ocultar
+																	</button>
+																</div>
+															</details>
 															<button
 																type="button"
 																onClick={() => openEditColuna(coluna)}
@@ -2588,8 +2700,13 @@ export default function Projetos() {
 														{tasksDaColuna.map((tarefa) => (
 															<article
 																key={tarefa.id_tarefa}
+																draggable
+																onDragStart={(event) => {
+																	event.dataTransfer.setData("text/plain", String(tarefa.id_tarefa));
+																	event.dataTransfer.effectAllowed = "move";
+																}}
 																onClick={() => openTaskDetails(tarefa)}
-																className="cursor-pointer rounded-xl border p-0"
+																className="cursor-grab rounded-xl border p-0 active:cursor-grabbing"
 																style={{ borderColor: "#d8dde4", backgroundColor: "var(--cor-widgets)" }}
 															>
 																<div className="h-2 w-full rounded-t-xl" style={{ backgroundColor: priorityColor(tarefa.prioridade_task) }} />
@@ -2659,6 +2776,11 @@ export default function Projetos() {
 												</section>
 											);
 										})}
+										{visibleColunasCustom.length === 0 ? (
+											<div className="rounded-xl border px-4 py-3 text-sm" style={{ borderColor: "var(--cor-borda)", color: "var(--cor-logo2)", backgroundColor: "var(--cor-fundo)" }}>
+												Todas as colunas estão ocultas. Use o menu "Mostrar colunas" para exibi-las.
+											</div>
+										) : null}
 									</div>
 								)}
 							</div>
@@ -2694,20 +2816,20 @@ export default function Projetos() {
 									</span>
 									<details className="relative">
 										<summary
-											className="inline-flex h-7 w-7 cursor-pointer list-none items-center justify-center rounded-lg border"
+											className="coluna-menu-btn inline-flex h-7 w-7 cursor-pointer list-none items-center justify-center rounded-lg border"
 											style={{ borderColor: "var(--cor-borda)", color: "var(--cor-logo2)" }}
 											title="Opcoes da coluna"
 										>
 											<MoreVertical size={14} />
 										</summary>
 										<div
-											className="absolute right-0 z-20 mt-2 min-w-[140px] rounded-xl border p-1.5 shadow-lg"
+											className="animate-dropdown absolute right-0 z-20 mt-2 min-w-[140px] rounded-xl border p-1.5 shadow-lg"
 											style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-widgets)" }}
 										>
 											<button
 												type="button"
 												onClick={() => toggleColumnVisibility(column.key)}
-												className="w-full rounded-lg px-2 py-2 text-left text-sm"
+												className="coluna-menu-item w-full rounded-lg px-2 py-2 text-left text-sm"
 												style={{ color: "var(--cor-logo)" }}
 											>
 												Ocultar
@@ -2875,8 +2997,11 @@ export default function Projetos() {
 										checked={colunaForm.arquiva_ao_concluir}
 										onChange={(e) => setColunaForm((c) => ({ ...c, arquiva_ao_concluir: e.target.checked }))}
 									/>
-									Mover card para o historico ao entrar nesta coluna
+									Concluir o card ao entrar nesta coluna
 								</label>
+								<p className="-mt-2 text-xs" style={{ color: "var(--cor-logo2)" }}>
+									O card continua visível aqui, mas passa a contar como concluído no Dashboard e no Desempenho.
+								</p>
 							</div>
 
 							<div className="mt-5 flex justify-end gap-2">
@@ -3612,6 +3737,17 @@ export default function Projetos() {
 										<span className="rounded-full bg-rose-500 px-3 py-1 text-xs font-semibold text-white">Bloqueada</span>
 									) : null}
 								</div>
+
+								{isEditingDetails ? (
+									<label className="mt-4 flex items-center gap-2 text-sm font-medium" style={{ color: "var(--cor-logo)" }}>
+										<input
+											type="checkbox"
+											checked={detailsForm.bloqueada}
+											onChange={(e) => setDetailsForm((c) => ({ ...c, bloqueada: e.target.checked }))}
+										/>
+										Tarefa bloqueada
+									</label>
+								) : null}
 
 								<label className="mt-4 flex flex-col gap-1 text-sm font-medium" style={{ color: "var(--cor-logo)" }}>
 									Detalhes
