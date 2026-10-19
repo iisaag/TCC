@@ -80,6 +80,28 @@ class PresenceController extends Controller
         }
 
         $onlineIds = $this->onlineUserIds();
+
+        // Modo leve para a atualização periódica: só id e status, sem fotos nem contatos.
+        if ($request->boolean('somente_status')) {
+            $users = Usuario::query()
+                ->get(['id_usuario', 'status_atual'])
+                ->map(function (Usuario $usuario) use ($onlineIds): array {
+                    $customStatus = $this->normalizeStatus($usuario->status_atual);
+                    $isOnline = in_array((int) $usuario->id_usuario, $onlineIds, true);
+
+                    return [
+                        'id' => (int) $usuario->id_usuario,
+                        'status' => ($isOnline && $customStatus !== 'offline') ? $customStatus : 'offline',
+                    ];
+                })
+                ->values();
+
+            return response()->json([
+                'success' => true,
+                'data' => ['users' => $users],
+            ]);
+        }
+
         $nivelAcessoPorEmail = Senha::query()
             ->pluck('nivel_acesso', 'email')
             ->mapWithKeys(fn ($nivelAcesso, $email) => [strtolower((string) $email) => strtolower((string) $nivelAcesso)]);

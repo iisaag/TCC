@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
     public function up(): void
     {
-        if (! Schema::hasTable('tarefas') || ! Schema::hasTable('usuarios')) {
+        if (Schema::hasTable('tarefa_usuarios_relacionados') || ! Schema::hasTable('tarefas') || ! Schema::hasTable('usuarios')) {
             return;
         }
 

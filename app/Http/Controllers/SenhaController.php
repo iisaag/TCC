@@ -9,8 +9,8 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Str;
 use Carbon\Carbon;
@@ -18,18 +18,17 @@ use Inertia\Inertia;
 
 class SenhaController extends Controller
 {
+    /**
+     * Todas as senhas são gravadas com hash (migration 000025 converteu as antigas),
+     * então só a comparação por hash é aceita.
+     */
     private function senhaConfere(string $senhaDigitada, string $senhaArmazenada): bool
     {
-        if ($this->senhaPareceHash($senhaArmazenada)) {
-            return Hash::check($senhaDigitada, $senhaArmazenada);
+        if (preg_match('/^\$(2y|2a|2b|argon2i|argon2id)\$/', $senhaArmazenada) !== 1) {
+            return false;
         }
 
-        return hash_equals($senhaArmazenada, $senhaDigitada);
-    }
-
-    private function senhaPareceHash(string $senha): bool
-    {
-        return preg_match('/^\$(2y|2a|2b|argon2i|argon2id)\$/', $senha) === 1;
+        return Hash::check($senhaDigitada, $senhaArmazenada);
     }
 
     public function index(Request $request): JsonResponse
@@ -49,7 +48,7 @@ class SenhaController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Erro ao listar registros: ' . $e->getMessage(),
+                'message' => 'Erro ao listar registros' . $this->detalheErro($e),
             ], 400);
         }
     }
@@ -127,34 +126,24 @@ class SenhaController extends Controller
             'nivel_acesso' => 'required|string',
         ]);
 
-        $registro->update(['nivel_acesso' => $validated['nivel_acesso']]);
+        $registro->nivel_acesso = $validated['nivel_acesso'];
+
+        if ($registro->isDirty('nivel_acesso') && $registro->nivel_acesso !== 'adm') {
+            $bloqueio = Senha::bloqueioRemoverAdmin($email, data_get($request->session()->get('auth.user'), 'email'));
+
+            if ($bloqueio !== null) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $bloqueio,
+                ], 422);
+            }
+        }
+
+        $registro->save();
 
         return response()->json([
             'success' => true,
             'message' => 'Nível de acesso atualizado com sucesso',
-        ]);
-    }
-
-    public function verificarSenha(Request $request): JsonResponse
-    {
-        $validated = $request->validate([
-            'email' => 'required|email',
-            'senha' => 'required|string',
-        ]);
-
-        $registro = Senha::with('usuario')->find($validated['email']);
-
-        if (!$registro || !$this->senhaConfere($validated['senha'], $registro->senha)) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Credenciais inválidas',
-            ], 401);
-        }
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Autenticação realizada com sucesso',
-            'data'    => ['senha' => $registro],
         ]);
     }
 
@@ -165,14 +154,9 @@ class SenhaController extends Controller
             'senha' => 'required|string',
         ]);
 
-        if (! Schema::hasTable('usuarios') || ! Schema::hasTable('senha')) {
-            return back()->withErrors([
-                'email' => 'Base de usuários não está disponível no ambiente atual.',
-            ]);
-        }
-
-        $registro = Senha::with('usuario')->find($validated['email']);
-        $usuario = $registro?->usuario ?? Usuario::query()->where('email', $validated['email'])->first();
+        $email = strtolower(trim($validated['email']));
+        $registro = Senha::with('usuario')->find($email);
+        $usuario = $registro?->usuario ?? Usuario::query()->where('email', $email)->first();
 
         if (! $registro || ! $this->senhaConfere($validated['senha'], $registro->senha) || ! $usuario) {
             return back()->withErrors([
@@ -194,22 +178,19 @@ class SenhaController extends Controller
             'email' => $usuario->email,
             'name' => $usuario->nome,
             'role' => is_string($cargoTexto) && $cargoTexto !== '' ? $cargoTexto : $nivelAcesso,
-            'avatar' => $usuario->foto_perfil ?: null,
             'permissions' => [
                 'total' => $temPermissaoTotal,
             ],
             'nivel_acesso' => $nivelAcessoOriginal,
         ]);
 
-        if (Schema::hasTable('user_presences')) {
-            UserPresence::updateOrCreate(
-                ['session_id' => $request->session()->getId()],
-                [
-                    'user_id' => (int) $usuario->id_usuario,
-                    'last_seen' => Carbon::now(),
-                ]
-            );
-        }
+        UserPresence::updateOrCreate(
+            ['session_id' => $request->session()->getId()],
+            [
+                'user_id' => (int) $usuario->id_usuario,
+                'last_seen' => Carbon::now(),
+            ]
+        );
 
         return redirect()->route('home');
     }
@@ -226,7 +207,7 @@ class SenhaController extends Controller
             'email' => 'required|email',
         ]);
 
-        $email = $validated['email'];
+        $email = strtolower(trim($validated['email']));
 
         if (Senha::find($email)) {
             $token = Str::random(64);
@@ -238,24 +219,29 @@ class SenhaController extends Controller
 
             $link = url('/redefinir-senha/' . $token) . '?email=' . urlencode($email);
 
-            Mail::send(
-                ['html' => 'emails.aviso', 'text' => 'emails.aviso-texto'],
-                [
-                    'preheader' => 'Use o link para criar uma nova senha do AivyPM.',
-                    'icone' => '🔒',
-                    'rotulo' => 'Redefinição de senha',
-                    'titulo' => 'Vamos criar uma nova senha?',
-                    'texto' => 'Recebemos uma solicitação para redefinir a senha da sua conta AivyPM. Clique no botão abaixo para continuar.',
-                    'botaoTexto' => 'Redefinir minha senha',
-                    'botaoUrl' => $link,
-                    'observacao' => 'Este link é válido por ' . self::RESET_TOKEN_MINUTES . ' minutos.',
-                    'caixaTitulo' => 'Não solicitou esta alteração?',
-                    'caixaTexto' => 'Ignore este e-mail. Sua senha atual continuará válida e sua conta permanecerá segura.',
-                ],
-                function ($message) use ($email) {
-                    $message->to($email)->subject('Redefinição de senha - AivyPM');
-                }
-            );
+            try {
+                Mail::send(
+                    ['html' => 'emails.aviso', 'text' => 'emails.aviso-texto'],
+                    [
+                        'preheader' => 'Use o link para criar uma nova senha do AivyPM.',
+                        'icone' => '🔒',
+                        'rotulo' => 'Redefinição de senha',
+                        'titulo' => 'Vamos criar uma nova senha?',
+                        'texto' => 'Recebemos uma solicitação para redefinir a senha da sua conta AivyPM. Clique no botão abaixo para continuar.',
+                        'botaoTexto' => 'Redefinir minha senha',
+                        'botaoUrl' => $link,
+                        'observacao' => 'Este link é válido por ' . self::RESET_TOKEN_MINUTES . ' minutos.',
+                        'caixaTitulo' => 'Não solicitou esta alteração?',
+                        'caixaTexto' => 'Ignore este e-mail. Sua senha atual continuará válida e sua conta permanecerá segura.',
+                    ],
+                    function ($message) use ($email) {
+                        $message->to($email)->subject('Redefinição de senha - AivyPM');
+                    }
+                );
+            } catch (\Throwable $e) {
+                // A resposta continua a mesma para não revelar se o e-mail existe.
+                Log::error('Falha ao enviar e-mail de redefinição de senha', ['erro' => $e->getMessage()]);
+            }
         }
 
         return redirect()->route('login')->with('success', 'Se o e-mail estiver cadastrado, enviamos um link para redefinir a senha.');
@@ -301,13 +287,7 @@ class SenhaController extends Controller
 
     public function logout(Request $request)
     {
-        try {
-            if (Schema::hasTable('user_presences')) {
-                UserPresence::query()->where('session_id', $request->session()->getId())->delete();
-            }
-        } catch (\Exception $e) {
-            // Ignore presence cleanup errors (missing table or DB access issues in local env)
-        }
+        UserPresence::query()->where('session_id', $request->session()->getId())->delete();
 
         $request->session()->forget('auth.user');
         $request->session()->invalidate();

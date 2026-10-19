@@ -267,6 +267,55 @@
         transform-origin: top;
     }
 
+    /* Menu ⋮ das colunas do quadro (Ocultar) */
+    .coluna-menu-btn {
+        transition: transform 0.2s ease, background-color 0.2s ease, color 0.2s ease;
+    }
+
+    .coluna-menu-btn svg {
+        transition: transform 0.25s ease;
+    }
+
+    .coluna-menu-btn:hover {
+        transform: scale(1.1);
+        color: var(--cor-accent);
+        background-color: var(--cor-widgets);
+    }
+
+    .coluna-menu-btn:active {
+        transform: scale(0.92);
+    }
+
+    details[open] > .coluna-menu-btn svg {
+        transform: rotate(90deg);
+    }
+
+    .coluna-menu-item {
+        transition: background-color 0.15s ease, padding-left 0.15s ease, color 0.15s ease;
+    }
+
+    .coluna-menu-item:hover {
+        background-color: color-mix(in srgb, var(--cor-accent) 12%, transparent);
+        color: var(--cor-accent) !important;
+        padding-left: 0.75rem;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .coluna-menu-btn,
+        .coluna-menu-btn svg,
+        .coluna-menu-item,
+        .animate-dropdown {
+            transition: none;
+            animation: none;
+        }
+
+        .coluna-menu-btn:hover,
+        .coluna-menu-btn:active,
+        details[open] > .coluna-menu-btn svg {
+            transform: none;
+        }
+    }
+
     .animate-slide-in {
         animation: slideIn 0.3s ease-out;
     }

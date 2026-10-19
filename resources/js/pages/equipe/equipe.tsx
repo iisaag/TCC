@@ -90,6 +90,7 @@ function toPresenceStatus(rawStatus?: string): PresenceStatus {
     if (rawStatus === "online" || rawStatus === "ocupado" || rawStatus === "ausente" || rawStatus === "não perturbe" || rawStatus === "offline") {
         return rawStatus;
     }
+
     return "offline";
 }
 
@@ -108,7 +109,9 @@ function toMember(user: TeamUser): TeamMember {
 }
 
 function buildOrgChart(users: TeamUser[], teams: TeamRecord[]): OrgData {
-    if (users.length === 0) return { ceo: null, teams: [], unassigned: [] };
+    if (users.length === 0) {
+return { ceo: null, teams: [], unassigned: [] };
+}
 
     // CEO = leader of the EMPRESA team
     const empresaTeam = teams.find((t) => t.tipo === "EMPRESA");
@@ -124,14 +127,21 @@ function buildOrgChart(users: TeamUser[], teams: TeamRecord[]): OrgData {
         .flatMap((team) => {
             const leaderId = team.id_lider!;
             const leaderUser = users.find((u) => u.id === leaderId);
-            if (!leaderUser) return [];
+
+            if (!leaderUser) {
+return [];
+}
 
             assignedIds.add(leaderId);
             const leader = toMember(leaderUser);
 
             const members = users
                 .filter((u) => u.id_equipe === team.id_equipe && u.id !== leaderId)
-                .map((u) => { assignedIds.add(u.id); return toMember(u); });
+                .map((u) => {
+ assignedIds.add(u.id);
+
+ return toMember(u); 
+});
 
             return [{ teamId: team.id_equipe, teamName: team.nome, leader, members }];
         });
@@ -142,9 +152,16 @@ function buildOrgChart(users: TeamUser[], teams: TeamRecord[]): OrgData {
 }
 
 function formatDate(raw?: string | null): string {
-    if (!raw) return "—";
+    if (!raw) {
+return "—";
+}
+
     const parsed = new Date(raw);
-    if (Number.isNaN(parsed.getTime())) return "—";
+
+    if (Number.isNaN(parsed.getTime())) {
+return "—";
+}
+
     return parsed.toLocaleDateString("pt-BR");
 }
 
@@ -270,25 +287,42 @@ export default function Equipe() {
     const [equipes, setEquipes] = useState<TeamRecord[]>([]);
     const [loadingTeams, setLoadingTeams] = useState(true);
 
-    useEffect(() => { setUsers(page.props.projectUsers ?? []); }, [page.props.projectUsers]);
+    useEffect(() => {
+ setUsers(page.props.projectUsers ?? []); 
+}, [page.props.projectUsers]);
 
     useEffect(() => {
         let isMounted = true;
         const loadTeams = async () => {
             setLoadingTeams(true);
+
             try {
                 const res = await fetch(apiRoutes.equipes, { headers: { Accept: "application/json" } });
-                if (!res.ok || !isMounted) return;
+
+                if (!res.ok || !isMounted) {
+return;
+}
+
                 const payload = (await res.json()) as ApiEnvelope<{ equipes?: TeamRecord[] }>;
-                if (isMounted) setEquipes(payload.data?.equipes ?? []);
+
+                if (isMounted) {
+setEquipes(payload.data?.equipes ?? []);
+}
             } catch {
-                if (isMounted) setEquipes([]);
+                if (isMounted) {
+setEquipes([]);
+}
             } finally {
-                if (isMounted) setLoadingTeams(false);
+                if (isMounted) {
+setLoadingTeams(false);
+}
             }
         };
         void loadTeams();
-        return () => { isMounted = false; };
+
+        return () => {
+ isMounted = false; 
+};
     }, []);
 
     useEffect(() => {
@@ -318,30 +352,43 @@ export default function Equipe() {
         const syncUsers = async () => {
             try {
                 const res = await fetch("/presence/users", { headers: { Accept: "application/json" } });
-                if (!res.ok || !isMounted) return;
+
+                if (!res.ok || !isMounted) {
+return;
+}
+
                 const payload = (await res.json()) as PresenceUsersResponse;
                 const liveUsers = payload.data?.users ?? [];
-                if (isMounted && liveUsers.length > 0) setUsers(liveUsers);
+
+                if (isMounted && liveUsers.length > 0) {
+setUsers(liveUsers);
+}
             } catch { /* mantém dados atuais */ }
         };
         void syncUsers();
         const interval = window.setInterval(() => void syncUsers(), 3000);
-        return () => { isMounted = false; window.clearInterval(interval); };
+
+        return () => {
+ isMounted = false; window.clearInterval(interval); 
+};
     }, []);
 
     const { ceo, teams, unassigned } = buildOrgChart(users, equipes);
 
     const teamsByParent = useMemo(() => {
         const grouped = new Map<number | null, TeamRecord[]>();
+
         for (const team of equipes) {
             const parent = team.equipe_pai ?? null;
             const current = grouped.get(parent) ?? [];
             current.push(team);
             grouped.set(parent, current);
         }
+
         for (const entry of grouped.values()) {
             entry.sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
         }
+
         return grouped;
     }, [equipes]);
 

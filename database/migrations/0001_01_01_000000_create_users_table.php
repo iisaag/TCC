@@ -9,25 +9,28 @@ return new class extends Migration
     /**
      * Run the migrations.
      */
+    /**
+     * O database/script.sql já cria estas tabelas; sem esta checagem,
+     * "php artisan migrate" falhava depois de importar o script.
+     */
+    private function criarSeNaoExistir(string $tabela, \Closure $definicao): void
+    {
+        if (! Schema::hasTable($tabela)) {
+            Schema::create($tabela, $definicao);
+        }
+    }
+
     public function up(): void
     {
-        Schema::create('users', function (Blueprint $table) {
-            $table->id();
-            $table->string('name');
-            $table->string('email')->unique();
-            $table->timestamp('email_verified_at')->nullable();
-            $table->string('password');
-            $table->rememberToken();
-            $table->timestamps();
-        });
-
-        Schema::create('password_reset_tokens', function (Blueprint $table) {
+        // O sistema usa a tabela "usuarios" e login próprio por sessão (SenhaController);
+        // a tabela "users" padrão do Laravel não é criada.
+        $this->criarSeNaoExistir('password_reset_tokens', function (Blueprint $table) {
             $table->string('email')->primary();
             $table->string('token');
             $table->timestamp('created_at')->nullable();
         });
 
-        Schema::create('sessions', function (Blueprint $table) {
+        $this->criarSeNaoExistir('sessions', function (Blueprint $table) {
             $table->string('id')->primary();
             $table->foreignId('user_id')->nullable()->index();
             $table->string('ip_address', 45)->nullable();
@@ -42,7 +45,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('users');
         Schema::dropIfExists('password_reset_tokens');
         Schema::dropIfExists('sessions');
     }

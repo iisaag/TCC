@@ -1,6 +1,5 @@
 import { Head, usePage } from "@inertiajs/react";
 import {
-    Briefcase,
     Building2,
     ChevronDown,
     CornerDownRight,
@@ -66,13 +65,6 @@ interface SenhaRegistro {
 interface CargoItem {
     id_cargo: number;
     nome_cargo: string;
-}
-
-interface ProjetoItem {
-    id_projeto: number;
-    nome_projeto: string;
-    status_projeto?: string | null;
-    id_responsavel?: number | null;
 }
 
 interface EquipeItem {
@@ -151,6 +143,7 @@ const PAGE_SIZE = 10;
 
 function toAccessLevel(raw?: string | null): AccessLevel {
     const n = (raw ?? "").toLowerCase();
+
     return ["adm", "admin", "administrador", "total", "geral"].includes(n) ? "admin" : "usuario";
 }
 
@@ -170,7 +163,11 @@ function normalizePresenceStatus(status?: string | null): PresenceStatusValue {
 
 function getInitials(nome: string): string {
     const parts = nome.trim().split(/\s+/);
-    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+
+    if (parts.length === 1) {
+return parts[0].slice(0, 2).toUpperCase();
+}
+
     return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
@@ -186,14 +183,25 @@ const AVATAR_COLORS = [
 
 function getAvatarColor(nome: string): { bg: string; text: string } {
     let hash = 0;
-    for (let i = 0; i < nome.length; i++) hash = (hash * 31 + nome.charCodeAt(i)) >>> 0;
+
+    for (let i = 0; i < nome.length; i++) {
+hash = (hash * 31 + nome.charCodeAt(i)) >>> 0;
+}
+
     return AVATAR_COLORS[hash % AVATAR_COLORS.length];
 }
 
 function formatDateTime(raw?: string | null): string {
-    if (!raw) return "—";
+    if (!raw) {
+return "—";
+}
+
     const date = new Date(raw);
-    if (isNaN(date.getTime())) return "—";
+
+    if (isNaN(date.getTime())) {
+return "—";
+}
+
     return (
         date.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" }) +
         ", " +
@@ -202,12 +210,24 @@ function formatDateTime(raw?: string | null): string {
 }
 
 function getRemainingDaysLabel(expiraEm?: string | null): string {
-    if (!expiraEm) return "tempo restante indisponível";
+    if (!expiraEm) {
+return "tempo restante indisponível";
+}
+
     const expiration = new Date(expiraEm).getTime();
-    if (Number.isNaN(expiration)) return "tempo restante indisponível";
+
+    if (Number.isNaN(expiration)) {
+return "tempo restante indisponível";
+}
+
     const remainingMs = expiration - Date.now();
-    if (remainingMs <= 0) return "expira hoje";
+
+    if (remainingMs <= 0) {
+return "expira hoje";
+}
+
     const days = Math.ceil(remainingMs / (24 * 60 * 60 * 1000));
+
     return `expira em ${days} dia${days === 1 ? "" : "s"}`;
 }
 
@@ -250,32 +270,72 @@ type PresenceState = "ONLINE" | "AUSENTE" | "OCUPADO" | "NAO_PERTURBE" | "OFFLIN
 const ACTIVE_PRESENCE_WINDOW_MS = 45 * 1000;
 
 function hasRecentAccess(ultimoAcesso?: string | null): boolean {
-    if (!ultimoAcesso) return false;
+    if (!ultimoAcesso) {
+return false;
+}
+
     const parsed = new Date(ultimoAcesso).getTime();
     const fallback = new Date(ultimoAcesso.replace(" ", "T")).getTime();
     const timestamp = Number.isNaN(parsed) ? fallback : parsed;
-    if (Number.isNaN(timestamp)) return false;
+
+    if (Number.isNaN(timestamp)) {
+return false;
+}
+
     return Date.now() - timestamp <= ACTIVE_PRESENCE_WINDOW_MS;
 }
 
 function getPresenceState(usuario: Usuario): PresenceState {
     const normalized = normalizePresenceStatus(usuario.status_atual);
 
-    if (normalized === "offline") return "OFFLINE";
-    if (usuario.online_agora === false) return "OFFLINE";
+    if (normalized === "offline") {
+return "OFFLINE";
+}
+
+    if (usuario.online_agora === false) {
+return "OFFLINE";
+}
+
     if (usuario.online_agora === true) {
-        if (normalized === "online") return "ONLINE";
-        if (normalized === "ausente") return "AUSENTE";
-        if (normalized === "ocupado") return "OCUPADO";
-        if (normalized === "não perturbe") return "NAO_PERTURBE";
+        if (normalized === "online") {
+return "ONLINE";
+}
+
+        if (normalized === "ausente") {
+return "AUSENTE";
+}
+
+        if (normalized === "ocupado") {
+return "OCUPADO";
+}
+
+        if (normalized === "não perturbe") {
+return "NAO_PERTURBE";
+}
+
         return "OFFLINE";
     }
-    if (!hasRecentAccess(usuario.ultimo_acesso)) return "OFFLINE";
 
-    if (normalized === "online") return "ONLINE";
-    if (normalized === "ausente") return "AUSENTE";
-    if (normalized === "ocupado") return "OCUPADO";
-    if (normalized === "não perturbe") return "NAO_PERTURBE";
+    if (!hasRecentAccess(usuario.ultimo_acesso)) {
+return "OFFLINE";
+}
+
+    if (normalized === "online") {
+return "ONLINE";
+}
+
+    if (normalized === "ausente") {
+return "AUSENTE";
+}
+
+    if (normalized === "ocupado") {
+return "OCUPADO";
+}
+
+    if (normalized === "não perturbe") {
+return "NAO_PERTURBE";
+}
+
     return "OFFLINE";
 }
 
@@ -286,6 +346,7 @@ function isUsuarioAtivo(usuario: Usuario): boolean {
 async function readApiMessage(response: Response, fallback: string): Promise<string> {
     try {
         const payload = (await response.json()) as { message?: string };
+
         return payload.message ?? fallback;
     } catch {
         return fallback;
@@ -295,8 +356,12 @@ async function readApiMessage(response: Response, fallback: string): Promise<str
 function readApiMessageSync(payload: unknown, fallback: string): string {
     if (payload && typeof payload === "object" && "message" in payload) {
         const msg = (payload as { message?: unknown }).message;
-        if (typeof msg === "string" && msg.trim()) return msg;
+
+        if (typeof msg === "string" && msg.trim()) {
+return msg;
+}
     }
+
     return fallback;
 }
 
@@ -327,6 +392,7 @@ function PermissionBadge({ access }: { access: AccessLevel }) {
             </span>
         );
     }
+
     return (
         <span className="inline-flex rounded-full border px-2.5 py-0.5 text-xs font-semibold border-[#bbb] text-[#444] dark:border-(--cor-borda) dark:text-(--cor-logo2)">
             Usuário
@@ -593,6 +659,213 @@ function ConfirmDeleteModal({ title, message, onCancel, onConfirm, loading }: {
     );
 }
 
+interface ImpactoExclusaoEquipe {
+    subequipes: string[];
+    membros: string[];
+    projetos: string[];
+}
+
+function listarNomes(nomes: string[], limite = 5): string {
+    const visiveis = nomes.slice(0, limite).join(", ");
+
+    return nomes.length > limite ? `${visiveis} e mais ${nomes.length - limite}` : visiveis;
+}
+
+function AvisoExclusao({ titulo, texto, nomes }: { titulo: string; texto: string; nomes: string[] }) {
+    return (
+        <div className="rounded-xl border px-3 py-2.5 text-sm"
+            style={{
+                borderColor: "color-mix(in srgb, var(--cor-ausente) 45%, var(--cor-borda))",
+                backgroundColor: "color-mix(in srgb, var(--cor-ausente) 10%, transparent)",
+                color: "var(--cor-logo)",
+            }}>
+            <p className="font-semibold">{titulo}</p>
+            {nomes.length > 0 ? (
+                <p className="mt-0.5" style={{ color: "var(--cor-logo2)" }}>{listarNomes(nomes)}</p>
+            ) : null}
+            <p className="mt-1 text-xs" style={{ color: "var(--cor-logo2)" }}>{texto}</p>
+        </div>
+    );
+}
+
+interface ImpactoExclusaoUsuario {
+    bloqueios: string[];
+    tarefas: string[];
+    tarefas_relacionadas: number;
+    equipe: string | null;
+}
+
+interface AvisoImpacto {
+    titulo: string;
+    nomes: string[];
+    texto: string;
+}
+
+// Modal padrão de exclusão: bloqueios impedem a ação; avisos só pedem confirmação.
+function ConfirmImpactoModal({ titulo, verificando, verificandoTexto, bloqueioTexto, bloqueios, pergunta, avisos, confirmarTexto, executandoTexto, onCancel, onConfirm, loading }: {
+    titulo: string;
+    verificando: boolean;
+    verificandoTexto: string;
+    bloqueioTexto: React.ReactNode;
+    bloqueios: { titulo: string; detalhe?: string }[];
+    pergunta: React.ReactNode;
+    avisos: AvisoImpacto[];
+    confirmarTexto: string;
+    executandoTexto: string;
+    onCancel: () => void;
+    onConfirm: () => void;
+    loading: boolean;
+}) {
+    const bloqueado = !verificando && bloqueios.length > 0;
+    const temAvisos = avisos.length > 0;
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-[2px] animate-fade-in">
+            <div className="w-full max-w-md rounded-2xl border p-6 shadow-2xl animate-pop-in"
+                style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-widgets)" }}>
+                <div className="mb-4 flex items-center justify-between">
+                    <h2 className="text-lg font-semibold" style={{ color: "#9f2f2f" }}>
+                        {bloqueado ? "Não é possível continuar" : titulo}
+                    </h2>
+                    <button type="button" onClick={onCancel}
+                        className="rounded-lg border p-1.5 transition hover:shadow-md"
+                        style={{ borderColor: "var(--cor-borda)" }}>
+                        <X size={14} style={{ color: "var(--cor-logo2)" }} />
+                    </button>
+                </div>
+
+                {verificando ? (
+                    <p className="mb-5 flex items-center gap-2 text-sm" style={{ color: "var(--cor-logo2)" }}>
+                        <RefreshCw size={14} className="animate-spin" /> {verificandoTexto}
+                    </p>
+                ) : bloqueado ? (
+                    <div className="mb-5 space-y-3 text-sm" style={{ color: "var(--cor-logo)" }}>
+                        <p>{bloqueioTexto}</p>
+                        {bloqueios.map((bloqueio) => (
+                            <div key={bloqueio.titulo} className="rounded-xl border px-3 py-2.5"
+                                style={{ borderColor: "var(--cor-perigo-borda)", backgroundColor: "color-mix(in srgb, var(--cor-atrasoI) 10%, transparent)" }}>
+                                <p className="font-semibold">{bloqueio.titulo}</p>
+                                {bloqueio.detalhe ? (
+                                    <p className="mt-0.5" style={{ color: "var(--cor-logo2)" }}>{bloqueio.detalhe}</p>
+                                ) : null}
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    <div className="mb-5 space-y-3 text-sm" style={{ color: "var(--cor-logo)" }}>
+                        <p>{pergunta}</p>
+                        {avisos.map((aviso) => (
+                            <AvisoExclusao key={aviso.titulo} titulo={aviso.titulo} nomes={aviso.nomes} texto={aviso.texto} />
+                        ))}
+                    </div>
+                )}
+
+                <div className="flex justify-end gap-2">
+                    {bloqueado ? (
+                        <button type="button" onClick={onCancel}
+                            className="rounded-xl border px-4 py-2 text-sm font-semibold"
+                            style={{ borderColor: "var(--cor-borda)", color: "var(--cor-logo)" }}>Entendi</button>
+                    ) : (
+                        <>
+                            <button type="button" onClick={onCancel}
+                                className="rounded-xl border px-4 py-2 text-sm"
+                                style={{ borderColor: "var(--cor-borda)", color: "var(--cor-logo)" }}>Cancelar</button>
+                            <button type="button" onClick={onConfirm} disabled={loading || verificando}
+                                className="rounded-xl border px-4 py-2 text-sm font-semibold text-white transition-all duration-200 hover:-translate-y-px hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60"
+                                style={{ borderColor: "#9f2a21", background: "linear-gradient(140deg, #c43a2f 0%, #a42c22 100%)" }}>
+                                {loading ? executandoTexto : temAvisos ? `${confirmarTexto} mesmo assim` : confirmarTexto}
+                            </button>
+                        </>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+}
+
+// Subequipes bloqueiam; membros e projetos só avisam.
+function ConfirmDeleteEquipeModal({ equipeNome, impacto, verificando, onCancel, onConfirm, loading }: {
+    equipeNome: string;
+    impacto: ImpactoExclusaoEquipe | null;
+    verificando: boolean;
+    onCancel: () => void;
+    onConfirm: () => void;
+    loading: boolean;
+}) {
+    const subequipes = impacto?.subequipes ?? [];
+    const membros = impacto?.membros ?? [];
+    const projetos = impacto?.projetos ?? [];
+    const avisos: AvisoImpacto[] = [];
+
+    if (membros.length > 0) {
+        avisos.push({ titulo: `${membros.length} membro(s) nesta equipe`, nomes: membros, texto: "Eles continuam no sistema, mas ficam sem equipe até serem realocados." });
+    }
+
+    if (projetos.length > 0) {
+        avisos.push({ titulo: `${projetos.length} projeto(s) com responsável desta equipe`, nomes: projetos, texto: "Os projetos não são excluídos e continuam com o mesmo responsável." });
+    }
+
+    return (
+        <ConfirmImpactoModal
+            titulo="Excluir equipe"
+            verificando={verificando}
+            verificandoTexto="Verificando o que depende desta equipe..."
+            bloqueioTexto={<>A equipe <strong>{equipeNome}</strong> possui subequipes. Exclua ou mova as subequipes para outra equipe antes de excluí-la.</>}
+            bloqueios={subequipes.length > 0 ? [{ titulo: `Subequipes (${subequipes.length})`, detalhe: listarNomes(subequipes) }] : []}
+            pergunta={<>Tem certeza que deseja excluir a equipe <strong>{equipeNome}</strong>?</>}
+            avisos={avisos}
+            confirmarTexto="Excluir"
+            executandoTexto="Excluindo..."
+            onCancel={onCancel}
+            onConfirm={onConfirm}
+            loading={loading}
+        />
+    );
+}
+
+// Projetos sob responsabilidade e liderança de equipe bloqueiam; tarefas e equipe só avisam.
+function ConfirmDeleteUsuarioModal({ usuarioNome, impacto, verificando, onCancel, onConfirm, loading }: {
+    usuarioNome: string;
+    impacto: ImpactoExclusaoUsuario | null;
+    verificando: boolean;
+    onCancel: () => void;
+    onConfirm: () => void;
+    loading: boolean;
+}) {
+    const tarefas = impacto?.tarefas ?? [];
+    const relacionadas = impacto?.tarefas_relacionadas ?? 0;
+    const avisos: AvisoImpacto[] = [];
+
+    if (tarefas.length > 0) {
+        avisos.push({ titulo: `${tarefas.length} tarefa(s) em aberto sob responsabilidade`, nomes: tarefas, texto: "As tarefas continuam no quadro, mas ficam sem responsável." });
+    }
+
+    if (relacionadas > 0) {
+        avisos.push({ titulo: `Relacionado em ${relacionadas} tarefa(s)`, nomes: [], texto: "Ele deixa de aparecer como pessoa relacionada nesses cards." });
+    }
+
+    if (impacto?.equipe) {
+        avisos.push({ titulo: "Membro de equipe", nomes: [impacto.equipe], texto: "Se for restaurado em até 7 dias, volta para a mesma equipe." });
+    }
+
+    return (
+        <ConfirmImpactoModal
+            titulo="Desativar funcionário"
+            verificando={verificando}
+            verificandoTexto="Verificando o que depende deste funcionário..."
+            bloqueioTexto={<>Resolva os pontos abaixo antes de desativar <strong>{usuarioNome}</strong>.</>}
+            bloqueios={(impacto?.bloqueios ?? []).map((motivo) => ({ titulo: motivo }))}
+            pergunta={<>Deseja desativar <strong>{usuarioNome}</strong>? Ele perderá o acesso e poderá ser restaurado pelo histórico durante 7 dias.</>}
+            avisos={avisos}
+            confirmarTexto="Desativar"
+            executandoTexto="Desativando..."
+            onCancel={onCancel}
+            onConfirm={onConfirm}
+            loading={loading}
+        />
+    );
+}
+
 function EmptyState({ text }: { text: string }) {
     return (
         <div className="rounded-2xl border border-dashed px-4 py-6 text-sm" style={{ borderColor: "var(--cor-borda)", color: "var(--cor-logo2)" }}>
@@ -622,7 +895,6 @@ export default function GestaoPage() {
     // ── Usuários state ───────────────────────────────────────────
     const [usuarios, setUsuarios] = useState<Usuario[]>([]);
     const [permissoes, setPermissoes] = useState<Record<string, AccessLevel>>({});
-    const [projetos, setProjetos] = useState<ProjetoItem[]>([]);
     const [savingUser, setSavingUser] = useState(false);
     const [deletingUserId, setDeletingUserId] = useState<number | null>(null);
     const [query, setQuery] = useState("");
@@ -640,6 +912,8 @@ export default function GestaoPage() {
     const [userForm, setUserForm] = useState<UserForm>(EMPTY_USER_FORM);
     const [editingUser, setEditingUser] = useState<Usuario | null>(null);
     const [deletingUser, setDeletingUser] = useState<Usuario | null>(null);
+    const [impactoUsuario, setImpactoUsuario] = useState<ImpactoExclusaoUsuario | null>(null);
+    const [verificandoUsuario, setVerificandoUsuario] = useState(false);
     const [statusUser, setStatusUser] = useState<Usuario | null>(null);
     const [statusDraft, setStatusDraft] = useState<PresenceStatusValue>("offline");
     const [statusUpdatingId, setStatusUpdatingId] = useState<number | null>(null);
@@ -648,6 +922,8 @@ export default function GestaoPage() {
     const [restoringDeletedId, setRestoringDeletedId] = useState<number | null>(null);
     const [deletingCargo, setDeletingCargo] = useState<CargoItem | null>(null);
     const [deletingEquipe, setDeletingEquipe] = useState<EquipeItem | null>(null);
+    const [impactoExclusao, setImpactoExclusao] = useState<ImpactoExclusaoEquipe | null>(null);
+    const [verificandoExclusao, setVerificandoExclusao] = useState(false);
 
     // ── Cargos state ─────────────────────────────────────────────
     const [cargos, setCargos] = useState<CargoItem[]>([]);
@@ -663,7 +939,6 @@ export default function GestaoPage() {
     const [editingEquipe, setEditingEquipe] = useState<EquipeItem | null>(null);
     const [savingEquipe, setSavingEquipe] = useState(false);
     const [deletingEquipeId, setDeletingEquipeId] = useState<number | null>(null);
-    const [membrosSearch, setMembrosSearch] = useState("");
     const [isEquipeModalOpen, setIsEquipeModalOpen] = useState(false);
     const [isViewingEquipe, setIsViewingEquipe] = useState(false);
 
@@ -685,6 +960,7 @@ export default function GestaoPage() {
             setLoading(true);
             setError(null);
         }
+
         try {
             const [usuariosRes, cargosRes, equipesRes] = await Promise.all([
                 fetch(apiRoutes.usuarios, { headers: { Accept: "application/json" } }),
@@ -734,21 +1010,17 @@ export default function GestaoPage() {
             setEquipes(ePayload.data?.equipes ?? []);
 
             try {
-                const [senhasRes, projetosRes] = await Promise.all([
-                    fetch(apiRoutes.senhas, { headers: { Accept: "application/json" } }),
-                    fetch(apiRoutes.projetos, { headers: { Accept: "application/json" } }),
-                ]);
+                const senhasRes = await fetch(apiRoutes.senhas, { headers: { Accept: "application/json" } });
+
                 if (senhasRes.ok) {
                     const sPayload = (await senhasRes.json()) as ApiEnvelope<{ senhas?: SenhaRegistro[] }>;
                     const map: Record<string, AccessLevel> = {};
-                    (sPayload.data?.senhas ?? []).forEach((r) => { map[r.email.toLowerCase()] = toAccessLevel(r.nivel_acesso); });
+                    (sPayload.data?.senhas ?? []).forEach((r) => {
+ map[r.email.toLowerCase()] = toAccessLevel(r.nivel_acesso); 
+});
                     setPermissoes(map);
                 }
-                if (projetosRes.ok) {
-                    const pPayload = (await projetosRes.json()) as ApiEnvelope<{ projetos?: ProjetoItem[] }>;
-                    setProjetos(pPayload.data?.projetos ?? []);
-                }
-            } catch { /* permissoes e projetos são opcionais */ }
+            } catch { /* permissoes são opcionais */ }
         } catch {
             if (!silent) {
                 setError("Não foi possível carregar os dados.");
@@ -760,7 +1032,11 @@ export default function GestaoPage() {
         }
     };
 
-    useEffect(() => { if (isAdmin) void fetchData(); }, [isAdmin]);
+    useEffect(() => {
+ if (isAdmin) {
+void fetchData();
+} 
+}, [isAdmin]);
 
     useEffect(() => {
         if (!isAdmin) {
@@ -777,6 +1053,7 @@ export default function GestaoPage() {
     useEffect(() => {
         if (!isAdmin || !deepLinkUserId) {
             appliedDeepLinkRef.current = "";
+
             return;
         }
 
@@ -789,6 +1066,7 @@ export default function GestaoPage() {
 
         if (deepLinkTab === "usuarios" && activeTab !== "usuarios") {
             setActiveTab("usuarios");
+
             return;
         }
 
@@ -807,8 +1085,12 @@ export default function GestaoPage() {
     }, [activeTab, deepLinkTab, deepLinkUserId, isAdmin, usuarios]);
 
     useEffect(() => {
-        if (!success) return;
+        if (!success) {
+return;
+}
+
         const t = window.setTimeout(() => setSuccess(null), 3000);
+
         return () => window.clearTimeout(t);
     }, [success]);
 
@@ -816,13 +1098,23 @@ export default function GestaoPage() {
 
     const cargosUnicos = useMemo(() => {
         const set = new Set<string>();
-        usuarios.forEach((u) => { if (u.cargo) set.add(u.cargo); });
+        usuarios.forEach((u) => {
+ if (u.cargo) {
+set.add(u.cargo);
+} 
+});
+
         return Array.from(set).sort();
     }, [usuarios]);
 
     const niveisUnicos = useMemo(() => {
         const set = new Set<string>();
-        usuarios.forEach((u) => { if (u.nivel) set.add(u.nivel); });
+        usuarios.forEach((u) => {
+ if (u.nivel) {
+set.add(u.nivel);
+} 
+});
+
         return Array.from(set).sort();
     }, [usuarios]);
 
@@ -830,33 +1122,64 @@ export default function GestaoPage() {
         const total = usuarios.length;
         const admins = Object.values(permissoes).filter((v) => v === "admin").length;
         const ativos = usuarios.filter((u) => isUsuarioAtivo(u)).length;
+
         return { total, admins, ativos, inativos: total - ativos };
     }, [usuarios, permissoes]);
 
     const filteredUsers = useMemo(() => {
         const term = query.trim().toLowerCase();
+
         return usuarios.filter((u) => {
             if (term) {
                 const n = (u.nome ?? "").toLowerCase();
                 const e = (u.email ?? "").toLowerCase();
                 const c = (u.cargo ?? "").toLowerCase();
-                if (!n.includes(term) && !e.includes(term) && !c.includes(term)) return false;
+
+                if (!n.includes(term) && !e.includes(term) && !c.includes(term)) {
+return false;
+}
             }
-            if (filterCargo && u.cargo !== filterCargo) return false;
-            if (filterNivel && u.nivel !== filterNivel) return false;
+
+            if (filterCargo && u.cargo !== filterCargo) {
+return false;
+}
+
+            if (filterNivel && u.nivel !== filterNivel) {
+return false;
+}
+
             if (filterStatus) {
                 const presence = getPresenceState(u);
 
-                if (filterStatus === "online" && presence !== "ONLINE") return false;
-                if (filterStatus === "ausente" && presence !== "AUSENTE") return false;
-                if (filterStatus === "ocupado" && presence !== "OCUPADO") return false;
-                if (filterStatus === "não perturbe" && presence !== "NAO_PERTURBE") return false;
-                if (filterStatus === "offline" && presence !== "OFFLINE") return false;
+                if (filterStatus === "online" && presence !== "ONLINE") {
+return false;
+}
+
+                if (filterStatus === "ausente" && presence !== "AUSENTE") {
+return false;
+}
+
+                if (filterStatus === "ocupado" && presence !== "OCUPADO") {
+return false;
+}
+
+                if (filterStatus === "não perturbe" && presence !== "NAO_PERTURBE") {
+return false;
+}
+
+                if (filterStatus === "offline" && presence !== "OFFLINE") {
+return false;
+}
             }
+
             if (filterPermissao) {
                 const access = permissoes[(u.email ?? "").toLowerCase()] ?? "usuario";
-                if (access !== filterPermissao) return false;
+
+                if (access !== filterPermissao) {
+return false;
+}
             }
+
             return true;
         });
     }, [usuarios, permissoes, query, filterCargo, filterNivel, filterStatus, filterPermissao]);
@@ -865,12 +1188,13 @@ export default function GestaoPage() {
     const safePage = Math.min(currentPage, totalPages);
     const pagedUsers = filteredUsers.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
-    useEffect(() => { setCurrentPage(1); }, [query, filterCargo, filterNivel, filterStatus, filterPermissao]);
+    useEffect(() => {
+ setCurrentPage(1); 
+}, [query, filterCargo, filterNivel, filterStatus, filterPermissao]);
 
     // ── Equipes computed ──────────────────────────────────────────
 
     const totalSubequipes = useMemo(() => equipes.filter((e) => (e.tipo ?? "SUBEQUIPE") === "SUBEQUIPE").length, [equipes]);
-    const totalEmpresas = useMemo(() => equipes.filter((e) => (e.tipo ?? "SUBEQUIPE") === "EMPRESA").length, [equipes]);
 
     // ── Usuários actions ──────────────────────────────────────────
 
@@ -901,21 +1225,11 @@ export default function GestaoPage() {
         setIsEditOpen(true);
     };
 
-    const getImpactoExclusao = (user: Usuario) => {
-        const projetosAssociados = projetos.filter((p) => p.id_responsavel === user.id_usuario);
-        const equipesAssociadas = equipes.filter((e) => e.criado_por === user.id_usuario);
-        const projetosAtivos = projetosAssociados.filter((p) => {
-            const s = (p.status_projeto ?? "").trim().toLowerCase();
-            return !["concluído", "concluida", "cancelado", "cancelada"].includes(s);
-        });
-        const score = projetosAtivos.length * 5 + equipesAssociadas.length * 2;
-        return { projetosAssociados, equipesAssociadas, projetosAtivos, nivel: score >= 10 ? "Alto" : score >= 4 ? "Médio" : "Baixo" };
-    };
-
     const onCreate = async (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         setSavingUser(true);
         setError(null);
+
         try {
             const res = await fetch(apiRoutes.usuarios, {
                 method: "POST",
@@ -932,7 +1246,11 @@ export default function GestaoPage() {
                     nivel_acesso: userForm.nivel_acesso,
                 }),
             });
-            if (!res.ok) throw new Error(await readApiMessage(res, "Não foi possível cadastrar o funcionário."));
+
+            if (!res.ok) {
+throw new Error(await readApiMessage(res, "Não foi possível cadastrar o funcionário."));
+}
+
             closeUserModal();
             setSuccess("Funcionário cadastrado com sucesso.");
             await fetchData();
@@ -945,9 +1263,14 @@ export default function GestaoPage() {
 
     const onSaveEdit = async (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault();
-        if (!editingUser) return;
+
+        if (!editingUser) {
+return;
+}
+
         setSavingUser(true);
         setError(null);
+
         try {
             const res = await fetch(`${apiRoutes.usuarios}/${editingUser.id_usuario}`, {
                 method: "PUT",
@@ -960,21 +1283,15 @@ export default function GestaoPage() {
                     status_atual: userForm.status_atual,
                     telefone: userForm.telefone || null,
                     localizacao: userForm.localizacao || null,
+                    nivel_acesso: userForm.nivel_acesso,
+                    senha: userForm.senha.trim() || null,
                 }),
             });
-            if (!res.ok) throw new Error(await readApiMessage(res, "Não foi possível atualizar o funcionário."));
-            await fetch(`${apiRoutes.senhas}/${encodeURIComponent(userForm.email)}/nivel-acesso`, {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json", ...authHeaders },
-                body: JSON.stringify({ nivel_acesso: userForm.nivel_acesso }),
-            });
-            if (userForm.senha.trim()) {
-                await fetch(`${apiRoutes.senhas}/${encodeURIComponent(userForm.email)}/senha`, {
-                    method: "PATCH",
-                    headers: { "Content-Type": "application/json", ...authHeaders },
-                    body: JSON.stringify({ senha: userForm.senha.trim() }),
-                });
-            }
+
+            if (!res.ok) {
+throw new Error(await readApiMessage(res, "Não foi possível atualizar o funcionário."));
+}
+
             closeUserModal();
             setSuccess("Funcionário atualizado com sucesso.");
             await fetchData();
@@ -985,20 +1302,43 @@ export default function GestaoPage() {
         }
     };
 
+    const openDeleteUser = async (user: Usuario) => {
+        setDeletingUser(user);
+        setIsDeleteOpen(true);
+        setImpactoUsuario(null);
+        setVerificandoUsuario(true);
+
+        try {
+            const res = await fetch(apiRoutes.usuarioImpactoExclusao(user.id_usuario), { headers: authHeaders });
+            const payload = (await res.json().catch(() => null)) as ApiEnvelope<ImpactoExclusaoUsuario> | null;
+
+            if (res.ok && payload?.data) {
+                setImpactoUsuario(payload.data);
+            }
+        } catch {
+            // Sem a verificação o modal segue com a confirmação simples; o servidor ainda bloqueia.
+        } finally {
+            setVerificandoUsuario(false);
+        }
+    };
+
     const onDeleteUser = async () => {
-        if (!deletingUser) return;
+        if (!deletingUser) {
+return;
+}
+
         setDeletingUserId(deletingUser.id_usuario);
         setError(null);
+
         try {
             const res = await fetch(`${apiRoutes.usuarios}/${deletingUser.id_usuario}`, {
                 method: "DELETE", headers: authHeaders,
             });
-            if (!res.ok) throw new Error(await readApiMessage(res, "Não foi possível desativar o funcionário."));
-            if (deletingUser.email) {
-                await fetch(`${apiRoutes.senhas}/${encodeURIComponent(deletingUser.email)}`, {
-                    method: "DELETE", headers: authHeaders,
-                });
-            }
+
+            if (!res.ok) {
+throw new Error(await readApiMessage(res, "Não foi possível desativar o funcionário."));
+}
+
             setIsDeleteOpen(false);
             setDeletingUser(null);
             setSuccess("Funcionário desativado com sucesso.");
@@ -1011,16 +1351,24 @@ export default function GestaoPage() {
     };
 
     const onSaveStatus = async () => {
-        if (!statusUser) return;
+        if (!statusUser) {
+return;
+}
+
         setStatusUpdatingId(statusUser.id_usuario);
         setError(null);
+
         try {
             const res = await fetch(`${apiRoutes.usuarios}/${statusUser.id_usuario}/status`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json", ...authHeaders },
                 body: JSON.stringify({ status_atual: statusDraft }),
             });
-            if (!res.ok) throw new Error(await readApiMessage(res, "Não foi possível alterar o status."));
+
+            if (!res.ok) {
+throw new Error(await readApiMessage(res, "Não foi possível alterar o status."));
+}
+
             const statusLabel = PRESENCE_STATUS_OPTIONS.find((option) => option.value === statusDraft)?.label ?? statusDraft;
             setSuccess(`Status de ${statusUser.nome} atualizado para ${statusLabel.toLowerCase()} com sucesso.`);
             setIsStatusConfirmOpen(false);
@@ -1036,9 +1384,14 @@ export default function GestaoPage() {
     const loadDeletedHistory = async () => {
         setHistoryLoading(true);
         setError(null);
+
         try {
             const res = await fetch(apiRoutes.usuariosExcluidosHistorico, { headers: { Accept: "application/json" } });
-            if (!res.ok) throw new Error(await readApiMessage(res, "Não foi possível carregar o histórico."));
+
+            if (!res.ok) {
+throw new Error(await readApiMessage(res, "Não foi possível carregar o histórico."));
+}
+
             const payload = (await res.json()) as ApiEnvelope<{ usuarios_excluidos?: UsuarioExcluido[] }>;
             setDeletedHistory(payload.data?.usuarios_excluidos ?? []);
         } catch (err) {
@@ -1048,16 +1401,23 @@ export default function GestaoPage() {
         }
     };
 
-    const openDeletedHistory = async () => { setIsHistoryOpen(true); await loadDeletedHistory(); };
+    const openDeletedHistory = async () => {
+ setIsHistoryOpen(true); await loadDeletedHistory(); 
+};
 
     const restoreDeletedUser = async (registro: UsuarioExcluido) => {
         setRestoringDeletedId(registro.id);
         setError(null);
+
         try {
             const res = await fetch(apiRoutes.usuariosExcluidosRestaurar(registro.id), {
                 method: "POST", headers: authHeaders,
             });
-            if (!res.ok) throw new Error(await readApiMessage(res, "Não foi possível restaurar o usuário."));
+
+            if (!res.ok) {
+throw new Error(await readApiMessage(res, "Não foi possível restaurar o usuário."));
+}
+
             setSuccess(`Usuário ${registro.nome} restaurado com sucesso.`);
             await Promise.all([fetchData(), loadDeletedHistory()]);
         } catch (err) {
@@ -1069,7 +1429,9 @@ export default function GestaoPage() {
 
     // ── Cargos actions ────────────────────────────────────────────
 
-    const resetCargoForm = () => { setEditingCargo(null); setCargoForm(EMPTY_CARGO); };
+    const resetCargoForm = () => {
+ setEditingCargo(null); setCargoForm(EMPTY_CARGO); 
+};
 
     const openCreateCargo = () => {
         resetCargoForm();
@@ -1091,6 +1453,7 @@ export default function GestaoPage() {
         e.preventDefault();
         setSavingCargo(true);
         setError(null);
+
         try {
             const url = editingCargo ? `${apiRoutes.cargos}/${editingCargo.id_cargo}` : apiRoutes.cargos;
             const res = await fetch(url, {
@@ -1098,10 +1461,13 @@ export default function GestaoPage() {
                 headers: { "Content-Type": "application/json", ...authHeaders },
                 body: JSON.stringify({ nome_cargo: cargoForm.nome_cargo }),
             });
+
             if (!res.ok) {
                 const p = await res.json().catch(() => null);
+
                 throw new Error(readApiMessageSync(p, "Não foi possível salvar o cargo."));
             }
+
             setSuccess(editingCargo ? "Cargo atualizado com sucesso." : "Cargo criado com sucesso.");
             closeCargoModal();
             await fetchData();
@@ -1115,12 +1481,16 @@ export default function GestaoPage() {
     const removeCargo = async (id: number) => {
         setDeletingCargoId(id);
         setError(null);
+
         try {
             const res = await fetch(`${apiRoutes.cargos}/${id}`, { method: "DELETE", headers: authHeaders });
+
             if (!res.ok) {
                 const p = await res.json().catch(() => null);
+
                 throw new Error(readApiMessageSync(p, "Não foi possível excluir o cargo."));
             }
+
             setSuccess("Cargo excluído com sucesso.");
             await fetchData();
         } catch (err) {
@@ -1132,7 +1502,9 @@ export default function GestaoPage() {
 
     // ── Equipes actions ───────────────────────────────────────────
 
-    const resetEquipeForm = () => { setEditingEquipe(null); setEquipeForm(EMPTY_EQUIPE); setMembrosSearch(""); };
+    const resetEquipeForm = () => {
+ setEditingEquipe(null); setEquipeForm(EMPTY_EQUIPE); 
+};
 
     const openCreateEquipe = () => {
         resetEquipeForm();
@@ -1171,18 +1543,16 @@ export default function GestaoPage() {
         resetEquipeForm();
     };
 
-    const toggleMembro = (id: number) => {
-        setEquipeForm((c) => ({
-            ...c,
-            membros: c.membros.includes(id) ? c.membros.filter((m) => m !== id) : [...c.membros, id],
-        }));
-    };
-
     const submitEquipe = async (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault();
-        if (isViewingEquipe) return;
+
+        if (isViewingEquipe) {
+return;
+}
+
         setSavingEquipe(true);
         setError(null);
+
         try {
             const authUserId = page.props.auth?.user?.id;
             const payload = {
@@ -1199,10 +1569,13 @@ export default function GestaoPage() {
                 headers: { "Content-Type": "application/json", ...authHeaders },
                 body: JSON.stringify(payload),
             });
+
             if (!res.ok) {
                 const p = await res.json().catch(() => null);
+
                 throw new Error(readApiMessageSync(p, "Não foi possível salvar a equipe."));
             }
+
             setSuccess(editingEquipe ? "Equipe atualizada com sucesso." : "Equipe criada com sucesso.");
             closeEquipeModal();
             await fetchData();
@@ -1213,15 +1586,38 @@ export default function GestaoPage() {
         }
     };
 
+    const openDeleteEquipe = async (equipe: EquipeItem) => {
+        setDeletingEquipe(equipe);
+        setImpactoExclusao(null);
+        setVerificandoExclusao(true);
+
+        try {
+            const res = await fetch(apiRoutes.equipeImpactoExclusao(equipe.id_equipe), { headers: authHeaders });
+            const payload = (await res.json().catch(() => null)) as ApiEnvelope<ImpactoExclusaoEquipe> | null;
+
+            if (res.ok && payload?.data) {
+                setImpactoExclusao(payload.data);
+            }
+        } catch {
+            // Sem a verificação o modal segue com a confirmação simples; o servidor ainda bloqueia subequipes.
+        } finally {
+            setVerificandoExclusao(false);
+        }
+    };
+
     const removeEquipe = async (id: number) => {
         setDeletingEquipeId(id);
         setError(null);
+
         try {
             const res = await fetch(`${apiRoutes.equipes}/${id}`, { method: "DELETE", headers: authHeaders });
+
             if (!res.ok) {
                 const p = await res.json().catch(() => null);
+
                 throw new Error(readApiMessageSync(p, "Não foi possível excluir a equipe."));
             }
+
             setSuccess("Equipe excluída com sucesso.");
             await fetchData();
         } catch (err) {
@@ -1337,7 +1733,9 @@ export default function GestaoPage() {
                                         style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-botao)", color: "var(--cor-logo)" }}>
                                         <History size={15} /> Histórico de usuários desativados
                                     </button>
-                                    <button type="button" onClick={() => { setUserForm(EMPTY_USER_FORM); setIsCreateOpen(true); }}
+                                    <button type="button" onClick={() => {
+ setUserForm(EMPTY_USER_FORM); setIsCreateOpen(true); 
+}}
                                         className="inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-medium transition hover:-translate-y-0.5 hover:shadow-md"
                                         style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-botao)", color: "var(--cor-logo)" }}>
                                         <UserPlus size={15} /> Adicionar funcionário
@@ -1382,6 +1780,7 @@ export default function GestaoPage() {
                                             <tbody>
                                                 {pagedUsers.map((user) => {
                                                     const access = permissoes[(user.email ?? "").toLowerCase()] ?? "usuario";
+
                                                     return (
                                                         <tr key={user.id_usuario} className="border-b last:border-b-0 transition hover:-translate-y-px hover:shadow-sm" style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-widgets)" }}>
                                                             <td className="px-5 py-4">
@@ -1411,7 +1810,7 @@ export default function GestaoPage() {
                                                                     <IconButton onClick={() => openEdit(user)} title="Editar">
                                                                         <Pencil size={14} />
                                                                     </IconButton>
-                                                                    <IconButton onClick={() => { setDeletingUser(user); setIsDeleteOpen(true); }} title="Desativar funcionário">
+                                                                    <IconButton onClick={() => void openDeleteUser(user)} title="Desativar funcionário">
                                                                         <UserMinus size={14} />
                                                                     </IconButton>
                                                                 </div>
@@ -1534,7 +1933,7 @@ export default function GestaoPage() {
                                                 <div className="flex items-center gap-2">
                                                     <IconButton onClick={() => openViewEquipe(equipe)} title="Visualizar equipe"><Eye size={14} /></IconButton>
                                                     <IconButton onClick={() => openEditEquipe(equipe)} title="Editar equipe"><Pencil size={14} /></IconButton>
-                                                    <IconButton onClick={() => setDeletingEquipe(equipe)} title="Excluir equipe" danger disabled={deletingEquipeId === equipe.id_equipe}>
+                                                    <IconButton onClick={() => void openDeleteEquipe(equipe)} title="Excluir equipe" danger disabled={deletingEquipeId === equipe.id_equipe}>
                                                         {deletingEquipeId === equipe.id_equipe ? <RefreshCw size={14} className="animate-spin" /> : <Trash2 size={14} />}
                                                     </IconButton>
                                                 </div>
@@ -1662,42 +2061,17 @@ export default function GestaoPage() {
 
                 {/* Delete User */}
                 {isDeleteOpen && deletingUser && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-[2px] animate-fade-in">
-                        <div className="w-full max-w-md rounded-2xl border p-6 shadow-2xl animate-pop-in"
-                            style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-widgets)" }}>
-                            <div className="mb-4 flex items-center justify-between">
-                                <h2 className="text-lg font-semibold" style={{ color: "var(--cor-logo)" }}>Desativar funcionário</h2>
-                                <button type="button" onClick={() => { setIsDeleteOpen(false); setDeletingUser(null); }}
-                                    className="rounded-lg border p-1.5 transition hover:shadow-md"
-                                    style={{ borderColor: "var(--cor-borda)" }}>
-                                    <X size={14} style={{ color: "var(--cor-logo2)" }} />
-                                </button>
-                            </div>
-                            <p className="mb-3 text-sm" style={{ color: "var(--cor-logo)" }}>
-                                Deseja desativar <strong>{deletingUser.nome}</strong>? Ele perderá o acesso e poderá ser restaurado pelo histórico durante 7 dias.
-                            </p>
-                            {(() => {
-                                const impacto = getImpactoExclusao(deletingUser);
-                                return impacto.projetosAtivos.length > 0 || impacto.equipesAssociadas.length > 0 ? (
-                                    <div className="mb-4 rounded-xl border px-4 py-3 text-sm" style={{ borderColor: "rgba(218,165,32,0.5)", backgroundColor: "rgba(218,165,32,0.1)", color: "#b8900a" }}>
-                                        <p className="font-medium">Impacto: {impacto.nivel}</p>
-                                        {impacto.projetosAtivos.length > 0 && <p>• {impacto.projetosAtivos.length} projeto(s) ativo(s) afetado(s)</p>}
-                                        {impacto.equipesAssociadas.length > 0 && <p>• {impacto.equipesAssociadas.length} equipe(s) afetada(s)</p>}
-                                    </div>
-                                ) : null;
-                            })()}
-                            <div className="flex justify-end gap-2">
-                                <button type="button" onClick={() => { setIsDeleteOpen(false); setDeletingUser(null); }}
-                                    className="rounded-xl border px-4 py-2 text-sm"
-                                    style={{ borderColor: "var(--cor-borda)", color: "var(--cor-logo)" }}>Cancelar</button>
-                                <button type="button" onClick={() => void onDeleteUser()} disabled={deletingUserId === deletingUser.id_usuario}
-                                    className="rounded-xl border px-4 py-2 text-sm font-semibold text-white transition-all duration-200 hover:-translate-y-px hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60"
-                                    style={{ borderColor: "#9f2a21", background: "linear-gradient(140deg, #c43a2f 0%, #a42c22 100%)" }}>
-                                    {deletingUserId === deletingUser.id_usuario ? "Desativando..." : "Desativar funcionário"}
-                                </button>
-                            </div>
-                        </div>
-                    </div>
+                    <ConfirmDeleteUsuarioModal
+                        usuarioNome={deletingUser.nome}
+                        impacto={impactoUsuario}
+                        verificando={verificandoUsuario}
+                        loading={deletingUserId === deletingUser.id_usuario}
+                        onCancel={() => {
+                            setIsDeleteOpen(false);
+                            setDeletingUser(null);
+                        }}
+                        onConfirm={() => void onDeleteUser()}
+                    />
                 )}
 
                 {deletingCargo && (
@@ -1714,9 +2088,10 @@ export default function GestaoPage() {
                 )}
 
                 {deletingEquipe && (
-                    <ConfirmDeleteModal
-                        title="Excluir equipe"
-                        message={<>Tem certeza que deseja excluir a equipe <strong>{deletingEquipe.nome}</strong>?</>}
+                    <ConfirmDeleteEquipeModal
+                        equipeNome={deletingEquipe.nome}
+                        impacto={impactoExclusao}
+                        verificando={verificandoExclusao}
                         loading={deletingEquipeId === deletingEquipe.id_equipe}
                         onCancel={() => setDeletingEquipe(null)}
                         onConfirm={async () => {
@@ -1881,7 +2256,9 @@ export default function GestaoPage() {
                             style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-widgets)" }}>
                             <div className="mb-4 flex items-center justify-between">
                                 <h2 className="text-lg font-semibold" style={{ color: "var(--cor-logo)" }}>Alterar status</h2>
-                                <button type="button" onClick={() => { setIsStatusConfirmOpen(false); setStatusUser(null); }}
+                                <button type="button" onClick={() => {
+ setIsStatusConfirmOpen(false); setStatusUser(null); 
+}}
                                     className="rounded-lg border p-1.5 transition hover:shadow-md" style={{ borderColor: "var(--cor-borda)" }}>
                                     <X size={14} style={{ color: "var(--cor-logo2)" }} />
                                 </button>
@@ -1897,7 +2274,9 @@ export default function GestaoPage() {
                                 />
                             </div>
                             <div className="flex justify-end gap-2">
-                                <button type="button" onClick={() => { setIsStatusConfirmOpen(false); setStatusUser(null); }}
+                                <button type="button" onClick={() => {
+ setIsStatusConfirmOpen(false); setStatusUser(null); 
+}}
                                     className="rounded-xl border px-4 py-2 text-sm"
                                     style={{ borderColor: "var(--cor-borda)", color: "var(--cor-logo)" }}>Cancelar</button>
                                 <button type="button" onClick={() => void onSaveStatus()} disabled={statusUpdatingId === statusUser.id_usuario}

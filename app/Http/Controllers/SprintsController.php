@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Sprint;
+use App\Support\StatusTarefa;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -89,10 +90,11 @@ class SprintsController extends Controller
         DB::transaction(function () use ($sprint): void {
             DB::table('tarefas')
                 ->where('id_sprint', $sprint->id_sprint)
-                ->whereRaw("UPPER(TRIM(status_task)) IN ('APROVADO','DONE','CONCLUIDA','CONCLUÍDA')")
+                ->whereRaw(StatusTarefa::sqlConcluida())
                 ->update([
                     'em_historico' => true,
                     'id_sprint' => null,
+                    'concluida_em' => DB::raw('COALESCE(concluida_em, CURRENT_TIMESTAMP)'),
                 ]);
 
             DB::table('tarefas')

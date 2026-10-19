@@ -27,6 +27,15 @@ class Usuario extends Model
         'data_criacao',
     ];
 
+    /**
+     * A foto (base64, até ~200 KB) não vai junto quando o usuário aparece dentro
+     * de tarefas, projetos ou logs: isso deixava /api/tarefas com mais de 1 MB.
+     * As listas de pessoas (UsuariosController, presença) incluem a foto explicitamente.
+     */
+    protected $hidden = [
+        'foto_perfil',
+    ];
+
     public function setNomeAttribute(string $value): void
     {
         $this->attributes['nome'] = mb_convert_case(

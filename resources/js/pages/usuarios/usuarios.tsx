@@ -141,6 +141,8 @@ const EMPTY_FORM: UserForm = {
     status_atual: "offline",
 };
 
+const NIVEIS = ["Júnior", "Pleno", "Sênior"] as const;
+
 const PRESENCE_STATUS_OPTIONS: { value: PresenceStatusValue; label: string }[] = [
     { value: "online", label: "Online" },
     { value: "ausente", label: "Ausente" },
@@ -154,6 +156,7 @@ const PAGE_SIZE = 10;
 async function readApiMessage(response: Response, fallback: string): Promise<string> {
     try {
         const payload = (await response.json()) as ApiResponse<unknown>;
+
         return payload.message ?? fallback;
     } catch {
         return fallback;
@@ -164,6 +167,7 @@ async function readApiMessage(response: Response, fallback: string): Promise<str
 
 function toAccessLevel(raw?: string | null): AccessLevel {
     const n = (raw ?? "").toLowerCase();
+
     return ["adm", "admin", "administrador", "total", "geral"].includes(n) ? "admin" : "usuario";
 }
 
@@ -183,7 +187,11 @@ function normalizePresenceStatus(status?: string | null): PresenceStatusValue {
 
 function getInitials(nome: string): string {
     const parts = nome.trim().split(/\s+/);
-    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+
+    if (parts.length === 1) {
+return parts[0].slice(0, 2).toUpperCase();
+}
+
     return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
@@ -198,14 +206,25 @@ const AVATAR_COLORS = [
 
 function getAvatarColor(nome: string): { bg: string; text: string } {
     let hash = 0;
-    for (let i = 0; i < nome.length; i++) hash = (hash * 31 + nome.charCodeAt(i)) >>> 0;
+
+    for (let i = 0; i < nome.length; i++) {
+hash = (hash * 31 + nome.charCodeAt(i)) >>> 0;
+}
+
     return AVATAR_COLORS[hash % AVATAR_COLORS.length];
 }
 
 function formatDateTime(raw?: string | null): string {
-    if (!raw) return "—";
+    if (!raw) {
+return "—";
+}
+
     const date = new Date(raw);
-    if (isNaN(date.getTime())) return "—";
+
+    if (isNaN(date.getTime())) {
+return "—";
+}
+
     return (
         date.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" }) +
         ", " +
@@ -219,6 +238,7 @@ function getRemainingDaysLabel(expiraEm?: string | null): string {
     }
 
     const expiration = new Date(expiraEm).getTime();
+
     if (Number.isNaN(expiration)) {
         return "tempo restante indisponível";
     }
@@ -231,6 +251,7 @@ function getRemainingDaysLabel(expiraEm?: string | null): string {
     }
 
     const days = Math.ceil(remainingMs / dayMs);
+
     return `expira em ${days} dia${days === 1 ? "" : "s"}`;
 }
 
@@ -291,21 +312,54 @@ function hasRecentAccess(ultimoAcesso?: string | null): boolean {
 function getPresenceState(usuario: Usuario): PresenceState {
     const normalized = normalizePresenceStatus(usuario.status_atual);
 
-    if (normalized === "offline") return "OFFLINE";
-    if (usuario.online_agora === false) return "OFFLINE";
+    if (normalized === "offline") {
+return "OFFLINE";
+}
+
+    if (usuario.online_agora === false) {
+return "OFFLINE";
+}
+
     if (usuario.online_agora === true) {
-        if (normalized === "online") return "ONLINE";
-        if (normalized === "ausente") return "AUSENTE";
-        if (normalized === "ocupado") return "OCUPADO";
-        if (normalized === "não perturbe") return "NAO_PERTURBE";
+        if (normalized === "online") {
+return "ONLINE";
+}
+
+        if (normalized === "ausente") {
+return "AUSENTE";
+}
+
+        if (normalized === "ocupado") {
+return "OCUPADO";
+}
+
+        if (normalized === "não perturbe") {
+return "NAO_PERTURBE";
+}
+
         return "OFFLINE";
     }
-    if (!hasRecentAccess(usuario.ultimo_acesso)) return "OFFLINE";
 
-    if (normalized === "online") return "ONLINE";
-    if (normalized === "ausente") return "AUSENTE";
-    if (normalized === "ocupado") return "OCUPADO";
-    if (normalized === "não perturbe") return "NAO_PERTURBE";
+    if (!hasRecentAccess(usuario.ultimo_acesso)) {
+return "OFFLINE";
+}
+
+    if (normalized === "online") {
+return "ONLINE";
+}
+
+    if (normalized === "ausente") {
+return "AUSENTE";
+}
+
+    if (normalized === "ocupado") {
+return "OCUPADO";
+}
+
+    if (normalized === "não perturbe") {
+return "NAO_PERTURBE";
+}
+
     return "OFFLINE";
 }
 
@@ -348,6 +402,7 @@ function PermissionBadge({ access }: { access: AccessLevel }) {
             </span>
         );
     }
+
     return (
         <span className="inline-flex rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-all duration-200 hover:shadow-md" style={{ borderColor: "#bbb", color: "#444" }}>
             Usuário
@@ -525,10 +580,13 @@ export default function UsuariosAdminPage() {
             setLoading(true);
             setError(null);
         }
+
         try {
             const usuariosRes = await fetch(apiRoutes.usuarios, { headers: { Accept: "application/json" } });
 
-            if (!usuariosRes.ok) throw new Error("usuarios");
+            if (!usuariosRes.ok) {
+throw new Error("usuarios");
+}
 
             const uPayload = (await usuariosRes.json()) as ApiEnvelope<{ usuarios?: Usuario[] }>;
             let users = uPayload.data?.usuarios ?? [];
@@ -610,7 +668,9 @@ export default function UsuariosAdminPage() {
             }
 
             const map: Record<string, AccessLevel> = {};
-            regs.forEach((r) => { map[r.email.toLowerCase()] = toAccessLevel(r.nivel_acesso); });
+            regs.forEach((r) => {
+ map[r.email.toLowerCase()] = toAccessLevel(r.nivel_acesso); 
+});
             setUsuarios(users);
             setCargos(cargoList);
             setPermissoes(map);
@@ -627,7 +687,9 @@ export default function UsuariosAdminPage() {
         }
     };
 
-    useEffect(() => { void fetchData(); }, []);
+    useEffect(() => {
+ void fetchData(); 
+}, []);
 
     useEffect(() => {
         const interval = window.setInterval(() => {
@@ -638,20 +700,34 @@ export default function UsuariosAdminPage() {
     }, []);
 
     useEffect(() => {
-        if (!success) return;
+        if (!success) {
+return;
+}
+
         const t = window.setTimeout(() => setSuccess(null), 3000);
+
         return () => window.clearTimeout(t);
     }, [success]);
 
     const cargosUnicos = useMemo(() => {
         const set = new Set<string>();
-        usuarios.forEach((u) => { if (u.cargo) set.add(u.cargo); });
+        usuarios.forEach((u) => {
+ if (u.cargo) {
+set.add(u.cargo);
+} 
+});
+
         return Array.from(set).sort();
     }, [usuarios]);
 
     const niveisUnicos = useMemo(() => {
         const set = new Set<string>();
-        usuarios.forEach((u) => { if (u.nivel) set.add(u.nivel); });
+        usuarios.forEach((u) => {
+ if (u.nivel) {
+set.add(u.nivel);
+} 
+});
+
         return Array.from(set).sort();
     }, [usuarios]);
 
@@ -659,33 +735,64 @@ export default function UsuariosAdminPage() {
         const total = usuarios.length;
         const admins = Object.values(permissoes).filter((v) => v === "admin").length;
         const ativos = usuarios.filter((u) => isUsuarioAtivo(u)).length;
+
         return { total, admins, ativos, inativos: total - ativos };
     }, [usuarios, permissoes]);
 
     const filteredUsers = useMemo(() => {
         const term = query.trim().toLowerCase();
+
         return usuarios.filter((u) => {
             if (term) {
                 const n = (u.nome ?? "").toLowerCase();
                 const e = (u.email ?? "").toLowerCase();
                 const c = (u.cargo ?? "").toLowerCase();
-                if (!n.includes(term) && !e.includes(term) && !c.includes(term)) return false;
+
+                if (!n.includes(term) && !e.includes(term) && !c.includes(term)) {
+return false;
+}
             }
-            if (filterCargo && u.cargo !== filterCargo) return false;
-            if (filterNivel && u.nivel !== filterNivel) return false;
+
+            if (filterCargo && u.cargo !== filterCargo) {
+return false;
+}
+
+            if (filterNivel && u.nivel !== filterNivel) {
+return false;
+}
+
             if (filterStatus) {
                 const presence = getPresenceState(u);
 
-                if (filterStatus === "online" && presence !== "ONLINE") return false;
-                if (filterStatus === "ausente" && presence !== "AUSENTE") return false;
-                if (filterStatus === "ocupado" && presence !== "OCUPADO") return false;
-                if (filterStatus === "não perturbe" && presence !== "NAO_PERTURBE") return false;
-                if (filterStatus === "offline" && presence !== "OFFLINE") return false;
+                if (filterStatus === "online" && presence !== "ONLINE") {
+return false;
+}
+
+                if (filterStatus === "ausente" && presence !== "AUSENTE") {
+return false;
+}
+
+                if (filterStatus === "ocupado" && presence !== "OCUPADO") {
+return false;
+}
+
+                if (filterStatus === "não perturbe" && presence !== "NAO_PERTURBE") {
+return false;
+}
+
+                if (filterStatus === "offline" && presence !== "OFFLINE") {
+return false;
+}
             }
+
             if (filterPermissao) {
                 const access = permissoes[(u.email ?? "").toLowerCase()] ?? "usuario";
-                if (access !== filterPermissao) return false;
+
+                if (access !== filterPermissao) {
+return false;
+}
             }
+
             return true;
         });
     }, [usuarios, permissoes, query, filterCargo, filterNivel, filterStatus, filterPermissao]);
@@ -694,9 +801,13 @@ export default function UsuariosAdminPage() {
     const safePage = Math.min(currentPage, totalPages);
     const pagedUsers = filteredUsers.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
-    useEffect(() => { setCurrentPage(1); }, [query, filterCargo, filterNivel, filterStatus, filterPermissao]);
+    useEffect(() => {
+ setCurrentPage(1); 
+}, [query, filterCargo, filterNivel, filterStatus, filterPermissao]);
 
-    const openCreate = () => { setForm(EMPTY_FORM); setIsCreateOpen(true); };
+    const openCreate = () => {
+ setForm(EMPTY_FORM); setIsCreateOpen(true); 
+};
 
     const openEdit = (user: Usuario) => {
         setEditingUser(user);
@@ -720,6 +831,7 @@ export default function UsuariosAdminPage() {
         const equipesAssociadas = equipes.filter((equipe) => equipe.criado_por === user.id_usuario);
         const projetosAtivos = projetosAssociados.filter((projeto) => {
             const status = (projeto.status_projeto ?? "").trim().toLowerCase();
+
             return !["concluído", "concluida", "cancelado", "cancelada"].includes(status);
         });
 
@@ -748,6 +860,7 @@ export default function UsuariosAdminPage() {
         e.preventDefault();
         setSaving(true);
         setError(null);
+
         try {
             const uRes = await fetch(apiRoutes.usuarios, {
                 method: "POST",
@@ -765,6 +878,7 @@ export default function UsuariosAdminPage() {
                     nivel_acesso: form.nivel_acesso,
                 }),
             });
+
             if (!uRes.ok) {
                 throw new Error(await readApiMessage(uRes, "Não foi possível cadastrar o funcionário."));
             }
@@ -781,9 +895,14 @@ export default function UsuariosAdminPage() {
 
     const onSaveEdit = async (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault();
-        if (!editingUser) return;
+
+        if (!editingUser) {
+return;
+}
+
         setSaving(true);
         setError(null);
+
         try {
             const uRes = await fetch(`${apiRoutes.usuarios}/${editingUser.id_usuario}`, {
                 method: "PUT",
@@ -797,51 +916,43 @@ export default function UsuariosAdminPage() {
                     status_atual: form.status_atual,
                     telefone: form.telefone || null,
                     localizacao: form.localizacao || null,
+                    nivel_acesso: form.nivel_acesso,
+                    senha: form.senha.trim() || null,
                 }),
             });
+
             if (!uRes.ok) {
                 throw new Error(await readApiMessage(uRes, "Não foi possível atualizar o funcionário."));
             }
-            await fetch(`${apiRoutes.senhas}/${encodeURIComponent(form.email)}/nivel-acesso`, {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json", Accept: "application/json", "X-Requested-With": "XMLHttpRequest", "X-CSRF-TOKEN": csrfToken },
-                body: JSON.stringify({ nivel_acesso: form.nivel_acesso }),
-            });
-            if (form.senha.trim()) {
-                await fetch(`${apiRoutes.senhas}/${encodeURIComponent(form.email)}/senha`, {
-                    method: "PATCH",
-                    headers: { "Content-Type": "application/json", Accept: "application/json", "X-Requested-With": "XMLHttpRequest", "X-CSRF-TOKEN": csrfToken },
-                    body: JSON.stringify({ senha: form.senha.trim() }),
-                });
-            }
+
             closeModal();
             setSuccess("Funcionário atualizado com sucesso.");
             await fetchData();
-        } catch {
-            setError("Não foi possível atualizar o funcionário.");
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Não foi possível atualizar o funcionário.");
         } finally {
             setSaving(false);
         }
     };
 
     const onDelete = async () => {
-        if (!deletingUser) return;
+        if (!deletingUser) {
+return;
+}
+
         setDeletingId(deletingUser.id_usuario);
         setError(null);
+
         try {
             const uRes = await fetch(`${apiRoutes.usuarios}/${deletingUser.id_usuario}`, {
                 method: "DELETE",
                 headers: { Accept: "application/json", "X-Requested-With": "XMLHttpRequest", "X-CSRF-TOKEN": csrfToken },
             });
+
             if (!uRes.ok) {
                 throw new Error(await readApiMessage(uRes, "Não foi possível desativar o funcionário."));
             }
-            if (deletingUser.email) {
-                await fetch(`${apiRoutes.senhas}/${encodeURIComponent(deletingUser.email)}`, {
-                    method: "DELETE",
-                    headers: { Accept: "application/json", "X-Requested-With": "XMLHttpRequest", "X-CSRF-TOKEN": csrfToken },
-                });
-            }
+
             setIsDeleteOpen(false);
             setDeletingUser(null);
             setSuccess("Funcionário desativado com sucesso.");
@@ -854,7 +965,9 @@ export default function UsuariosAdminPage() {
     };
 
     const onSaveStatus = async () => {
-        if (!statusUser) return;
+        if (!statusUser) {
+return;
+}
 
         setStatusUpdatingId(statusUser.id_usuario);
         setError(null);
@@ -949,6 +1062,7 @@ export default function UsuariosAdminPage() {
             setEditingCargo(null);
             setCargoForm({ nome_cargo: "" });
         }
+
         setIsCargoModalOpen(true);
     };
 
@@ -962,6 +1076,7 @@ export default function UsuariosAdminPage() {
         e.preventDefault();
         setSavingCargo(true);
         setError(null);
+
         try {
             const url = editingCargo ? `${apiRoutes.cargos}/${editingCargo.id_cargo}` : apiRoutes.cargos;
             const res = await fetch(url, {
@@ -969,7 +1084,11 @@ export default function UsuariosAdminPage() {
                 headers: { "Content-Type": "application/json", Accept: "application/json", "X-Requested-With": "XMLHttpRequest", "X-CSRF-TOKEN": csrfToken },
                 body: JSON.stringify({ nome_cargo: cargoForm.nome_cargo }),
             });
-            if (!res.ok) throw new Error(await readApiMessage(res, "Não foi possível salvar o cargo."));
+
+            if (!res.ok) {
+throw new Error(await readApiMessage(res, "Não foi possível salvar o cargo."));
+}
+
             setSuccess(editingCargo ? "Cargo atualizado com sucesso." : "Cargo criado com sucesso.");
             closeCargoModal();
             await fetchData();
@@ -983,12 +1102,17 @@ export default function UsuariosAdminPage() {
     const removeCargo = async (id: number) => {
         setDeletingCargoId(id);
         setError(null);
+
         try {
             const res = await fetch(`${apiRoutes.cargos}/${id}`, {
                 method: "DELETE",
                 headers: { Accept: "application/json", "X-Requested-With": "XMLHttpRequest", "X-CSRF-TOKEN": csrfToken },
             });
-            if (!res.ok) throw new Error(await readApiMessage(res, "Não foi possível excluir o cargo."));
+
+            if (!res.ok) {
+throw new Error(await readApiMessage(res, "Não foi possível excluir o cargo."));
+}
+
             setSuccess("Cargo excluído com sucesso.");
             await fetchData();
         } catch (err) {
@@ -1240,6 +1364,7 @@ export default function UsuariosAdminPage() {
                                 <tbody>
                                     {pagedUsers.map((user) => {
                                         const access = permissoes[(user.email ?? "").toLowerCase()] ?? "usuario";
+
                                         return (
                                             <tr key={user.id_usuario} className="border-b last:border-b-0 transition-all duration-200 hover:shadow-sm" style={{ borderColor: "var(--cor-borda)" }}>
                                                 <td className="px-5 py-4">
@@ -1280,7 +1405,9 @@ export default function UsuariosAdminPage() {
                                                         </button>
                                                         <button
                                                             type="button"
-                                                            onClick={() => { setDeletingUser(user); setIsDeleteOpen(true); }}
+                                                            onClick={() => {
+ setDeletingUser(user); setIsDeleteOpen(true); 
+}}
                                                             className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-all duration-200 hover:shadow-md"
                                                             style={{ borderColor: "#e2a0a0", color: "#a02020" }}
                                                             title="Desativar funcionário"
@@ -1406,7 +1533,6 @@ export default function UsuariosAdminPage() {
                                     [
                                         { label: "Nome", field: "nome" as const, type: "text", required: true, placeholder: "Ex: João Silva" },
                                         { label: "Email", field: "email" as const, type: "email", required: true, placeholder: "Ex: joao@email.com" },
-                                        { label: "Nível", field: "nivel" as const, type: "text", required: false, placeholder: "Ex: Pleno" },
                                     ] as const
                                 ).map(({ label, field, type, required, placeholder }) => (
                                     <label key={field} className="flex flex-col gap-1.5 text-sm font-medium" style={{ color: "var(--cor-logo)" }}>
@@ -1422,6 +1548,29 @@ export default function UsuariosAdminPage() {
                                         />
                                     </label>
                                 ))}
+
+                                <label className="flex flex-col gap-1.5 text-sm font-medium" style={{ color: "var(--cor-logo)" }}>
+                                    Nível
+                                    <Select
+                                        value={form.nivel || "__none__"}
+                                        onValueChange={(v) => setForm((f) => ({ ...f, nivel: v === "__none__" ? "" : v }))}
+                                    >
+                                        <SelectTrigger
+                                            className="w-full rounded-xl border text-sm"
+                                            style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-fundo)", color: "var(--cor-logo)" }}
+                                        >
+                                            <SelectValue placeholder="Selecione um nível" />
+                                        </SelectTrigger>
+                                        <SelectContent className="border" style={{ borderColor: "var(--cor-borda)", backgroundColor: "var(--cor-widgets)", color: "var(--cor-logo)" }}>
+                                            <SelectItem value="__none__" style={{ color: "var(--cor-logo2)" }}>Sem nível</SelectItem>
+                                            {NIVEIS.map((nivel) => (
+                                                <SelectItem key={nivel} value={nivel} style={{ color: "var(--cor-logo)" }}>
+                                                    {nivel}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </label>
 
                                 <label className="flex flex-col gap-1.5 text-sm font-medium" style={{ color: "var(--cor-logo)" }}>
                                     Telefone
@@ -1643,7 +1792,9 @@ export default function UsuariosAdminPage() {
                             <div className="mt-6 flex justify-end gap-2">
                                 <button
                                     type="button"
-                                    onClick={() => { setIsDeleteOpen(false); setDeletingUser(null); }}
+                                    onClick={() => {
+ setIsDeleteOpen(false); setDeletingUser(null); 
+}}
                                     className="rounded-xl border px-4 py-2 text-sm"
                                     style={{ borderColor: "var(--cor-borda)", color: "var(--cor-logo)" }}
                                 >
@@ -1716,7 +1867,9 @@ export default function UsuariosAdminPage() {
                             <div className="mt-6 flex justify-end gap-2">
                                 <button
                                     type="button"
-                                    onClick={() => { setIsStatusConfirmOpen(false); setStatusUser(null); }}
+                                    onClick={() => {
+ setIsStatusConfirmOpen(false); setStatusUser(null); 
+}}
                                     className="rounded-xl border px-4 py-2 text-sm"
                                     style={{ borderColor: "var(--cor-borda)", color: "var(--cor-logo)" }}
                                 >

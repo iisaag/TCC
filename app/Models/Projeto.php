@@ -2,10 +2,18 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\DB;
 
 class Projeto extends Model
 {
+    /** Status interno de um projeto que está na lixeira (exclusão lógica). */
+    public const STATUS_EXCLUIDO = '__EXCLUIDO_TEMP__';
+
+    /** Status de projeto que não contam como ativos. */
+    public const STATUS_ENCERRADOS = ['concluído', 'concluido', 'concluida', 'concluída', 'cancelado', 'cancelada'];
+
     protected $table      = 'projetos';
     protected $primaryKey = 'id_projeto';
     public    $timestamps = false;
@@ -24,6 +32,50 @@ class Projeto extends Model
     protected $casts = [
         'kanban_padrao' => 'boolean',
     ];
+
+    /** Status que a tela oferece e a API aceita. */
+    public const STATUS_PERMITIDOS = ['Planejamento', 'Em andamento', 'Concluído', 'Cancelado'];
+
+    /**
+     * Converte variações ("em andamento", "Concluido", "cancelada"...) para o valor oficial.
+     * Valores desconhecidos voltam como vieram, para a validação recusar.
+     */
+    public static function normalizarStatus(?string $status): ?string
+    {
+        $limpo = trim((string) $status);
+
+        if ($limpo === '') {
+            return null;
+        }
+
+        $chave = mb_strtolower(\Illuminate\Support\Str::ascii($limpo));
+
+        return match (true) {
+            str_starts_with($chave, 'planej') => 'Planejamento',
+            str_contains($chave, 'andamento') => 'Em andamento',
+            str_starts_with($chave, 'conclu') => 'Concluído',
+            str_starts_with($chave, 'cancel') => 'Cancelado',
+            default => $limpo,
+        };
+    }
+
+    /** Projetos fora da lixeira. Projetos sem status também entram. */
+    public function scopeNaoExcluidos(Builder $query): Builder
+    {
+        return $query->where(function (Builder $q): void {
+            $q->whereNull('status_projeto')
+                ->orWhereRaw('UPPER(TRIM(status_projeto)) <> ?', [self::STATUS_EXCLUIDO]);
+        });
+    }
+
+    /** Projetos fora da lixeira e que não estão concluídos nem cancelados. */
+    public function scopeAtivos(Builder $query): Builder
+    {
+        return $query->naoExcluidos()->where(function (Builder $q): void {
+            $q->whereNull('status_projeto')
+                ->orWhereNotIn(DB::raw('LOWER(TRIM(status_projeto))'), self::STATUS_ENCERRADOS);
+        });
+    }
 
     public function responsavel()
     {

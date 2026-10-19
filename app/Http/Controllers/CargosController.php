@@ -27,7 +27,7 @@ class CargosController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Erro ao listar cargos: ' . $e->getMessage(),
+                'message' => 'Erro ao listar cargos' . $this->detalheErro($e),
             ], 400);
         }
     }

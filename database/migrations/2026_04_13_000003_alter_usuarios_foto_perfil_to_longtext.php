@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        if (Schema::hasTable('usuarios')) {
+        if (Schema::hasTable('usuarios') && DB::getDriverName() === 'mysql') {
             DB::statement('ALTER TABLE usuarios MODIFY foto_perfil LONGTEXT NULL');
         }
     }
@@ -21,7 +21,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        if (Schema::hasTable('usuarios')) {
+        if (Schema::hasTable('usuarios') && DB::getDriverName() === 'mysql') {
             DB::statement('ALTER TABLE usuarios MODIFY foto_perfil VARCHAR(255) NULL');
         }
     }

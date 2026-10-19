@@ -48,7 +48,8 @@ CREATE TABLE usuarios (
     cargo VARCHAR(100),
 
     nivel VARCHAR(50),
-    status_atual VARCHAR(40) DEFAULT 'Ativo',
+    status_atual VARCHAR(40) DEFAULT 'online',
+    cor_banner VARCHAR(7) NULL,
     id_equipe INT DEFAULT NULL,
     data_criacao DATETIME DEFAULT CURRENT_TIMESTAMP,
 
@@ -62,7 +63,10 @@ CREATE TABLE senha (
     email VARCHAR(150) PRIMARY KEY,
     senha VARCHAR(100) NOT NULL,
     nivel_acesso VARCHAR(50) NOT NULL,
+    admin_por_lideranca BOOLEAN NOT NULL DEFAULT FALSE,
     FOREIGN KEY (email) REFERENCES usuarios(email)
+        ON UPDATE CASCADE
+        ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
 -- =====================================================
@@ -79,6 +83,7 @@ CREATE TABLE usuarios_excluidos (
     cargo VARCHAR(100),
     nivel VARCHAR(50),
     status_atual VARCHAR(40),
+    id_equipe INT NULL,
     nivel_acesso VARCHAR(50) NOT NULL DEFAULT 'usuario',
     senha_hash VARCHAR(255),
     projetos_afetados INT UNSIGNED NOT NULL DEFAULT 0,
@@ -133,6 +138,7 @@ CREATE TABLE sprints (
     data_inicio DATE,
     data_fim DATE,
     status_sprint VARCHAR(20),
+    encerrada_em DATETIME NULL,
 
     FOREIGN KEY (id_projeto)
         REFERENCES projetos(id_projeto)
@@ -175,6 +181,9 @@ CREATE TABLE tarefas (
     prazo DATE,
     status_task VARCHAR(50),
     id_coluna INT NULL,
+    em_historico BOOLEAN DEFAULT FALSE,
+    concluida_em DATETIME NULL,
+    INDEX idx_tarefas_concluida_em (concluida_em),
 
     FOREIGN KEY (id_projeto)
         REFERENCES projetos(id_projeto),
@@ -354,6 +363,50 @@ CREATE TABLE IF NOT EXISTS tarefa_usuarios_relacionados (
         ON UPDATE CASCADE
 ) ENGINE=InnoDB;
 -- =====================================================
+-- METAS (por projeto)
+-- =====================================================
+CREATE TABLE metas (
+    id_meta INT AUTO_INCREMENT PRIMARY KEY,
+    id_projeto INT NOT NULL,
+    titulo_meta VARCHAR(255) NOT NULL,
+    prazo_meta DATE NOT NULL,
+    data_conclusao_meta DATE NULL,
+    status_meta VARCHAR(30) NOT NULL DEFAULT 'Pendente',
+    INDEX idx_metas_projeto_status (id_projeto, status_meta),
+    FOREIGN KEY (id_projeto) REFERENCES projetos(id_projeto) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+-- =====================================================
+-- HISTORICO DE PROJETOS EXCLUIDOS (restauracao em ate 7 dias)
+-- =====================================================
+CREATE TABLE projetos_excluidos (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    id_projeto_original INT UNSIGNED NULL,
+    nome_projeto VARCHAR(255) NOT NULL,
+    descricao TEXT,
+    data_inicio DATE,
+    prazo_final DATE,
+    status_projeto VARCHAR(100),
+    prioridade_proj VARCHAR(20),
+    id_responsavel INT UNSIGNED NULL,
+    tarefas_afetadas INT UNSIGNED NOT NULL DEFAULT 0,
+    metas_afetadas INT UNSIGNED NOT NULL DEFAULT 0,
+    excluido_em DATETIME NOT NULL,
+    expira_em DATETIME NOT NULL,
+    INDEX idx_projetos_excluidos_expira_em (expira_em)
+) ENGINE=InnoDB;
+
+-- =====================================================
+-- PRESENCA ONLINE (uma linha por sessao)
+-- =====================================================
+CREATE TABLE user_presences (
+    session_id VARCHAR(191) PRIMARY KEY,
+    user_id INT NOT NULL,
+    last_seen TIMESTAMP NULL,
+    INDEX idx_user_presences_last_seen (last_seen),
+    INDEX idx_user_presences_user_id (user_id)
+) ENGINE=InnoDB;
+-- =====================================================
 -- USUARIOS (SEUS DADOS COMPLETOS)
 -- =====================================================
 INSERT INTO usuarios
@@ -390,7 +443,7 @@ VALUES
 -- SENHAS
 -- =====================================================
 -- senhas originais (hash bcrypt): belli=123, ana=0809, bela=0906, bruno=2222, carla=3333, daniel=4444, eva=5555
-INSERT INTO senha VALUES
+INSERT INTO senha (email, senha, nivel_acesso) VALUES
 ('belli@ivyteam.com','$2y$10$.zl9R8NJxNBsYaXjUQlIQOfh0/.jmJ/mhRYLy0Cm3Bhd1q9sq3M1C','adm'),
 ('ana@ivyteam.com','$2y$10$QjB.GWn4yGMJ2G/qrBq8ReQ1jTWbegnsRd/qrbiH3CcNTG/Vjc7h.','adm'),
 ('bela@ivyteam.com','$2y$10$AJvaTaQSQ6jA7iMgX5/SXOHrDATnmkWk7hxszP5/9Qb6seQO79eK2','adm'),
@@ -411,8 +464,8 @@ INSERT INTO equipes (nome,criado_por,tipo,id_lider) VALUES
 -- PROJETOS
 -- =====================================================
 INSERT INTO projetos (nome_projeto,descricao,data_inicio,prazo_final,status_projeto,kanban_padrao,prioridade_proj,id_responsavel) VALUES
-('Sistema de Gestao','Plataforma de controle','2026-03-10','2026-06-30','Em andamento',TRUE,'Alta',3),
-('Aplicativo Mobile','App de tarefas','2026-04-01','2026-08-01','Planejamento',TRUE,'Média',2);
+('Sistema de Gestao','Plataforma de controle','2026-03-10','2026-06-30','Em andamento',TRUE,'ALTA',3),
+('Aplicativo Mobile','App de tarefas','2026-04-01','2026-08-01','Planejamento',TRUE,'MEDIA',2);
 
 -- =====================================================
 -- BOARD COLUNAS (colunas padrao para os projetos acima)
@@ -452,7 +505,7 @@ DATE_ADD(CURDATE(),INTERVAL 7 DAY),
 50,
 FALSE,
 DATE_ADD(CURDATE(),INTERVAL 7 DAY),
-'Em andamento'
+'DOING'
 FROM projetos p;
 
 -- =====================================================
@@ -624,6 +677,11 @@ SET SQL_SAFE_UPDATES = 0;
 UPDATE senha
 SET nivel_acesso = 'adm'
 WHERE LOWER(TRIM(nivel_acesso)) IN ('admin', 'administrador', 'total');
+
+-- tarefas de exemplo ja concluidas: data de conclusao = prazo
+UPDATE tarefas
+SET concluida_em = prazo
+WHERE status_task = 'APROVADO' AND concluida_em IS NULL;
 
 SET SQL_SAFE_UPDATES = 1;
 

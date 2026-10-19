@@ -3,15 +3,16 @@
 namespace App\Http\Controllers;
 
 use App\Models\Senha;
+use App\Models\Tarefa;
 use App\Models\Usuario;
 use App\Models\UserPresence;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
-use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 
 class UsuariosController extends Controller
 {
@@ -45,32 +46,6 @@ class UsuariosController extends Controller
     private function usuariosTemEquipe(): bool
     {
         return Schema::hasTable('usuarios') && Schema::hasColumn('usuarios', 'id_equipe');
-    }
-
-    private function ensureDeletedUsersTable(): void
-    {
-        if (Schema::hasTable('usuarios_excluidos')) {
-            return;
-        }
-
-        Schema::create('usuarios_excluidos', function (Blueprint $table): void {
-            $table->id();
-            $table->unsignedInteger('id_usuario_original')->nullable();
-            $table->string('nome', 100);
-            $table->string('email', 150);
-            $table->string('telefone', 30)->nullable();
-            $table->string('localizacao', 120)->nullable();
-            $table->longText('foto_perfil')->nullable();
-            $table->string('cargo', 100)->nullable();
-            $table->string('nivel', 50)->nullable();
-            $table->string('status_atual', 40)->nullable();
-            $table->string('nivel_acesso', 50)->default('usuario');
-            $table->string('senha_hash', 255)->nullable();
-            $table->unsignedInteger('projetos_afetados')->default(0);
-            $table->unsignedInteger('equipes_afetadas')->default(0);
-            $table->dateTime('excluido_em');
-            $table->dateTime('expira_em')->index();
-        });
     }
 
     private function isAdmin(Request $request): bool
@@ -159,7 +134,7 @@ class UsuariosController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Erro ao listar usuários: ' . $e->getMessage(),
+                'message' => 'Erro ao listar usuários' . $this->detalheErro($e),
             ], 400);
         }
     }
@@ -195,7 +170,7 @@ class UsuariosController extends Controller
                 'regex:/^data:image\/(png|jpe?g|webp|gif);base64,[A-Za-z0-9+\/=\r\n]+$/',
             ],
             'cargo'       => 'nullable|string|exists:cargos,nome_cargo',
-            'nivel'       => 'nullable|string',
+            'nivel'       => 'nullable|string|in:Júnior,Pleno,Sênior',
             'status_atual' => 'nullable|string|in:online,ausente,ocupado,offline,não perturbe,Ativo,Inativo',
             'id_equipe'   => 'nullable|integer|exists:equipes,id_equipe',
             'telefone'    => 'nullable|string|max:30',
@@ -264,23 +239,29 @@ class UsuariosController extends Controller
                 'regex:/^data:image\/(png|jpe?g|webp|gif);base64,[A-Za-z0-9+\/=\r\n]+$/',
             ],
             'cargo'       => 'nullable|string|exists:cargos,nome_cargo',
-            'nivel'       => 'nullable|string',
+            'nivel'       => 'nullable|string|in:Júnior,Pleno,Sênior',
             'status_atual' => 'nullable|string|in:online,ausente,ocupado,offline,não perturbe,Ativo,Inativo',
             'id_equipe'   => 'nullable|integer|exists:equipes,id_equipe',
             'telefone'    => 'nullable|string|max:30',
             'localizacao' => 'nullable|string|max:120',
+            'senha'       => 'nullable|string|min:6',
+            'nivel_acesso' => 'nullable|string',
         ]);
 
         // Only update allowed fields explicitly to avoid unexpected mass-assignment
         $updateData = [
             'nome' => $validated['nome'],
             'email' => $validated['email'],
-            'foto_perfil' => $validated['foto_perfil'] ?? null,
             'cargo' => $validated['cargo'] ?? null,
             'nivel' => $validated['nivel'] ?? null,
             'telefone' => $validated['telefone'] ?? null,
             'localizacao' => $validated['localizacao'] ?? null,
         ];
+
+        // A foto só muda quando é enviada; a tela de Gestão não envia e antes a apagava.
+        if (array_key_exists('foto_perfil', $validated)) {
+            $updateData['foto_perfil'] = $validated['foto_perfil'];
+        }
 
         if ($this->usuariosTemEquipe()) {
             $updateData['id_equipe'] = $validated['id_equipe'] ?? null;
@@ -290,7 +271,47 @@ class UsuariosController extends Controller
             $updateData['status_atual'] = $this->normalizarStatusAtual($validated['status_atual'] ?? null);
         }
 
-        $usuario->update($updateData);
+        $registroSenha = Senha::find($usuario->email);
+
+        if ($registroSenha && isset($validated['nivel_acesso'])) {
+            $registroSenha->nivel_acesso = $validated['nivel_acesso'];
+
+            if ($registroSenha->isDirty('nivel_acesso') && $registroSenha->nivel_acesso !== 'adm') {
+                $bloqueio = Senha::bloqueioRemoverAdmin(
+                    $usuario->email,
+                    data_get($request->session()->get('auth.user'), 'email')
+                );
+
+                if ($bloqueio !== null) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => $bloqueio,
+                    ], 422);
+                }
+            }
+        }
+
+        // Dados, e-mail (propagado para "senha" pela chave estrangeira), permissão e senha numa só transação.
+        DB::transaction(function () use ($usuario, $updateData, $validated, $registroSenha): void {
+            $usuario->update($updateData);
+
+            if (! $registroSenha) {
+                return;
+            }
+
+            $acesso = Senha::find($usuario->email);
+
+            if (isset($validated['nivel_acesso'])) {
+                $acesso->nivel_acesso = $validated['nivel_acesso'];
+            }
+
+            if (! empty($validated['senha'])) {
+                $acesso->senha = $validated['senha'];
+            }
+
+            $acesso->save();
+        });
+
         $usuario->load(['cargoRelation', 'equipeRelation']);
 
         return response()->json([
@@ -321,8 +342,6 @@ class UsuariosController extends Controller
         }
 
         try {
-            $this->ensureDeletedUsersTable();
-
             DB::transaction(function () use ($usuario): void {
                 $userId = (int) $usuario->id_usuario;
                 $userEmail = (string) $usuario->email;
@@ -347,6 +366,7 @@ class UsuariosController extends Controller
                     'cargo' => $usuario->getRawOriginal('cargo'),
                     'nivel' => $usuario->nivel,
                     'status_atual' => $usuario->status_atual,
+                    'id_equipe' => $usuario->id_equipe,
                     'nivel_acesso' => $senha?->nivel_acesso ?? 'usuario',
                     'senha_hash' => $senha?->getRawOriginal('senha'),
                     'projetos_afetados' => $projetosAfetados,
@@ -367,16 +387,17 @@ class UsuariosController extends Controller
                     DB::table('tarefas')->where('id_responsavel', $userId)->update(['id_responsavel' => null]);
                 }
 
+                // Histórico e logs são mantidos para auditoria; só perdem o vínculo com a pessoa.
                 if (Schema::hasTable('historico_progresso') && Schema::hasColumn('historico_progresso', 'id_usuario')) {
-                    DB::table('historico_progresso')->where('id_usuario', $userId)->delete();
+                    DB::table('historico_progresso')->where('id_usuario', $userId)->update(['id_usuario' => null]);
                 }
 
                 if (Schema::hasTable('log_projeto') && Schema::hasColumn('log_projeto', 'id_usuario')) {
-                    DB::table('log_projeto')->where('id_usuario', $userId)->delete();
+                    DB::table('log_projeto')->where('id_usuario', $userId)->update(['id_usuario' => null]);
                 }
 
                 if (Schema::hasTable('log_sistema') && Schema::hasColumn('log_sistema', 'id_usuario')) {
-                    DB::table('log_sistema')->where('id_usuario', $userId)->delete();
+                    DB::table('log_sistema')->where('id_usuario', $userId)->update(['id_usuario' => null]);
                 }
 
                 if (Schema::hasTable('user_presences') && Schema::hasColumn('user_presences', 'user_id')) {
@@ -412,17 +433,26 @@ class UsuariosController extends Controller
      */
     private function deletionBlocker(Request $request, Usuario $usuario): ?string
     {
+        return $this->motivosBloqueio($request, $usuario)[0] ?? null;
+    }
+
+    /**
+     * Todos os motivos que impedem a desativação (vazio se puder desativar).
+     */
+    private function motivosBloqueio(Request $request, Usuario $usuario): array
+    {
         $userId = (int) $usuario->id_usuario;
+        $motivos = [];
 
         if ((int) data_get($request->session()->get('auth.user'), 'id') === $userId) {
-            return 'Você não pode desativar o seu próprio usuário.';
+            $motivos[] = 'Você não pode desativar o seu próprio usuário.';
         }
 
         if (Schema::hasTable('senha')) {
             $ehAdm = Senha::query()->where('email', $usuario->email)->value('nivel_acesso') === 'adm';
 
             if ($ehAdm && Senha::query()->where('nivel_acesso', 'adm')->count() <= 1) {
-                return 'Não é possível desativar o último administrador do sistema.';
+                $motivos[] = 'Não é possível desativar o último administrador do sistema.';
             }
         }
 
@@ -433,7 +463,7 @@ class UsuariosController extends Controller
                 ->pluck('nome_projeto');
 
             if ($projetos->isNotEmpty()) {
-                return 'Este funcionário é responsável pelo(s) projeto(s): ' . $projetos->implode(', ')
+                $motivos[] = 'Este funcionário é responsável pelo(s) projeto(s): ' . $projetos->implode(', ')
                     . '. Defina outro responsável antes de desativar.';
             }
         }
@@ -442,18 +472,55 @@ class UsuariosController extends Controller
             $equipes = DB::table('equipes')->where('id_lider', $userId)->pluck('nome');
 
             if ($equipes->isNotEmpty()) {
-                return 'Este funcionário é líder da(s) equipe(s): ' . $equipes->implode(', ')
+                $motivos[] = 'Este funcionário é líder da(s) equipe(s): ' . $equipes->implode(', ')
                     . '. Defina outro líder antes de desativar.';
             }
         }
 
-        return null;
+        return $motivos;
+    }
+
+    /**
+     * O que depende do funcionário, para a tela avisar antes de desativar.
+     * "bloqueios" impedem a desativação; o resto só gera aviso.
+     */
+    public function impactoExclusao(Request $request, int $id): JsonResponse
+    {
+        $usuario = Usuario::find($id);
+
+        if (!$usuario) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Usuário não encontrado',
+            ], 404);
+        }
+
+        $tarefas = Tarefa::query()
+            ->deProjetosAtivos()
+            ->abertas()
+            ->where('id_responsavel', $usuario->id_usuario)
+            ->orderBy('titulo')
+            ->pluck('titulo');
+
+        $tarefasRelacionadas = Schema::hasTable('tarefa_usuarios_relacionados')
+            ? (int) DB::table('tarefa_usuarios_relacionados')->where('id_usuario', $usuario->id_usuario)->count()
+            : 0;
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'bloqueios' => $this->motivosBloqueio($request, $usuario),
+                'tarefas' => $tarefas,
+                'tarefas_relacionadas' => $tarefasRelacionadas,
+                'equipe' => $usuario->id_equipe
+                    ? DB::table('equipes')->where('id_equipe', $usuario->id_equipe)->value('nome')
+                    : null,
+            ],
+        ]);
     }
 
     public function deletedHistory(): JsonResponse
     {
-        $this->ensureDeletedUsersTable();
-
         DB::table('usuarios_excluidos')
             ->where('expira_em', '<=', now())
             ->delete();
@@ -488,8 +555,6 @@ class UsuariosController extends Controller
 
     public function restoreDeleted(int $registro): JsonResponse
     {
-        $this->ensureDeletedUsersTable();
-
         $historico = DB::table('usuarios_excluidos')->where('id', $registro)->first();
 
         if (! $historico) {
@@ -521,8 +586,14 @@ class UsuariosController extends Controller
                 'email' => $historico->email,
                 'telefone' => $historico->telefone,
                 'localizacao' => $historico->localizacao,
-                'cargo' => $historico->cargo,
+                // Cargo ou equipe podem ter sido excluídos enquanto a pessoa estava na lixeira.
+                'cargo' => $historico->cargo && DB::table('cargos')->where('nome_cargo', $historico->cargo)->exists()
+                    ? $historico->cargo
+                    : null,
                 'nivel' => $historico->nivel,
+                'id_equipe' => ! empty($historico->id_equipe) && DB::table('equipes')->where('id_equipe', $historico->id_equipe)->exists()
+                    ? (int) $historico->id_equipe
+                    : null,
             ];
 
             if ($this->usuariosTemStatusAtual()) {
@@ -540,7 +611,8 @@ class UsuariosController extends Controller
             Senha::updateOrCreate(
                 ['email' => (string) $historico->email],
                 [
-                    'senha' => $historico->senha_hash ?: 'Temp@123456',
+                    // Sem senha guardada, gera uma aleatória; a pessoa usa "Esqueci a senha" para definir outra.
+                    'senha' => $historico->senha_hash ?: Str::random(40),
                     'nivel_acesso' => $historico->nivel_acesso ?: 'usuario',
                 ]
             );
@@ -613,7 +685,7 @@ class UsuariosController extends Controller
                 'data'    => $total,
             ]);
         } catch (\Exception $e) {
-            return response()->json(['success' => false, 'message' => $e->getMessage()], 400);
+            return response()->json(['success' => false, 'message' => 'Não foi possível calcular os totais' . $this->detalheErro($e)], 400);
         }
     }
 
@@ -630,7 +702,7 @@ class UsuariosController extends Controller
                 'data'    => $total,
             ]);
         } catch (\Exception $e) {
-            return response()->json(['success' => false, 'message' => $e->getMessage()], 400);
+            return response()->json(['success' => false, 'message' => 'Não foi possível calcular os totais' . $this->detalheErro($e)], 400);
         }
     }
 }

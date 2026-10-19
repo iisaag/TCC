@@ -1,6 +1,8 @@
 <?php
 // scripts/import_sql.php
-// Executa o conteúdo de database/script.sql usando a conexão do Laravel
+// Executa o conteúdo de database/script.sql usando a conexão do Laravel.
+// ATENÇÃO: o script começa com DROP DATABASE e recria o banco TCC do zero (com dados de exemplo).
+// Depois rode "php artisan migrate" para aplicar as migrations mais novas.
 require __DIR__ . '/../vendor/autoload.php';
 $app = require_once __DIR__ . '/../bootstrap/app.php';
 

@@ -4,18 +4,17 @@ namespace App\Http\Controllers;
 
 use App\Models\BoardColuna;
 use App\Models\Projeto;
+use App\Support\LixeiraProjetos;
 use App\Support\Notificacoes;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
-use Illuminate\Database\Schema\Blueprint;
 
 class ProjetosController extends Controller
 {
     private const DELETION_RETENTION_DAYS = 7;
-    private const TEMP_DELETED_STATUS = '__EXCLUIDO_TEMP__';
+    private const TEMP_DELETED_STATUS = Projeto::STATUS_EXCLUIDO;
 
     private function authUserId(Request $request): ?int
     {
@@ -28,29 +27,6 @@ class ProjetosController extends Controller
         $id = (int) $authUser['id'];
 
         return $id > 0 ? $id : null;
-    }
-
-    private function ensureDeletedProjectsTable(): void
-    {
-        if (Schema::hasTable('projetos_excluidos')) {
-            return;
-        }
-
-        Schema::create('projetos_excluidos', function (Blueprint $table): void {
-            $table->id();
-            $table->unsignedInteger('id_projeto_original')->nullable();
-            $table->string('nome_projeto', 255);
-            $table->text('descricao')->nullable();
-            $table->date('data_inicio')->nullable();
-            $table->date('prazo_final')->nullable();
-            $table->string('status_projeto', 100)->nullable();
-            $table->string('prioridade_proj', 20)->nullable();
-            $table->unsignedInteger('id_responsavel')->nullable();
-            $table->unsignedInteger('tarefas_afetadas')->default(0);
-            $table->unsignedInteger('metas_afetadas')->default(0);
-            $table->dateTime('excluido_em');
-            $table->dateTime('expira_em')->index();
-        });
     }
 
     private const COLUNAS_PADRAO = [
@@ -126,14 +102,14 @@ class ProjetosController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Erro ao listar projetos: ' . $e->getMessage(),
+                'message' => 'Erro ao listar projetos' . $this->detalheErro($e),
             ], 400);
         }
     }
 
     public function show(int $id): JsonResponse
     {
-        $projeto = Projeto::find($id);
+        $projeto = Projeto::query()->naoExcluidos()->find($id);
 
         if (!$projeto) {
             return response()->json([
@@ -155,6 +131,7 @@ class ProjetosController extends Controller
 
         $request->merge([
             'prioridade_proj' => $this->normalizarPrioridadeProjeto($request->input('prioridade_proj')),
+            'status_projeto' => Projeto::normalizarStatus($request->input('status_projeto')),
         ]);
 
         $validated = $request->validate([
@@ -162,12 +139,13 @@ class ProjetosController extends Controller
             'descricao'       => 'nullable|string',
             'data_inicio'     => 'nullable|date',
             'prazo_final'     => 'nullable|date',
-            'status_projeto'  => 'nullable|string',
+            'status_projeto'  => 'nullable|string|in:' . implode(',', Projeto::STATUS_PERMITIDOS),
             'prioridade_proj' => 'nullable|string|in:BAIXA,MEDIA,ALTA',
             'id_responsavel'  => 'nullable|integer|exists:usuarios,id_usuario',
             'kanban_padrao'   => 'nullable|boolean',
         ]);
 
+        $validated['status_projeto'] = $validated['status_projeto'] ?? 'Planejamento';
         $criarColunasPadrao = (bool) ($validated['kanban_padrao'] ?? true);
         $validated['kanban_padrao'] = $criarColunasPadrao;
 
@@ -200,7 +178,7 @@ class ProjetosController extends Controller
 
     public function update(Request $request, int $id): JsonResponse
     {
-        $projeto = Projeto::find($id);
+        $projeto = Projeto::query()->naoExcluidos()->find($id);
 
         if (!$projeto) {
             return response()->json([
@@ -215,6 +193,7 @@ class ProjetosController extends Controller
 
         $request->merge([
             'prioridade_proj' => $this->normalizarPrioridadeProjeto($request->input('prioridade_proj')),
+            'status_projeto' => Projeto::normalizarStatus($request->input('status_projeto')),
         ]);
 
         $validated = $request->validate([
@@ -222,7 +201,7 @@ class ProjetosController extends Controller
             'descricao'       => 'nullable|string',
             'data_inicio'     => 'nullable|date',
             'prazo_final'     => 'nullable|date',
-            'status_projeto'  => 'nullable|string',
+            'status_projeto'  => 'nullable|string|in:' . implode(',', Projeto::STATUS_PERMITIDOS),
             'prioridade_proj' => 'nullable|string|in:BAIXA,MEDIA,ALTA',
             'id_responsavel'  => 'nullable|integer|exists:usuarios,id_usuario',
         ]);
@@ -268,7 +247,8 @@ class ProjetosController extends Controller
 
     public function destroy(int $id): JsonResponse
     {
-        $projeto = Projeto::find($id);
+        // Excluir de novo um projeto da lixeira sobrescreveria a cópia com o status interno.
+        $projeto = Projeto::query()->naoExcluidos()->find($id);
 
         if (!$projeto) {
             return response()->json([
@@ -278,15 +258,9 @@ class ProjetosController extends Controller
         }
 
         try {
-            $this->ensureDeletedProjectsTable();
-
             DB::transaction(function () use ($projeto): void {
-                $tarefasAfetadas = Schema::hasTable('tarefas')
-                    ? (int) DB::table('tarefas')->where('id_projeto', $projeto->id_projeto)->count()
-                    : 0;
-                $metasAfetadas = Schema::hasTable('metas')
-                    ? (int) DB::table('metas')->where('id_projeto', $projeto->id_projeto)->count()
-                    : 0;
+                $tarefasAfetadas = (int) DB::table('tarefas')->where('id_projeto', $projeto->id_projeto)->count();
+                $metasAfetadas = (int) DB::table('metas')->where('id_projeto', $projeto->id_projeto)->count();
 
                 $existingHistoryId = DB::table('projetos_excluidos')
                     ->where('id_projeto_original', (int) $projeto->id_projeto)
@@ -323,18 +297,14 @@ class ProjetosController extends Controller
         } catch (\Throwable $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Nao foi possivel excluir o projeto: ' . $e->getMessage(),
+                'message' => 'Nao foi possivel excluir o projeto' . $this->detalheErro($e),
             ], 422);
         }
     }
 
     public function deletedHistory(): JsonResponse
     {
-        $this->ensureDeletedProjectsTable();
-
-        DB::table('projetos_excluidos')
-            ->where('expira_em', '<=', now())
-            ->delete();
+        LixeiraProjetos::purgarExpirados();
 
         $historico = DB::table('projetos_excluidos')
             ->orderByDesc('excluido_em')
@@ -367,8 +337,6 @@ class ProjetosController extends Controller
 
     public function restoreDeleted(int $registro): JsonResponse
     {
-        $this->ensureDeletedProjectsTable();
-
         $historico = DB::table('projetos_excluidos')->where('id', $registro)->first();
 
         if (! $historico) {
@@ -379,7 +347,7 @@ class ProjetosController extends Controller
         }
 
         if (Carbon::parse((string) $historico->expira_em)->lte(now())) {
-            DB::table('projetos_excluidos')->where('id', $registro)->delete();
+            LixeiraProjetos::purgarExpirados();
 
             return response()->json([
                 'success' => false,
@@ -388,7 +356,7 @@ class ProjetosController extends Controller
         }
 
         $idResponsavel = $historico->id_responsavel;
-        if ($idResponsavel && Schema::hasTable('usuarios')) {
+        if ($idResponsavel) {
             $responsavelExiste = DB::table('usuarios')->where('id_usuario', (int) $idResponsavel)->exists();
             if (! $responsavelExiste) {
                 $idResponsavel = null;
@@ -448,7 +416,7 @@ class ProjetosController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => $e->getMessage(),
+                'message' => 'Não foi possível calcular os totais' . $this->detalheErro($e),
             ], 400);
         }
     }

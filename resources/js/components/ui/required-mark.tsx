@@ -6,8 +6,8 @@ export default function RequiredMark({ show = false }: { show?: boolean }) {
 			<span
 				tabIndex={0}
 				aria-label="Campo obrigatorio"
-				className="flex h-4 w-4 items-center justify-center rounded-full outline-none ring-offset-2 transition focus-visible:ring-2"
-				style={{ backgroundColor: "var(--cor-perigo)", color: "#fff", ringColor: "var(--cor-perigo)", ringOffsetColor: "var(--cor-widgets)" }}
+				className="flex h-4 w-4 items-center justify-center rounded-full outline-none ring-offset-2 transition focus-visible:ring-2 focus-visible:ring-(--cor-perigo) ring-offset-(--cor-widgets)"
+				style={{ backgroundColor: "var(--cor-perigo)", color: "#fff" }}
 			>
 				<svg aria-hidden="true" viewBox="0 0 24 24" className="h-3 w-3" fill="currentColor">
 					<path d="M12 3.4 1.9 20.6c-.35.6.08 1.4.78 1.4h18.64c.7 0 1.13-.8.78-1.4L12 3.4Zm0 5.1c.5 0 .9.4.9.9v5.8a.9.9 0 1 1-1.8 0V9.4c0-.5.4-.9.9-.9Zm0 10.2a1.1 1.1 0 1 1 0-2.2 1.1 1.1 0 0 1 0 2.2Z" />

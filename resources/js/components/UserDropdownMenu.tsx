@@ -181,8 +181,12 @@ export default function UserDropdownMenu({
                     href={profileHref}
                     className="block w-full px-4 py-2.5 text-left text-sm transition-colors duration-150"
                     style={{ color: "var(--cor-logo)" }}
-                    onMouseEnter={(e) => { (e.currentTarget as HTMLAnchorElement).style.backgroundColor = "var(--cor-fundo)"; }}
-                    onMouseLeave={(e) => { (e.currentTarget as HTMLAnchorElement).style.backgroundColor = "transparent"; }}
+                    onMouseEnter={(e) => {
+ (e.currentTarget as HTMLAnchorElement).style.backgroundColor = "var(--cor-fundo)"; 
+}}
+                    onMouseLeave={(e) => {
+ (e.currentTarget as HTMLAnchorElement).style.backgroundColor = "transparent"; 
+}}
                 >
                     Meu perfil
                 </a>
@@ -191,8 +195,12 @@ export default function UserDropdownMenu({
                     onClick={onLogoutClick}
                     className="w-full rounded-b-2xl px-4 py-2.5 text-left text-sm transition-colors duration-150"
                     style={{ color: "var(--cor-perigo)" }}
-                    onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = "color-mix(in srgb, var(--cor-perigo) 12%, var(--cor-widgets))"; }}
-                    onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = "transparent"; }}
+                    onMouseEnter={(e) => {
+ (e.currentTarget as HTMLButtonElement).style.backgroundColor = "color-mix(in srgb, var(--cor-perigo) 12%, var(--cor-widgets))"; 
+}}
+                    onMouseLeave={(e) => {
+ (e.currentTarget as HTMLButtonElement).style.backgroundColor = "transparent"; 
+}}
                 >
                     Sair
                 </button>
