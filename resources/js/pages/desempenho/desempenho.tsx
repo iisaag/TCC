@@ -105,8 +105,13 @@ function normalizePriority(priority?: string | null): "BAIXA" | "MEDIA" | "ALTA"
     return "MEDIA";
 }
 
-function normalizeType(type?: string | null): "FRONT" | "BACK" | "FULLSTACK" {
+function normalizeType(type?: string | null): "FRONT" | "BACK" | "FULLSTACK" | null {
     const raw = (type ?? "").toUpperCase().trim();
+
+    // Tarefa sem tipo técnico conta no total, mas não entra em Front, Back ou Full Stack.
+    if (raw === "") {
+        return null;
+    }
 
     if (raw.includes("FULL")) {
         return "FULLSTACK";
@@ -399,7 +404,7 @@ export default function Desempenho() {
                 row.front += 1;
             } else if (type === "BACK") {
                 row.back += 1;
-            } else {
+            } else if (type === "FULLSTACK") {
                 row.fullstack += 1;
             }
         });

@@ -113,7 +113,7 @@ interface FormState {
 	id_projeto: string;
 	id_responsavel: string;
 	prioridade_task: "BAIXA" | "MEDIA" | "ALTA" | "CRITICA";
-	tipo_task: "FRONT" | "BACK" | "FULLSTACK";
+	tipo_task: "" | "FRONT" | "BACK" | "FULLSTACK";
 	bloqueada: boolean;
 	status_task: BoardStatus;
 	id_coluna: string;
@@ -346,6 +346,11 @@ function normalizePriorityValue(priority?: string | null): FormState["prioridade
 
 function normalizeTipoValue(type?: string | null): FormState["tipo_task"] {
 	const raw = (type ?? "").toUpperCase().trim();
+
+	// Card sem tipo técnico continua sem tipo (não vira "Front").
+	if (raw === "") {
+		return "";
+	}
 
 	if (raw.includes("FULL")) {
 		return "FULLSTACK";
@@ -1510,7 +1515,7 @@ export default function Projetos() {
 				id_projeto: form.id_projeto ? Number(form.id_projeto) : null,
 				id_responsavel: form.id_responsavel ? Number(form.id_responsavel) : null,
 				prioridade_task: form.prioridade_task,
-				tipo_task: form.tipo_task,
+				tipo_task: form.tipo_task || null,
 				bloqueada: form.bloqueada,
 				relacionados: form.relacionados,
 				...(isCustomProject
@@ -1912,7 +1917,7 @@ export default function Projetos() {
 				id_projeto: detailsForm.id_projeto ? Number(detailsForm.id_projeto) : null,
 				id_responsavel: detailsForm.id_responsavel ? Number(detailsForm.id_responsavel) : null,
 				prioridade_task: detailsForm.prioridade_task,
-				tipo_task: detailsForm.tipo_task,
+				tipo_task: detailsForm.tipo_task || null,
 				bloqueada: detailsForm.bloqueada,
 				relacionados: normalizedRelatedIds,
 				...(isCustomProject
@@ -2719,9 +2724,11 @@ export default function Projetos() {
 																	</div>
 
 																	<div className="mb-2 flex flex-wrap gap-1.5 text-sm">
-																		<span className="rounded px-2 py-1 font-semibold" style={{ color: "#fff", backgroundColor: typeColor(tarefa.tipo_task) }}>
-																			{typeLabel(tarefa.tipo_task)}
-																		</span>
+																		{tarefa.tipo_task ? (
+																			<span className="rounded px-2 py-1 font-semibold" style={{ color: "#fff", backgroundColor: typeColor(tarefa.tipo_task) }}>
+																				{typeLabel(tarefa.tipo_task)}
+																			</span>
+																		) : null}
 																		<span className="rounded px-2 py-1 font-semibold" style={{ color: "#fff", backgroundColor: priorityColor(tarefa.prioridade_task) }}>
 																			Prioridade: {priorityLabel(tarefa.prioridade_task)}
 																		</span>
@@ -2868,9 +2875,11 @@ export default function Projetos() {
 											</div>
 
 											<div className="mb-2 flex flex-wrap gap-1.5 text-sm">
-												<span className="rounded px-2 py-1 font-semibold" style={{ color: "#fff", backgroundColor: typeColor(tarefa.tipo_task) }}>
-													{typeLabel(tarefa.tipo_task)}
-												</span>
+												{tarefa.tipo_task ? (
+													<span className="rounded px-2 py-1 font-semibold" style={{ color: "#fff", backgroundColor: typeColor(tarefa.tipo_task) }}>
+														{typeLabel(tarefa.tipo_task)}
+													</span>
+												) : null}
 												<span className="rounded px-2 py-1 font-semibold" style={{ color: "#fff", backgroundColor: priorityColor(tarefa.prioridade_task) }}>
 													Prioridade: {priorityLabel(tarefa.prioridade_task)}
 												</span>
@@ -3510,6 +3519,7 @@ export default function Projetos() {
 										value={form.tipo_task}
 										onChange={(v) => setForm((c) => ({ ...c, tipo_task: v as FormState["tipo_task"] }))}
 										options={[
+											{ value: "", label: "Nenhum" },
 											{ value: "FRONT", label: "Front" },
 											{ value: "BACK", label: "Back" },
 											{ value: "FULLSTACK", label: "Full Stack" },
@@ -3727,12 +3737,14 @@ export default function Projetos() {
 									>
 										Prioridade: {priorityLabel(detailsForm.prioridade_task)}
 									</span>
-									<span
-										className="rounded-full px-3 py-1 text-xs font-semibold text-white"
-										style={{ backgroundColor: typeColor(detailsForm.tipo_task) }}
-									>
-										{typeLabel(detailsForm.tipo_task)}
-									</span>
+									{detailsForm.tipo_task ? (
+										<span
+											className="rounded-full px-3 py-1 text-xs font-semibold text-white"
+											style={{ backgroundColor: typeColor(detailsForm.tipo_task) }}
+										>
+											{typeLabel(detailsForm.tipo_task)}
+										</span>
+									) : null}
 									{detailsForm.bloqueada ? (
 										<span className="rounded-full bg-rose-500 px-3 py-1 text-xs font-semibold text-white">Bloqueada</span>
 									) : null}
